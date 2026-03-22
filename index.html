@@ -760,8 +760,7 @@ class Canvas extends EventEmitter {
   // ── Public: persistence ──
   serialize() {
     const shapes = [...this._shapes.values()].map(s => ({
-      id:         s._cell.id,
-      shapeClass: s.constructor.name,
+      id:         s._cell.id,      shapeClass: s.constructor.name,
       x: s.x, y: s.y,
       props: {
         label:            s.label,
@@ -779,24 +778,32 @@ class Canvas extends EventEmitter {
       customProps: { ...s._customProps },
     }));
 
-    const connections = [...this._connections.values()].map(c => ({
-      id:           c._link.id,
-      sourceId:     c.source._cell.id,
-      targetId:     c.target._cell.id,
-      label:        c.label,
-      labelColor:   c.labelColor,
-      labelFontSize:c.labelFontSize,
-      lineColor:    c.lineColor,
-      lineWidth:    c.lineWidth,
-      lineStyle:    c.lineStyle,
-      sourceArrow:  c.sourceArrow,
-      targetArrow:  c.targetArrow,
-      connectorType:c.connectorType,
-      description:  c.description,
-      sourcePort:   c.sourcePort,
-      targetPort:   c.targetPort,
-      vertices:     c._link.vertices(),
-    }));
+    const connections = [...this._connections.values()].map(c => {
+      // Convert JointJS port ID back to clockwise index (1-based)
+      const portIndex = (cell, portId) => {
+        if (!portId) return null;
+        const ports = cell.getPorts();
+        const idx   = ports.findIndex(p => p.id === portId);
+        return idx >= 0 ? idx + 1 : null;
+      };
+      return {
+        sourceId:      c.source._cell.id,
+        targetId:      c.target._cell.id,
+        sourcePort:    portIndex(c.source._cell, c._link.get('source')?.port),
+        targetPort:    portIndex(c.target._cell, c._link.get('target')?.port),
+        label:         c.label,
+        labelColor:    c.labelColor,
+        labelFontSize: c.labelFontSize,
+        lineColor:     c.lineColor,
+        lineWidth:     c.lineWidth,
+        lineStyle:     c.lineStyle,
+        sourceArrow:   c.sourceArrow,
+        targetArrow:   c.targetArrow,
+        connectorType: c.connectorType,
+        description:   c.description,
+        vertices:      c._link.vertices(),
+      };
+    });
 
     return JSON.stringify({ shapes, connections });
   }
@@ -847,6 +854,9 @@ class Canvas extends EventEmitter {
       });
 
       setTimeout(() => {
+        const prevAutoPort = this._autoPortEnabled;
+        this._autoPortEnabled = false; // disable during restore
+
         connections.forEach(c => {
           const source = idMap[c.sourceId];
           const target = idMap[c.targetId];
@@ -856,11 +866,10 @@ class Canvas extends EventEmitter {
             attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: MARKERS.classic } }
           });
 
-          // Restore exact port assignments
           const srcPorts = source._cell.getPorts();
           const tgtPorts = target._cell.getPorts();
-          const srcPort  = c.sourcePort !== null && srcPorts[c.sourcePort - 1] ? srcPorts[c.sourcePort - 1].id : srcPorts[0]?.id;
-          const tgtPort  = c.targetPort !== null && tgtPorts[c.targetPort - 1] ? tgtPorts[c.targetPort - 1].id : tgtPorts[0]?.id;
+          const srcPort  = c.sourcePort != null ? srcPorts[c.sourcePort - 1]?.id : srcPorts[0]?.id;
+          const tgtPort  = c.targetPort != null ? tgtPorts[c.targetPort - 1]?.id : tgtPorts[0]?.id;
           link.source({ id: source._cell.id, port: srcPort });
           link.target({ id: target._cell.id, port: tgtPort });
           link.addTo(this._graph);
@@ -868,7 +877,6 @@ class Canvas extends EventEmitter {
           const conn = new Connection(link, source, target, this);
           this._connections.set(link.id, conn);
 
-          // Restore all connection properties
           if (c.label)         conn.label         = c.label;
           if (c.labelColor)    conn.labelColor     = c.labelColor;
           if (c.labelFontSize) conn.labelFontSize  = c.labelFontSize;
@@ -884,10 +892,7 @@ class Canvas extends EventEmitter {
           this.emit('connection:add', conn);
         });
 
-        // Run auto-port distributor after all connections are restored
-        if (this._autoPortEnabled) {
-          this._graph.getElements().forEach(el => this._autoPortDistributor(el));
-        }
+        this._autoPortEnabled = prevAutoPort;
       }, 50);
     }, 50);
 
@@ -1105,16 +1110,21 @@ class Canvas extends EventEmitter {
   _bindUI() {
     // Export / Import
     this._exportBtn.addEventListener('click', () => {
-      const json = this.serialize();
-      console.log('Exporting:', json.slice(0, 500));
-      console.log('Shapes map size:', this._shapes.size);
-      console.log('Connections map size:', this._connections.size);
-      const a    = document.createElement('a');
-      a.href     = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-      a.download = 'diagram.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      try {
+        const json = this.serialize();
+        const blob = new Blob([json], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'diagram.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch(err) {
+        console.error('Export error:', err);
+        alert('Export failed: ' + err.message);
+      }
     });
 
     this._importBtn.addEventListener('click', () => this._importFileInput.click());
