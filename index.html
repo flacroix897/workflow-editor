@@ -759,11 +759,109 @@ class Canvas extends EventEmitter {
 
   // ── Public: persistence ──
   serialize() {
-    return JSON.stringify(this._graph.toJSON());
+    const shapes = [...this._shapes.values()].map(s => ({
+      id:         s._cell.id,
+      shapeClass: s.constructor.name,
+      x: s.x, y: s.y,
+      props: {
+        label:            s.label,
+        labelColor:       s.labelColor,
+        labelFontSize:    s.labelFontSize,
+        description:      s.description,
+        descriptionColor: s.descriptionColor,
+        backgroundColor:  s.backgroundColor,
+        borderColor:      s.borderColor,
+        borderWidth:      s.borderWidth,
+        imageUrl:         s.imageUrl,
+        imageWidth:       s.imageWidth,
+        imageHeight:      s.imageHeight,
+      },
+      customProps: { ...s._customProps },
+    }));
+
+    const connections = [...this._connections.values()].map(c => ({
+      id:           c._link.id,
+      sourceId:     c.source._cell.id,
+      targetId:     c.target._cell.id,
+      label:        c.label,
+      labelColor:   c.labelColor,
+      labelFontSize:c.labelFontSize,
+      lineColor:    c.lineColor,
+      lineWidth:    c.lineWidth,
+      lineStyle:    c.lineStyle,
+      sourceArrow:  c.sourceArrow,
+      targetArrow:  c.targetArrow,
+      connectorType:c.connectorType,
+      description:  c.description,
+      sourcePort:   c.sourcePort,
+      targetPort:   c.targetPort,
+      vertices:     c._link.vertices(),
+    }));
+
+    return JSON.stringify({ shapes, connections });
   }
 
   deserialize(data) {
-    this._graph.fromJSON(JSON.parse(data));
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    const { shapes, connections } = parsed;
+    if (!Array.isArray(shapes)) throw new Error('Invalid diagram file format.');
+    this._deselectAll();
+    this._shapes.clear();
+    this._connections.clear();
+    this._graph.clear();
+
+    // Build a lookup of all known shape classes
+    const classMap = {
+      Rectangle, Square, Ellipse, Circle, Diamond,
+      Triangle, Hexagon, Pentagon, Octagon,
+      ...Object.fromEntries(
+        Object.entries(this._registeredShapes || {}).map(([, cls]) => [cls.name, cls])
+      )
+    };
+
+    // Restore shapes
+    const idMap = {}; // old id -> Shape (for reconnecting links)
+    shapes.forEach(s => {
+      const Cls = classMap[s.shapeClass];
+      if (!Cls) { console.warn(`Unknown shape class: ${s.shapeClass}`); return; }
+      const shape = new Cls({ ...s.props, ...s.customProps });
+      const cell  = shape._buildCell({ x: s.x, y: s.y }, joint.shapes);
+      cell.attr('label/text', s.props.label);
+      shape._cell   = cell;
+      shape._canvas = this;
+      Object.entries(s.props).forEach(([k, v]) => { if (k in shape) shape[k] = v; });
+      Object.entries(s.customProps || {}).forEach(([k, v]) => {
+        shape._customProps[k] = v;
+        cell.set(`custom_${k}`, v);
+      });
+      cell.addTo(this._graph);
+      this._shapes.set(cell.id, shape);
+      idMap[s.id] = shape;
+      setTimeout(() => {
+        this._autoSize(cell);
+        if (shape._renderFn) shape._renderFn(shape);
+      }, 50);
+    });
+
+    // Restore connections
+    connections.forEach(c => {
+      const source = idMap[c.sourceId];
+      const target = idMap[c.targetId];
+      if (!source || !target) return;
+      const conn = this._createConnection(source, target, c.sourcePort, c.targetPort);
+      conn.label         = c.label;
+      conn.labelColor    = c.labelColor;
+      conn.labelFontSize = c.labelFontSize;
+      conn.lineColor     = c.lineColor;
+      conn.lineWidth     = c.lineWidth;
+      conn.lineStyle     = c.lineStyle;
+      conn.sourceArrow   = c.sourceArrow;
+      conn.targetArrow   = c.targetArrow;
+      conn.connectorType = c.connectorType;
+      conn.description   = c.description;
+      if (c.vertices?.length) conn._link.vertices(c.vertices);
+    });
+
     return this;
   }
 
@@ -979,6 +1077,9 @@ class Canvas extends EventEmitter {
     // Export / Import
     this._exportBtn.addEventListener('click', () => {
       const json = this.serialize();
+      console.log('Exporting:', json.slice(0, 500));
+      console.log('Shapes map size:', this._shapes.size);
+      console.log('Connections map size:', this._connections.size);
       const a    = document.createElement('a');
       a.href     = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
       a.download = 'diagram.json';
@@ -994,12 +1095,10 @@ class Canvas extends EventEmitter {
       const reader = new FileReader();
       reader.onload = ev => {
         try {
-          this._deselectAll();
-          this._shapes.clear();
-          this._connections.clear();
           this.deserialize(ev.target.result);
         } catch(err) {
-          alert('Failed to import: invalid JSON file.');
+          console.error('Import error:', err);
+          alert('Failed to import: ' + err.message);
         }
       };
       reader.readAsText(file);
