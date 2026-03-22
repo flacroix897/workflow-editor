@@ -620,8 +620,14 @@
     }
 
     document.getElementById('focus-element').addEventListener('click', focusSelected);
-    document.getElementById('duplicate-element').addEventListener('click', duplicateSelected);
-    document.getElementById('delete-element').addEventListener('click', deleteSelected);
+    document.getElementById('duplicate-element').addEventListener('click', () => {
+        duplicateSelected();
+        if (isMobile()) { const r = document.getElementById('right-sidebar'); if (!r.classList.contains('collapsed')) toggleSidebar('right-sidebar'); }
+    });
+    document.getElementById('delete-element').addEventListener('click', () => {
+        deleteSelected();
+        if (isMobile()) { const r = document.getElementById('right-sidebar'); if (!r.classList.contains('collapsed')) toggleSidebar('right-sidebar'); }
+    });
 
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
         tagName: 'circle',
@@ -987,8 +993,8 @@
 
     graph.on('change:position', (el) => autoPortDistributor(el));
 
-    function createNode(type, x, y, label) {
-        let shape, points = [], local = paper.clientToLocalPoint({ x, y });
+    function createNode(type, x, y, label, precomputedLocal) {
+        let shape, points = [], local = precomputedLocal || paper.clientToLocalPoint({ x, y });
         const iW = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 140, iH = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 50;
         const pos = findNearestClearPosition(local.x - iW / 2, local.y - iH / 2, iW, iH);
         const markup = [{ tagName: 'rect', selector: 'body', className: 'body' }, { tagName: 'image', selector: 'image', className: 'image' }, { tagName: 'text', selector: 'label', className: 'label' }, { tagName: 'text', selector: 'descriptionLabel', className: 'descriptionLabel' }];
@@ -1023,7 +1029,8 @@
             const rect = paper.el.getBoundingClientRect();
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
-            createNode(type, cx, cy, type.toUpperCase());
+            const local = paper.clientToLocalPoint({ x: cx, y: cy });
+            createNode(type, cx, cy, type.toUpperCase(), local);
             // Collapse left sidebar
             const left = document.getElementById('left-sidebar');
             if (!left.classList.contains('collapsed')) toggleSidebar('left-sidebar');
