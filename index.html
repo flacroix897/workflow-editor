@@ -1,463 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JointJS Workflow</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.css">
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; touch-action: none; }
-        .wrapper { display: flex; height: 100vh; }
-        
-        #canvas-container {
-            flex-grow: 1;
-            background: #fdfdfd;
-            position: relative;
-            overflow: hidden;
-            cursor: grab;
-        }
-        
-        #canvas-container:active { cursor: grabbing; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JointJS Workflow</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; touch-action: none; }
 
-        .sidebar-left, .sidebar-right {
-            width: 260px;
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
-            z-index: 20;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            min-height: 0;
-        }
+    .wf-wrapper { display: flex; height: 100%; overflow: hidden; }
 
-        .sidebar-left .component-list,
-        .sidebar-right .properties-panel {
-            overflow-y: auto;
-            flex: 1 1 0;
-            min-height: 0;
-        }
+    .wf-canvas-container {
+      flex-grow: 1; background: #fdfdfd;
+      position: relative; overflow: hidden; cursor: grab;
+    }
+    .wf-canvas-container:active { cursor: grabbing; }
+    .wf-paper { width: 100%; height: 100%; }
 
-        .sidebar-left.collapsed, .sidebar-right.collapsed {
-            width: 44px;
-        }
+    /* ── Sidebars ── */
+    .wf-sidebar {
+      width: 260px; background: #f8f9fa;
+      display: flex; flex-direction: column;
+      z-index: 20; position: relative; overflow: hidden; min-height: 0;
+      transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .wf-sidebar.wf-collapsed { width: 44px; }
+    .wf-sidebar-left  { border-right: 1px solid #dee2e6; }
+    .wf-sidebar-right { border-left:  1px solid #dee2e6; }
 
-        .sidebar-left { border-right: 1px solid #dee2e6; }
-        .sidebar-right { border-left: 1px solid #dee2e6; }
+    .wf-sidebar-header {
+      padding: 0 15px; background: #fff; border-bottom: 1px solid #dee2e6;
+      font-weight: bold; display: flex; justify-content: space-between;
+      align-items: center; height: 48px; min-height: 48px; max-height: 48px;
+      white-space: nowrap; overflow: hidden;
+    }
+    .wf-sidebar.wf-collapsed .wf-sidebar-header { justify-content: center; padding: 0; border-bottom: none; }
+    .wf-sidebar.wf-collapsed .wf-sidebar-header .wf-sidebar-title,
+    .wf-sidebar.wf-collapsed .wf-sidebar-body,
+    .wf-sidebar.wf-collapsed .wf-header-actions { display: none !important; }
 
-        .sidebar-header {
-            padding: 0 15px;
-            background: #fff;
-            border-bottom: 1px solid #dee2e6;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 48px;
-            min-height: 48px;
-            max-height: 48px;
-            box-sizing: border-box;
-            white-space: nowrap;
-            overflow: hidden;
-        }
+    .wf-header-actions { display: flex; gap: 4px; }
+    .wf-header-btn {
+      background: none; border: 1px solid #dee2e6; border-radius: 4px;
+      padding: 4px; cursor: pointer; display: flex; align-items: center; color: #6c757d;
+    }
+    .wf-header-btn:hover { background: #f1f3f5; color: #3498db; }
+    .wf-header-btn.danger:hover { color: #e74c3c; border-color: #fadbd8; background: #fdf2f2; }
 
-        /* Center toggle button when collapsed */
-        .sidebar-left.collapsed .sidebar-header,
-        .sidebar-right.collapsed .sidebar-header {
-            justify-content: center;
-            padding: 0;
-            border-bottom: none;
-        }
+    .wf-collapse-btn {
+      border: none; background: none; cursor: pointer; color: #6c757d;
+      padding: 8px; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; border-radius: 4px;
+    }
+    .wf-collapse-btn:hover { background: #f1f3f5; color: #3498db; }
+    .wf-collapse-icon { transition: transform 0.3s; }
 
-        /* Strict hiding of all content except the toggle icon */
-        .sidebar-left.collapsed .sidebar-header span,
-        .sidebar-right.collapsed .sidebar-header span,
-        .sidebar-left.collapsed .component-list,
-        .sidebar-right.collapsed .properties-panel,
-        .sidebar-right.collapsed .header-actions,
-        .sidebar-right.collapsed #no-selection {
-            display: none !important;
-        }
+    /* ── Library ── */
+    .wf-library {
+      padding: 15px; display: flex; flex-direction: column;
+      gap: 10px; overflow-y: auto; flex: 1 1 0; min-height: 0;
+    }
+    .wf-node-template {
+      padding: 12px; background: white; border: 1px solid #ced4da;
+      cursor: grab; text-align: center; border-radius: 6px;
+      transition: all 0.2s; font-size: 13px; color: #495057;
+    }
+    .wf-node-template:hover { border-color: #3498db; background: #f1f9ff; }
 
-        .header-actions { display: flex; gap: 4px; }
+    /* ── Properties ── */
+    .wf-properties {
+      padding: 15px; display: flex; flex-direction: column;
+      gap: 18px; overflow-y: auto; flex: 1 1 0; min-height: 0;
+    }
+    .wf-no-selection { padding: 20px; color: #adb5bd; font-size: 13px; text-align: center; }
+    .wf-prop-group { display: flex; flex-direction: column; gap: 6px; }
+    .wf-prop-group label { font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .wf-prop-group input, .wf-prop-group textarea, .wf-prop-group select {
+      width: 100%; padding: 8px; border: 1px solid #ced4da;
+      border-radius: 4px; font-family: inherit; font-size: 13px;
+    }
+    .wf-prop-group textarea { resize: vertical; min-height: 60px; }
+    .wf-color-row { display: flex; gap: 8px; align-items: center; }
+    .wf-color-row input[type="color"] { width: 40px; padding: 2px; height: 32px; cursor: pointer; flex-shrink: 0; }
+    .wf-prop-row { display: flex; gap: 10px; }
+    .wf-prop-row > .wf-prop-group { flex: 1; }
+    .wf-image-row { display: flex; gap: 8px; align-items: center; }
+    .wf-upload-btn {
+      flex-shrink: 0; width: 40px; height: 34px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;
+    }
+    .wf-upload-btn:hover { background: #f1f3f5; border-color: #3498db; color: #3498db; }
 
-        .header-btn {
-            background: none;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            color: #6c757d;
-        }
+    /* ── Canvas controls ── */
+    .wf-bottom-left {
+      position: absolute; bottom: 20px; left: 20px;
+      z-index: 100; display: flex; flex-direction: column; gap: 10px;
+    }
+    .wf-zoom-group { display: flex; flex-direction: column; gap: 5px; }
+    .wf-ctrl-btn {
+      width: 40px; height: 40px; padding: 0; cursor: pointer;
+      background: #fff; color: #2c3e50; border: 1px solid #dee2e6;
+      border-radius: 4px; font-weight: 500; font-size: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wf-ctrl-btn:hover { background: #f1f3f5; color: #3498db; }
+    .wf-ctrl-btn.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        .header-btn:hover { background: #f1f3f5; color: #3498db; }
-        .header-btn.danger:hover { color: #e74c3c; border-color: #fadbd8; background: #fdf2f2; }
+    /* ── Context menu ── */
+    .wf-context-menu {
+      position: absolute; display: none;
+      background: white; border: 1px solid #ccc;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      z-index: 2000; border-radius: 4px; padding: 5px 0; min-width: 160px;
+    }
+    .wf-menu-item {
+      padding: 8px 15px; cursor: pointer; color: #333; font-size: 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .wf-menu-item:hover { background: #f1f1f1; }
+    .wf-menu-item.danger:hover { color: #e74c3c; }
 
-        .collapse-btn {
-            border: none;
-            background: none;
-            cursor: pointer;
-            color: #6c757d;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.3s, background 0.2s;
-            border-radius: 4px;
-        }
-
-        .collapse-btn:hover { background: #f1f3f5; color: #3498db; }
-
-        .component-list {
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .node-template {
-            padding: 12px;
-            background: white;
-            border: 1px solid #ced4da;
-            cursor: grab;
-            text-align: center;
-            border-radius: 6px;
-            transition: all 0.2s;
-            font-size: 13px;
-            color: #495057;
-        }
-
-        .node-template:hover {
-            border-color: #3498db;
-            background: #f1f9ff;
-        }
-
-        .controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            display: flex; gap: 10px;
-        }
-
-        .bottom-left-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .zoom-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .controls button, .zoom-controls button, .toggle-btn {
-            padding: 8px 16px;
-            cursor: pointer;
-            background: #fff;
-            color: #2c3e50;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 13px;
-        }
-
-        .zoom-controls button, .toggle-btn {
-            width: 40px; height: 40px; padding: 0;
-            font-size: 16px; 
-        }
-
-        .toggle-btn {
-            color: #6c757d;
-        }
-
-        .toggle-btn.active {
-            background: #3498db;
-            color: white;
-            border-color: #2980b9;
-        }
-
-        #paper { width: 100%; height: 100%; }
-
-        .joint-port { display: none; }
-        .joint-highlight-selection ~ .joint-port,
-        .joint-cell.selected .joint-port { display: block; }
-        .joint-paper.dragging-link .joint-port { display: block !important; }
-
-        #context-menu {
-            position: absolute; display: none;
-            background: white; border: 1px solid #ccc;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            z-index: 2000; border-radius: 4px; padding: 5px 0; min-width: 160px;
-        }
-
-        .menu-item { 
-            padding: 8px 15px; cursor: pointer; color: #333; font-size: 14px; 
-            display: flex; align-items: center; gap: 10px;
-        }
-        .menu-item:hover { background-color: #f1f1f1; }
-        .menu-item.danger:hover { color: #e74c3c; }
-
-        .properties-panel { 
-            padding: 15px; display: flex;
-            flex-direction: column; gap: 18px; overflow-y: auto;
-        }
-
-        .prop-group { display: flex; flex-direction: column; gap: 6px; }
-        .prop-group label { font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .properties-panel input, .properties-panel textarea, .properties-panel select {
-            width: 100%; padding: 8px; border: 1px solid #ced4da;
-            border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 13px;
-        }
-        .properties-panel textarea { resize: vertical; min-height: 60px; }
-        .color-input-wrapper { display: flex; gap: 8px; align-items: center; }
-        .color-input-wrapper input[type="color"] { width: 40px; padding: 2px; height: 32px; cursor: pointer; }
-
-        .image-input-wrapper { display: flex; gap: 8px; align-items: center; }
-        .upload-btn {
-            flex-shrink: 0; width: 40px; height: 34px; 
-            padding: 0 !important; display: flex; align-items: center; justify-content: center;
-            background: #fff; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;
-        }
-        .upload-btn:hover { background: #f1f3f5; border-color: #3498db; color: #3498db; }
-        .prop-row { display: flex; gap: 10px; }
-        .prop-row > .prop-group { flex: 1; }
-    </style>
+    /* ── JointJS overrides ── */
+    .joint-port { display: none; }
+    .joint-cell.wf-selected .joint-port { display: block; }
+    .joint-paper.wf-dragging-link .joint-port { display: block !important; }
+  </style>
 </head>
 <body>
-
-<div class="wrapper">
-    <div class="sidebar-left" id="left-sidebar">
-        <div class="sidebar-header">
-            <span>Library</span>
-            <button class="collapse-btn" onclick="toggleSidebar('left-sidebar')" title="Toggle Sidebar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="left-icon"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-        </div>
-        <div class="component-list">
-            <div class="node-template" draggable="true" data-type="rect">Rectangle</div>
-            <div class="node-template" draggable="true" data-type="square">Square</div>
-            <div class="node-template" draggable="true" data-type="ellipse">Ellipse</div>
-            <div class="node-template" draggable="true" data-type="circle">Circle</div>
-            <div class="node-template" draggable="true" data-type="diamond">Diamond</div>
-            <div class="node-template" draggable="true" data-type="triangle">Triangle</div>
-            <div class="node-template" draggable="true" data-type="hexagon">Hexagon</div>
-            <div class="node-template" draggable="true" data-type="pentagon">Pentagon</div>
-            <div class="node-template" draggable="true" data-type="octagon">Octagon</div>
-        </div>
-    </div>
-
-    <div id="canvas-container">
-        <div class="controls">
-            <button onclick="layout()">Canvas Button</button>
-        </div>
-        
-        <div class="bottom-left-controls">
-            <button id="toggle-auto-port" class="toggle-btn active" title="Toggle Auto Port Switching (ON)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>
-            </button>
-
-            <div class="zoom-controls">
-                <button id="zoom-fit" title="Fit Content to View">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                </button>
-                <button id="zoom-reset" title="Reset Zoom to 100%">1:1</button>
-                <button id="zoom-in" title="Zoom In">+</button>
-                <button id="zoom-out" title="Zoom Out">-</button>
-                <button id="zoom-center" title="Center View on Content">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-            </div>
-        </div>
-
-        <div id="paper"></div>
-        <div id="context-menu">
-            <div class="menu-item" id="clone-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Duplicate
-            </div>
-            <div class="menu-item danger" id="delete-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                Delete
-            </div>
-        </div>
-    </div>
-
-    <div class="sidebar-right" id="right-sidebar">
-        <div class="sidebar-header">
-            <button class="collapse-btn" onclick="toggleSidebar('right-sidebar')" title="Toggle Sidebar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="right-icon"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-            <span>Properties</span>
-            <div class="header-actions" id="sidebar-actions" style="display: none;">
-                <button id="focus-element" class="header-btn" title="Center on Element">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-                <button id="duplicate-element" class="header-btn" title="Duplicate">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </button>
-                <button id="delete-element" class="header-btn danger" title="Delete">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Element Properties -->
-        <div class="properties-panel" id="prop-panel-element" style="display: none;">
-            <div class="prop-group">
-                <label>Label</label>
-                <input type="text" id="prop-label" oninput="updateProperty('label/text', this.value, true)">
-            </div>
-            <div class="prop-group">
-                <label>Font Size (%)</label>
-                <input type="number" id="prop-font-size" value="100" min="10" max="500" oninput="updateProperty('fontSizePercent', this.value)">
-            </div>
-            <div class="prop-group">
-                <label>Background Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="prop-bg-picker" oninput="syncColorInput('prop-bg-picker', 'prop-bg-hex', 'body/fill')">
-                    <input type="text" id="prop-bg-hex" placeholder="#FFFFFF" oninput="syncColorInput('prop-bg-hex', 'prop-bg-picker', 'body/fill')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Border Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="prop-border-picker" oninput="syncColorInput('prop-border-picker', 'prop-border-hex', 'body/stroke')">
-                    <input type="text" id="prop-border-hex" placeholder="#ADB5BD" oninput="syncColorInput('prop-border-hex', 'prop-border-picker', 'body/stroke')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Label Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="prop-label-picker" oninput="syncColorInput('prop-label-picker', 'prop-label-hex', 'label/fill')">
-                    <input type="text" id="prop-label-hex" placeholder="#000000" oninput="syncColorInput('prop-label-hex', 'prop-label-picker', 'label/fill')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Description Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="prop-desc-picker" oninput="syncColorInput('prop-desc-picker', 'prop-desc-hex', 'descriptionLabel/fill')">
-                    <input type="text" id="prop-desc-hex" placeholder="#6C757D" oninput="syncColorInput('prop-desc-hex', 'prop-desc-picker', 'descriptionLabel/fill')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Description</label>
-                <textarea id="prop-desc" oninput="updateProperty('description', this.value)"></textarea>
-            </div>
-            <div class="prop-group">
-                <label>Image URL</label>
-                <div class="image-input-wrapper">
-                    <input type="text" id="prop-image" placeholder="https://..." oninput="updateProperty('imageUrl', this.value)">
-                    <button class="upload-btn" onclick="document.getElementById('image-upload-input').click()" title="Upload Image">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </button>
-                    <input type="file" id="image-upload-input" style="display: none;" accept="image/*" onchange="handleImageUpload(this)">
-                </div>
-            </div>
-            <div class="prop-row">
-                <div class="prop-group">
-                    <label>Image Width</label>
-                    <input type="number" id="prop-img-w" min="0" oninput="updateProperty('imageWidth', this.value)">
-                </div>
-                <div class="prop-group">
-                    <label>Image Height</label>
-                    <input type="number" id="prop-img-h" min="0" oninput="updateProperty('imageHeight', this.value)">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Status</label>
-                <select id="prop-status" onchange="updateProperty('status', this.value)">
-                    <option value="pending">Pending</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                </select>
-            </div>
-            <div class="prop-group">
-                <label>Priority (1-10)</label>
-                <input type="number" id="prop-priority" min="1" max="10" oninput="updateProperty('priority', this.value)">
-            </div>
-        </div>
-
-        <!-- Link Properties -->
-        <div class="properties-panel" id="prop-panel-link" style="display: none;">
-            <div class="prop-group">
-                <label>Label</label>
-                <input type="text" id="link-prop-label" oninput="updateLinkProperty('label', this.value)">
-            </div>
-            <div class="prop-group">
-                <label>Label Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="link-prop-fg-picker" oninput="syncLinkPropertyColor('link-prop-fg-picker', 'link-prop-fg-hex', 'labelColor')">
-                    <input type="text" id="link-prop-fg-hex" placeholder="#333333" oninput="syncLinkPropertyColor('link-prop-fg-hex', 'link-prop-fg-picker', 'labelColor')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Font Size (%)</label>
-                <input type="number" id="link-prop-font-size" value="100" min="10" max="500" oninput="updateLinkProperty('fontSizePercent', this.value)">
-            </div>
-            <div class="prop-group">
-                <label>Connector Type</label>
-                <select id="link-prop-connector" onchange="updateLinkProperty('connector', this.value)">
-                    <option value="elbow">Elbow (Default)</option>
-                    <option value="straight">Straight</option>
-                    <option value="curved">Curved</option>
-                </select>
-            </div>
-            <div class="prop-group">
-                <label>Line Color</label>
-                <div class="color-input-wrapper">
-                    <input type="color" id="link-prop-color-picker" oninput="syncLinkPropertyColor('link-prop-color-picker', 'link-prop-color-hex', 'color')">
-                    <input type="text" id="link-prop-color-hex" placeholder="#495057" oninput="syncLinkPropertyColor('link-prop-color-hex', 'link-prop-color-picker', 'color')">
-                </div>
-            </div>
-            <div class="prop-group">
-                <label>Line Style</label>
-                <select id="link-prop-style" onchange="updateLinkProperty('style', this.value)">
-                    <option value="solid">Solid</option>
-                    <option value="dashed">Dashed</option>
-                    <option value="dotted">Dotted</option>
-                </select>
-            </div>
-            <div class="prop-group">
-                <label>Source Arrow</label>
-                <select id="link-prop-source-arrow" onchange="updateLinkProperty('sourceArrow', this.value)">
-                    <option value="none">None</option>
-                    <option value="classic">Classic</option>
-                    <option value="block">Block</option>
-                </select>
-            </div>
-            <div class="prop-group">
-                <label>Target Arrow</label>
-                <select id="link-prop-target-arrow" onchange="updateLinkProperty('targetArrow', this.value)">
-                    <option value="none">None</option>
-                    <option value="classic">Classic</option>
-                    <option value="block">Block</option>
-                </select>
-            </div>
-            <div class="prop-group">
-                <label>Description</label>
-                <textarea id="link-prop-desc" oninput="updateLinkProperty('description', this.value)"></textarea>
-            </div>
-        </div>
-
-        <div id="no-selection" style="padding: 20px; color: #adb5bd; font-size: 13px; text-align: center;">
-            Select an item to view properties
-        </div>
-    </div>
-</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
@@ -465,618 +137,1335 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.js"></script>
 
 <script>
-    const namespace = joint.shapes;
-    const graph = new joint.dia.Graph({}, { cellNamespace: namespace });
-    const GRID_SIZE = 10;
-    let isAutoPortEnabled = true;
+'use strict';
 
-    const MARKERS = {
-        none: null,
-        classic: { 'type': 'path', 'd': 'M 10 -5 0 0 10 5 Z' },
-        block: { 'type': 'path', 'd': 'M 10 -10 0 0 10 10 Z' }
-    };
+// ═══════════════════════════════════════════════════════════════
+// EventEmitter
+// ═══════════════════════════════════════════════════════════════
+class EventEmitter {
+  constructor() { this._listeners = {}; }
 
-    const paper = new joint.dia.Paper({
-        el: document.getElementById('paper'),
-        model: graph,
-        width: "100%",
-        height: "100%",
-        gridSize: GRID_SIZE,
-        drawGrid: { name: 'dot', color: '#e9ecef' },
-        background: { color: '#ffffff' },
-        cellNamespace: namespace,
-        defaultConnector: { name: 'rounded' },
-        defaultRouter: { 
-            name: 'manhattan', 
-            args: { step: GRID_SIZE, padding: 20, maxIter: 200 } 
-        },
-        interactive: { linkMove: true, vertexAdd: true, vertexMove: true, elementMove: true },
-        linkPinning: false,
-        snapLinks: { radius: 25 },
-        markAvailable: true,
-        defaultLink: () => new joint.shapes.standard.Link({
-            attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: MARKERS.classic } }
-        }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt
+  on(event, cb) {
+    if (!this._listeners[event]) this._listeners[event] = [];
+    this._listeners[event].push(cb);
+    return this;
+  }
+
+  off(event, cb) {
+    if (!this._listeners[event]) return this;
+    this._listeners[event] = this._listeners[event].filter(fn => fn !== cb);
+    return this;
+  }
+
+  emit(event, ...args) {
+    (this._listeners[event] || []).forEach(fn => fn(...args));
+    return this;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Vertex
+// ═══════════════════════════════════════════════════════════════
+class Vertex extends EventEmitter {
+  constructor(link, index) {
+    super();
+    this.id = `vertex-${Math.random().toString(36).slice(2)}`;
+    this._link = link;
+    this._index = index;
+  }
+
+  get x() { return this._link.vertices()[this._index]?.x ?? 0; }
+  get y() { return this._link.vertices()[this._index]?.y ?? 0; }
+
+  moveTo(x, y) {
+    const verts = [...this._link.vertices()];
+    verts[this._index] = { x, y };
+    this._link.vertices(verts);
+    this.emit('move', this);
+    return this;
+  }
+
+  moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
+
+  remove() {
+    const verts = [...this._link.vertices()];
+    verts.splice(this._index, 1);
+    this._link.vertices(verts);
+    this.emit('remove', this);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Connection
+// ═══════════════════════════════════════════════════════════════
+const MARKERS = {
+  none:    null,
+  classic: { type: 'path', d: 'M 10 -5 0 0 10 5 Z' },
+  block:   { type: 'path', d: 'M 10 -10 0 0 10 10 Z' }
+};
+
+class Connection extends EventEmitter {
+  constructor(link, source, target, canvas) {
+    super();
+    this._link   = link;
+    this._source = source;
+    this._target = target;
+    this._canvas = canvas;
+    this._vertices = [];
+  }
+
+  get id()     { return this._link.id; }
+  get source() { return this._source; }
+  get target() { return this._target; }
+
+  // ── label ──
+  get label()      { return this._link.label(0)?.attrs?.text?.text || ''; }
+  set label(v)     { this._applyLabel(v); this.emit('change', this); }
+
+  get labelColor() { return this._link.label(0)?.attrs?.text?.fill || '#333333'; }
+  set labelColor(v){ this._link.prop('labelColor', v); this._applyLabel(this.label); this.emit('change', this); }
+
+  get labelFontSize() { return this._link.get('fontSizePercent') || 100; }
+  set labelFontSize(v){ this._link.set('fontSizePercent', v); this._applyLabel(this.label); this.emit('change', this); }
+
+  // ── line ──
+  get lineColor()  { return this._link.attr('line/stroke') || '#495057'; }
+  set lineColor(v) { this._link.attr('line/stroke', v); this.emit('change', this); }
+
+  get lineWidth()  { return this._link.attr('line/strokeWidth') || 2; }
+  set lineWidth(v) { this._link.attr('line/strokeWidth', v); this.emit('change', this); }
+
+  get lineStyle()  {
+    const d = this._link.attr('line/strokeDasharray') || '';
+    return d === '5,5' ? 'dashed' : d === '1,5' ? 'dotted' : 'solid';
+  }
+  set lineStyle(v) {
+    this._link.attr('line/strokeDasharray', v === 'dashed' ? '5,5' : v === 'dotted' ? '1,5' : '');
+    this.emit('change', this);
+  }
+
+  // ── arrows ──
+  get sourceArrow() { return this._markerType(this._link.attr('line/sourceMarker')); }
+  set sourceArrow(v){ this._link.attr('line/sourceMarker', MARKERS[v] || null); this.emit('change', this); }
+
+  get targetArrow() { return this._markerType(this._link.attr('line/targetMarker')); }
+  set targetArrow(v){ this._link.attr('line/targetMarker', MARKERS[v] || null); this.emit('change', this); }
+
+  // ── connector ──
+  get connectorType() {
+    const c = this._link.connector()?.name;
+    const r = this._link.router()?.name;
+    return c === 'smooth' ? 'curved' : r === 'normal' ? 'straight' : 'elbow';
+  }
+  set connectorType(v) {
+    const GRID = this._canvas._GRID;
+    if (v === 'elbow')    { this._link.router('manhattan', { step: GRID, padding: 20 }); this._link.connector('rounded'); }
+    else if (v === 'straight') { this._link.router('normal'); this._link.connector('normal'); }
+    else                  { this._link.router('normal'); this._link.connector('smooth'); }
+    this.emit('change', this);
+  }
+
+  // ── ports ──
+  get sourcePort() { return this._link.get('sourcePort') ?? null; }
+  set sourcePort(v){ this._setPort('source', v); }
+
+  get targetPort() { return this._link.get('targetPort') ?? null; }
+  set targetPort(v){ this._setPort('target', v); }
+
+  // ── description ──
+  get description()  { return this._link.get('description') || ''; }
+  set description(v) { this._link.set('description', v); this.emit('change', this); }
+
+  // ── vertices ──
+  getVertices() { return [...this._vertices]; }
+
+  addVertex(x, y) {
+    const verts = [...this._link.vertices(), { x, y }];
+    this._link.vertices(verts);
+    const v = new Vertex(this._link, verts.length - 1);
+    this._vertices.push(v);
+    return v;
+  }
+
+  // ── selection ──
+  select()   { this._canvas._selectCell(this); return this; }
+  deselect() { this._canvas._deselectAll(); return this; }
+
+  remove() {
+    this._link.remove();
+    this.emit('remove', this);
+  }
+
+  // ── internal ──
+  _applyLabel(text) {
+    const fontSize = 12 * ((this._link.get('fontSizePercent') || 100) / 100);
+    const color = this._link.get('labelColor') || '#333333';
+    this._link.labels(text ? [{ attrs: { text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }] : []);
+  }
+
+  _markerType(m) {
+    if (!m) return 'none';
+    if (m.d === MARKERS.classic.d) return 'classic';
+    if (m.d === MARKERS.block.d)   return 'block';
+    return 'none';
+  }
+
+  _setPort(side, portIndex) {
+    const shape = side === 'source' ? this._source : this._target;
+    this._link.set(`${side}Port`, portIndex);
+    if (portIndex === null) {
+      this._link[side]({ id: shape._cell.id });
+    } else {
+      const ports = shape._cell.getPorts();
+      const port  = ports[portIndex - 1];
+      if (port) this._link[side]({ id: shape._cell.id, port: port.id });
+    }
+    this.emit('change', this);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Shape
+// ═══════════════════════════════════════════════════════════════
+class Shape extends EventEmitter {
+  constructor(label = '') {
+    super();
+    this._label = label;
+    this._cell  = null; // set by Canvas when added
+    this._canvas = null;
+  }
+
+  get id()     { return this._cell?.id ?? null; }
+
+  // ── position / size ──
+  get x()      { return this._cell?.position().x ?? 0; }
+  set x(v)     { this._cell?.position(v, this.y); this.emit('change', this); }
+
+  get y()      { return this._cell?.position().y ?? 0; }
+  set y(v)     { this._cell?.position(this.x, v); this.emit('change', this); }
+
+  get width()  { return this._cell?.size().width ?? 0; }
+  get height() { return this._cell?.size().height ?? 0; }
+  get portCount() { return 4; } // overridden by subclasses
+
+  // ── label ──
+  get label()  { return this._cell?.attr('label/text') ?? this._label; }
+  set label(v) { this._cell?.attr('label/text', v); this._label = v; this._autoSize(); this.emit('change', this); }
+
+  get labelColor()  { return this._cell?.attr('label/fill') ?? '#212529'; }
+  set labelColor(v) { this._cell?.attr('label/fill', v); this.emit('change', this); }
+
+  get labelFontSize()  { return this._cell?.get('fontSizePercent') ?? 100; }
+  set labelFontSize(v) { this._cell?.set('fontSizePercent', v); this._autoSize(); this.emit('change', this); }
+
+  // ── description ──
+  get description()  { return this._cell?.get('description') ?? ''; }
+  set description(v) { this._cell?.set('description', v); this._cell?.attr('descriptionLabel/text', v); this._autoSize(); this.emit('change', this); }
+
+  get descriptionColor()  { return this._cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
+  set descriptionColor(v) { this._cell?.attr('descriptionLabel/fill', v); this.emit('change', this); }
+
+  // ── appearance ──
+  get backgroundColor()  { return this._cell?.attr('body/fill') ?? '#ffffff'; }
+  set backgroundColor(v) { this._cell?.attr('body/fill', v); this.emit('change', this); }
+
+  get borderColor()  { return this._cell?.attr('body/stroke') ?? '#adb5bd'; }
+  set borderColor(v) { this._cell?.attr('body/stroke', v); this.emit('change', this); }
+
+  get borderWidth()  { return this._cell?.attr('body/strokeWidth') ?? 2; }
+  set borderWidth(v) { this._cell?.attr('body/strokeWidth', v); this.emit('change', this); }
+
+  // ── image ──
+  get imageUrl()  { return this._cell?.get('imageUrl') ?? ''; }
+  set imageUrl(v) {
+    this._cell?.set('imageUrl', v);
+    this._cell?.attr('image/xlink:href', v);
+    this._cell?.attr('image/display', v ? 'block' : 'none');
+    this._autoSize(); this.emit('change', this);
+  }
+
+  get imageWidth()  { return this._cell?.get('imageWidth') ?? 32; }
+  set imageWidth(v) { this._cell?.set('imageWidth', v); this._autoSize(); this.emit('change', this); }
+
+  get imageHeight()  { return this._cell?.get('imageHeight') ?? 32; }
+  set imageHeight(v) { this._cell?.set('imageHeight', v); this._autoSize(); this.emit('change', this); }
+
+  // ── metadata ──
+  get status()  { return this._cell?.get('status') ?? 'pending'; }
+  set status(v) { this._cell?.set('status', v); this.emit('change', this); }
+
+  get priority()  { return this._cell?.get('priority') ?? 1; }
+  set priority(v) { this._cell?.set('priority', v); this.emit('change', this); }
+
+  // ── methods ──
+  moveTo(x, y) {
+    this._cell?.position(x, y);
+    this.emit('move', this);
+    return this;
+  }
+
+  moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
+
+  toFront() { this._cell?.toFront(); return this; }
+  toBack()  { this._cell?.toBack(); return this; }
+
+  select()   { this._canvas?._selectCell(this); return this; }
+  deselect() { this._canvas?._deselectAll(); return this; }
+
+  getConnections()         { return this._canvas?._getConnectionsForShape(this) ?? []; }
+  getIncomingConnections() { return this.getConnections().filter(c => c.target === this); }
+  getOutgoingConnections() { return this.getConnections().filter(c => c.source === this); }
+
+  connect(target, sourcePort = null, targetPort = null) {
+    if (target === this) throw new Error('A shape cannot connect to itself.');
+    return this._canvas?._createConnection(this, target, sourcePort, targetPort);
+  }
+
+  remove() {
+    this._cell?.remove();
+    this.emit('remove', this);
+  }
+
+  // ── internal: implemented per subclass ──
+  _buildCell(pos, ns) { throw new Error('_buildCell must be implemented by subclass'); }
+
+  _autoSize() {
+    if (!this._canvas || !this._cell) return;
+    this._canvas._autoSize(this._cell);
+  }
+
+  _getShapeType() { return 'rect'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Shape subclasses
+// ═══════════════════════════════════════════════════════════════
+class Rectangle extends Shape {
+  get portCount() { return 4; }
+  _getShapeType() { return 'rect'; }
+  _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'rect', 140, 50); }
+}
+
+class Square extends Shape {
+  get portCount() { return 4; }
+  _getShapeType() { return 'square'; }
+  _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'square', 80, 80); }
+}
+
+class Ellipse extends Shape {
+  get portCount() { return 4; }
+  _getShapeType() { return 'ellipse'; }
+  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
+}
+
+class Circle extends Shape {
+  get portCount() { return 4; }
+  _getShapeType() { return 'circle'; }
+  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
+}
+
+class Diamond extends Shape {
+  get portCount() { return 4; }
+  _getShapeType() { return 'diamond'; }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
+}
+
+class Triangle extends Shape {
+  get portCount() { return 3; }
+  _getShapeType() { return 'triangle'; }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
+}
+
+class Hexagon extends Shape {
+  get portCount() { return 6; }
+  _getShapeType() { return 'hexagon'; }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
+}
+
+class Pentagon extends Shape {
+  get portCount() { return 5; }
+  _getShapeType() { return 'pentagon'; }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
+}
+
+class Octagon extends Shape {
+  get portCount() { return 8; }
+  _getShapeType() { return 'octagon'; }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
+}
+
+// ── Cell builder helpers ──
+const _sharedMarkup = [
+  { tagName: 'image',  selector: 'image',            className: 'image' },
+  { tagName: 'text',   selector: 'label',            className: 'label' },
+  { tagName: 'text',   selector: 'descriptionLabel', className: 'descriptionLabel' }
+];
+const _sharedAttrs = {
+  image:            { display: 'none' },
+  label:            { fill: '#212529', fontSize: 13, fontWeight: 'bold', pointerEvents: 'none' },
+  descriptionLabel: { text: '', fill: '#6c757d', fontSize: 11, pointerEvents: 'none' }
+};
+const _sharedProps = { description: '', status: 'pending', priority: 1, imageUrl: '', imageWidth: 32, imageHeight: 32, fontSizePercent: 100 };
+
+function _attachPorts(cell, points) {
+  cell.prop('ports/groups', {
+    all: {
+      position: points.length > 0 ? 'absolute' : 'ellipseSpread',
+      attrs: { circle: { r: 6, fill: '#3498db', magnet: true, stroke: '#fff', strokeWidth: 2 } }
+    }
+  });
+  const portData = points.length === 0
+    ? [{ group:'all', args:{x:'50%',y:'0%'} }, { group:'all', args:{x:'100%',y:'50%'} }, { group:'all', args:{x:'50%',y:'100%'} }, { group:'all', args:{x:'0%',y:'50%'} }]
+    : points.map((p, i) => {
+        const next = points[(i+1) % points.length];
+        const mx = ((p[0]+next[0])/2 / 20)*100, my = ((p[1]+next[1])/2 / 20)*100;
+        return { group:'all', args:{ x:`${mx}%`, y:`${my}%` } };
+      });
+  cell.addPorts(portData);
+}
+
+function _buildStandardRect(pos, ns, type, w, h) {
+  const cell = new ns.standard.Rectangle();
+  cell.markup = [{ tagName:'rect', selector:'body', className:'body' }, ..._sharedMarkup];
+  cell.position(pos.x, pos.y).resize(w, h);
+  cell.attr({ body: { fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2, rx:5, ry:5 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps });
+  _attachPorts(cell, []);
+  return cell;
+}
+
+function _buildEllipseCell(pos, ns, type, w, h) {
+  const cell = new ns.standard.Ellipse();
+  cell.markup = [{ tagName:'ellipse', selector:'body', className:'body' }, ..._sharedMarkup];
+  cell.position(pos.x, pos.y).resize(w, h);
+  cell.attr({ body: { fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps });
+  _attachPorts(cell, []);
+  return cell;
+}
+
+function _buildPolygonCell(pos, ns, type, w, h, points) {
+  const cell = new ns.standard.Polygon();
+  cell.markup = [{ tagName:'polygon', selector:'body', className:'body' }, ..._sharedMarkup];
+  cell.position(pos.x, pos.y).resize(w, h);
+  cell.attr({ body: { refPoints: points.map(p=>p.join(',')).join(' '), fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps });
+  _attachPorts(cell, points);
+  return cell;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Canvas
+// ═══════════════════════════════════════════════════════════════
+class Canvas extends EventEmitter {
+  constructor(element) {
+    super();
+    this._el      = element;
+    this._GRID    = 10;
+    this._shapes  = new Map(); // cellId -> Shape
+    this._connections = new Map(); // linkId -> Connection
+    this._selected = null;
+    this._autoPortEnabled = true;
+    this._touchState = null;
+    this._pointerDownPos = null;
+    this._wasAlreadySelected = false;
+
+    this._buildDOM();
+    this._initPaper();
+    this._bindUI();
+    this._bindPaperEvents();
+    this._bindTouchEvents();
+
+    if (this._isMobile()) {
+      this._setSidebarCollapsed(this._leftSidebar, true);
+      this._setSidebarCollapsed(this._rightSidebar, true);
+    }
+  }
+
+  // ── Public: shapes ──
+  addShape(shape, x, y) {
+    const ns  = joint.shapes;
+    const container = this._canvasContainer;
+    const cx  = x ?? (container.clientWidth  / 2);
+    const cy  = y ?? (container.clientHeight / 2);
+    const local = this._paper.clientToLocalPoint({ x: cx + container.getBoundingClientRect().left, y: cy + container.getBoundingClientRect().top });
+    const iW  = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 140;
+    const iH  = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 50;
+    const pos = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
+    const cell = shape._buildCell(pos, ns);
+    cell.attr('label/text', shape._label);
+    shape._cell   = cell;
+    shape._canvas = this;
+    cell.addTo(this._graph);
+    this._shapes.set(cell.id, shape);
+    setTimeout(() => this._autoSize(cell), 50);
+    this.emit('shape:add', shape);
+    return shape;
+  }
+
+  removeShape(shape) {
+    shape.remove();
+    this._shapes.delete(shape.id);
+    this.emit('shape:remove', shape);
+  }
+
+  getShapes() { return [...this._shapes.values()]; }
+
+  // ── Public: connections ──
+  getConnections() { return [...this._connections.values()]; }
+
+  // ── Public: viewport ──
+  moveTo(x, y) { this._paper.translate(x, y); return this; }
+
+  moveToCenter() {
+    const bbox = this._graph.getBBox();
+    if (!bbox) return this;
+    const s = this._paper.getComputedSize();
+    this._paper.scale(1,1);
+    this._paper.translate(s.width/2 - (bbox.x + bbox.width/2), s.height/2 - (bbox.y + bbox.height/2));
+    return this;
+  }
+
+  zoomIn(factor = 1.25)  { this._zoomCenter(factor); return this; }
+  zoomOut(factor = 0.8)  { this._zoomCenter(factor); return this; }
+  zoomReset()            { this._zoomCenter(1 / this._paper.scale().sx); return this; }
+  zoomToFit()            { this._paper.scaleContentToFit({ padding:50, minScale:0.2, maxScale:2 }); return this; }
+  getZoom()              { return this._paper.scale().sx; }
+
+  // ── Public: selection ──
+  getSelection()  { return this._selected; }
+  clearSelection(){ this._deselectAll(); return this; }
+
+  // ── Public: settings ──
+  setAutoPortSwitching(enabled) {
+    this._autoPortEnabled = enabled;
+    this._autoPortBtn.classList.toggle('active', enabled);
+    if (enabled) this._graph.getElements().forEach(el => this._autoPortDistributor(el));
+    return this;
+  }
+
+  setLibraryOpen(open) {
+    if (open !== this._leftSidebar.classList.contains('wf-collapsed')) return this;
+    this._toggleSidebar(this._leftSidebar);
+    return this;
+  }
+
+  setPropertiesOpen(open) {
+    if (open !== this._rightSidebar.classList.contains('wf-collapsed')) return this;
+    this._toggleSidebar(this._rightSidebar);
+    return this;
+  }
+
+  // ── Public: persistence ──
+  serialize() {
+    return JSON.stringify(this._graph.toJSON());
+  }
+
+  deserialize(data) {
+    this._graph.fromJSON(JSON.parse(data));
+    return this;
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: DOM
+  // ═══════════════════════════════════════════
+  _buildDOM() {
+    this._el.innerHTML = '';
+    this._el.style.cssText = 'display:flex;height:100%;overflow:hidden;';
+
+    // Left sidebar
+    this._leftSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-left'));
+    const leftHeader = this._leftSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
+    leftHeader.innerHTML = `
+      <span class="wf-sidebar-title">Library</span>
+      <button class="wf-collapse-btn" title="Toggle Library">
+        <svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>`;
+    this._leftCollapseBtn  = leftHeader.querySelector('.wf-collapse-btn');
+    this._leftCollapseIcon = leftHeader.querySelector('.wf-collapse-icon');
+    this._library = this._leftSidebar.appendChild(this._createEl('div', 'wf-library wf-sidebar-body'));
+    this._buildLibrary();
+
+    // Canvas container
+    this._canvasContainer = this._el.appendChild(this._createEl('div', 'wf-canvas-container'));
+    this._paperEl = this._canvasContainer.appendChild(this._createEl('div', 'wf-paper'));
+
+    // Bottom-left controls
+    const bottomLeft = this._canvasContainer.appendChild(this._createEl('div', 'wf-bottom-left'));
+    this._autoPortBtn = bottomLeft.appendChild(this._createEl('button', 'wf-ctrl-btn active'));
+    this._autoPortBtn.title = 'Toggle Auto Port Switching';
+    this._autoPortBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
+    const zoomGroup = bottomLeft.appendChild(this._createEl('div', 'wf-zoom-group'));
+    this._zoomFitBtn    = this._zoomBtn(zoomGroup, 'Fit', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
+    this._zoomResetBtn  = this._zoomBtn(zoomGroup, 'Reset Zoom', '1:1');
+    this._zoomInBtn     = this._zoomBtn(zoomGroup, 'Zoom In', '+');
+    this._zoomOutBtn    = this._zoomBtn(zoomGroup, 'Zoom Out', '−');
+    this._zoomCenterBtn = this._zoomBtn(zoomGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
+
+    // Context menu
+    this._contextMenu = this._canvasContainer.appendChild(this._createEl('div', 'wf-context-menu'));
+    this._contextMenu.innerHTML = `
+      <div class="wf-menu-item" data-action="duplicate">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Duplicate
+      </div>
+      <div class="wf-menu-item danger" data-action="delete">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Delete
+      </div>`;
+
+    // Right sidebar
+    this._rightSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-right'));
+    const rightHeader = this._rightSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
+    rightHeader.innerHTML = `
+      <button class="wf-collapse-btn" title="Toggle Properties">
+        <svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <span class="wf-sidebar-title">Properties</span>
+      <div class="wf-header-actions wf-sidebar-body" style="display:none;">
+        <button class="wf-header-btn" data-action="focus" title="Center on Element">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="wf-header-btn" data-action="duplicate" title="Duplicate">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="wf-header-btn danger" data-action="delete" title="Delete">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`;
+    this._rightCollapseBtn  = rightHeader.querySelector('.wf-collapse-btn');
+    this._rightCollapseIcon = rightHeader.querySelector('.wf-collapse-icon');
+    this._rightHeaderActions = rightHeader.querySelector('.wf-header-actions');
+
+    this._propPanelEl   = this._buildElementPropsPanel();
+    this._propPanelLink = this._buildLinkPropsPanel();
+    this._noSelection   = this._rightSidebar.appendChild(this._createEl('div', 'wf-no-selection wf-sidebar-body'));
+    this._noSelection.textContent = 'Select an item to view properties';
+
+    this._showPanel('none');
+  }
+
+  _buildLibrary() {
+    const shapes = [
+      { label:'Rectangle', type:'rect',     cls: Rectangle },
+      { label:'Square',    type:'square',   cls: Square    },
+      { label:'Ellipse',   type:'ellipse',  cls: Ellipse   },
+      { label:'Circle',    type:'circle',   cls: Circle    },
+      { label:'Diamond',   type:'diamond',  cls: Diamond   },
+      { label:'Triangle',  type:'triangle', cls: Triangle  },
+      { label:'Hexagon',   type:'hexagon',  cls: Hexagon   },
+      { label:'Pentagon',  type:'pentagon', cls: Pentagon  },
+      { label:'Octagon',   type:'octagon',  cls: Octagon   },
+    ];
+    shapes.forEach(({ label, type, cls }) => {
+      const el = this._library.appendChild(this._createEl('div', 'wf-node-template'));
+      el.textContent = label;
+      el.draggable = true;
+      el.dataset.type = type;
+      el.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
+      el.addEventListener('click', () => {
+        if (!this._isMobile()) return;
+        this.addShape(new cls(label.toUpperCase()));
+        if (!this._leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._leftSidebar);
+      });
     });
 
-    function toggleSidebar(id) {
-        const sidebar = document.getElementById(id);
-        const icon = document.getElementById(id === 'left-sidebar' ? 'left-icon' : 'right-icon');
 
-        // Snapshot translate and canvas width before any change
-        const translateBefore = paper.translate();
-        const containerBefore = document.getElementById('canvas-container').clientWidth;
+  }
 
-        const isCollapsed = sidebar.classList.toggle('collapsed');
-        icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+  _buildElementPropsPanel() {
+    const panel = this._rightSidebar.appendChild(this._createEl('div', 'wf-properties wf-prop-panel-element wf-sidebar-body'));
+    panel.style.display = 'none';
+    panel.innerHTML = `
+      <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
+      <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
+      <div class="wf-prop-group"><label>Background Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="backgroundColor" data-pair="backgroundColorHex"><input type="text" data-prop="backgroundColorHex" data-pair-picker="backgroundColor" placeholder="#FFFFFF"></div></div>
+      <div class="wf-prop-group"><label>Border Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="borderColor" data-pair="borderColorHex"><input type="text" data-prop="borderColorHex" data-pair-picker="borderColor" placeholder="#ADB5BD"></div></div>
+      <div class="wf-prop-group"><label>Label Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#212529"></div></div>
+      <div class="wf-prop-group"><label>Description Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="descriptionColor" data-pair="descriptionColorHex"><input type="text" data-prop="descriptionColorHex" data-pair-picker="descriptionColor" placeholder="#6C757D"></div></div>
+      <div class="wf-prop-group"><label>Description</label><textarea data-prop="description"></textarea></div>
+      <div class="wf-prop-group"><label>Image URL</label>
+        <div class="wf-image-row">
+          <input type="text" data-prop="imageUrl" placeholder="https://...">
+          <button class="wf-upload-btn" data-action="upload-image" title="Upload Image">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </button>
+          <input type="file" data-action="image-file" style="display:none;" accept="image/*">
+        </div></div>
+      <div class="wf-prop-row">
+        <div class="wf-prop-group"><label>Image Width</label><input type="number" data-prop="imageWidth" min="0"></div>
+        <div class="wf-prop-group"><label>Image Height</label><input type="number" data-prop="imageHeight" min="0"></div>
+      </div>
+      <div class="wf-prop-group"><label>Status</label>
+        <select data-prop="status"><option value="pending">Pending</option><option value="in-progress">In Progress</option><option value="completed">Completed</option></select></div>
+      <div class="wf-prop-group"><label>Priority (1-10)</label><input type="number" data-prop="priority" min="1" max="10"></div>`;
+    return panel;
+  }
 
-        // On mobile: collapse the other sidebar when expanding
-        if (isMobile() && !isCollapsed) {
-            const otherId = id === 'left-sidebar' ? 'right-sidebar' : 'left-sidebar';
-            const other = document.getElementById(otherId);
-            const otherIcon = document.getElementById(otherId === 'left-sidebar' ? 'left-icon' : 'right-icon');
-            if (!other.classList.contains('collapsed')) {
-                other.classList.add('collapsed');
-                otherIcon.style.transform = 'rotate(180deg)';
-            }
-        }
+  _buildLinkPropsPanel() {
+    const panel = this._rightSidebar.appendChild(this._createEl('div', 'wf-properties wf-prop-panel-link wf-sidebar-body'));
+    panel.style.display = 'none';
+    panel.innerHTML = `
+      <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
+      <div class="wf-prop-group"><label>Label Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#333333"></div></div>
+      <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
+      <div class="wf-prop-group"><label>Connector Type</label>
+        <select data-prop="connectorType"><option value="elbow">Elbow (Default)</option><option value="straight">Straight</option><option value="curved">Curved</option></select></div>
+      <div class="wf-prop-group"><label>Line Color</label>
+        <div class="wf-color-row"><input type="color" data-prop="lineColor" data-pair="lineColorHex"><input type="text" data-prop="lineColorHex" data-pair-picker="lineColor" placeholder="#495057"></div></div>
+      <div class="wf-prop-group"><label>Line Style</label>
+        <select data-prop="lineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
+      <div class="wf-prop-group"><label>Source Arrow</label>
+        <select data-prop="sourceArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
+      <div class="wf-prop-group"><label>Target Arrow</label>
+        <select data-prop="targetArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
+      <div class="wf-prop-group"><label>Description</label><textarea data-prop="description"></textarea></div>`;
+    return panel;
+  }
 
-        const resizeInterval = setInterval(() => {
-            const container = document.getElementById('canvas-container');
-            const containerNow = container.clientWidth;
-            // Compensate translation so content doesn't drift
-            const delta = containerNow - containerBefore;
-            const compensate = id === 'left-sidebar'
-                ? (isCollapsed ? 0 : -delta)   // left sidebar expanding pushes canvas right
-                : 0;
-            paper.setDimensions(containerNow, container.clientHeight);
-            paper.translate(translateBefore.tx + compensate, translateBefore.ty);
-        }, 16);
-        setTimeout(() => clearInterval(resizeInterval), 350);
-    }
-
-    function collapseBothSidebars() {
-        if (!isMobile()) return;
-        const translateBefore = paper.translate();
-        ['left-sidebar', 'right-sidebar'].forEach(id => {
-            const sidebar = document.getElementById(id);
-            const icon = document.getElementById(id === 'left-sidebar' ? 'left-icon' : 'right-icon');
-            if (!sidebar.classList.contains('collapsed')) {
-                sidebar.classList.add('collapsed');
-                icon.style.transform = 'rotate(180deg)';
-            }
-        });
-        const resizeInterval = setInterval(() => {
-            const container = document.getElementById('canvas-container');
-            paper.setDimensions(container.clientWidth, container.clientHeight);
-            paper.translate(translateBefore.tx, translateBefore.ty);
-        }, 16);
-        setTimeout(() => clearInterval(resizeInterval), 350);
-    }
-
-    document.getElementById('toggle-auto-port').addEventListener('click', function() {
-        isAutoPortEnabled = !isAutoPortEnabled;
-        this.classList.toggle('active', isAutoPortEnabled);
-        this.title = `Toggle Auto Port Switching (${isAutoPortEnabled ? 'ON' : 'OFF'})`;
-        if (isAutoPortEnabled) graph.getElements().forEach(el => autoPortDistributor(el));
+  // ═══════════════════════════════════════════
+  // Internal: JointJS init
+  // ═══════════════════════════════════════════
+  _initPaper() {
+    this._graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
+    this._paper = new joint.dia.Paper({
+      el: this._paperEl,
+      model: this._graph,
+      width: '100%', height: '100%',
+      gridSize: this._GRID,
+      drawGrid: { name:'dot', color:'#e9ecef' },
+      background: { color:'#ffffff' },
+      cellNamespace: joint.shapes,
+      defaultConnector: { name:'rounded' },
+      defaultRouter: { name:'manhattan', args:{ step:this._GRID, padding:20, maxIter:200 } },
+      interactive: { linkMove:true, vertexAdd:true, vertexMove:true, elementMove:true },
+      linkPinning: false,
+      snapLinks: { radius:25 },
+      markAvailable: true,
+      defaultLink: () => new joint.shapes.standard.Link({
+        attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker: MARKERS.classic } }
+      }),
+      validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt
     });
+  }
 
-    function zoomAtPoint(factor, clientX, clientY) {
-        const currentScale = paper.scale().sx;
-        const newScale = Math.max(0.1, Math.min(10, currentScale * factor));
-        const rect = paper.el.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-        const translate = paper.translate();
-        const originX = (x - translate.tx) / currentScale;
-        const originY = (y - translate.ty) / currentScale;
-        const tx = x - originX * newScale;
-        const ty = y - originY * newScale;
-        paper.scale(newScale, newScale);
-        paper.translate(tx, ty);
-    }
+  // ═══════════════════════════════════════════
+  // Internal: UI binding
+  // ═══════════════════════════════════════════
+  _bindUI() {
+    // Sidebar toggles
+    this._leftCollapseBtn.addEventListener('click',  () => this._toggleSidebar(this._leftSidebar));
+    this._rightCollapseBtn.addEventListener('click', () => this._toggleSidebar(this._rightSidebar));
 
-    paper.el.addEventListener('wheel', (evt) => {
-        evt.preventDefault();
-        if (evt.ctrlKey) {
-            zoomAtPoint(Math.exp(-evt.deltaY * 0.0015), evt.clientX, evt.clientY);
-        } else {
-            const currentTranslate = paper.translate();
-            paper.translate(currentTranslate.tx - evt.deltaX, currentTranslate.ty - evt.deltaY);
-        }
+    // Auto port toggle
+    this._autoPortBtn.addEventListener('click', () => this.setAutoPortSwitching(!this._autoPortEnabled));
+
+    // Zoom controls
+    this._zoomFitBtn.addEventListener('click',    () => this.zoomToFit());
+    this._zoomResetBtn.addEventListener('click',  () => this.zoomReset());
+    this._zoomInBtn.addEventListener('click',     () => this.zoomIn());
+    this._zoomOutBtn.addEventListener('click',    () => this.zoomOut());
+    this._zoomCenterBtn.addEventListener('click', () => this.moveToCenter());
+
+    // Mouse wheel zoom/pan
+    this._paper.el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (e.ctrlKey) {
+        this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+      } else {
+        const t = this._paper.translate();
+        this._paper.translate(t.tx - e.deltaX, t.ty - e.deltaY);
+      }
     }, { passive: false });
 
-    document.getElementById('zoom-in').addEventListener('click', () => {
-        const rect = paper.el.getBoundingClientRect();
-        zoomAtPoint(1.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    // Context menu
+    this._contextMenu.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (action === 'duplicate') this._duplicateSelected();
+      if (action === 'delete')    this._deleteSelected();
+      this._contextMenu.style.display = 'none';
+    });
+    window.addEventListener('click', e => {
+      if (!e.target.closest('.wf-context-menu')) this._contextMenu.style.display = 'none';
     });
 
-    document.getElementById('zoom-out').addEventListener('click', () => {
-        const rect = paper.el.getBoundingClientRect();
-        zoomAtPoint(0.8, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    // Right sidebar header actions
+    this._rightHeaderActions.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'focus')     this._focusSelected();
+      if (action === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
+      if (action === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
     });
 
-    document.getElementById('zoom-reset').addEventListener('click', () => {
-        const rect = paper.el.getBoundingClientRect();
-        zoomAtPoint(1 / paper.scale().sx, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    // Properties panel inputs
+    this._propPanelEl.addEventListener('input',  e => this._handlePropInput(e));
+    this._propPanelEl.addEventListener('change', e => this._handlePropInput(e));
+    this._propPanelLink.addEventListener('input',  e => this._handleLinkInput(e));
+    this._propPanelLink.addEventListener('change', e => this._handleLinkInput(e));
+
+    // Drag and drop from library
+    this._canvasContainer.addEventListener('dragover', e => e.preventDefault());
+    this._canvasContainer.addEventListener('drop', e => {
+      e.preventDefault();
+      const type  = e.dataTransfer.getData('type');
+      const entry = [
+        { type:'rect',     label:'Rectangle', cls: Rectangle },
+        { type:'square',   label:'Square',    cls: Square    },
+        { type:'ellipse',  label:'Ellipse',   cls: Ellipse   },
+        { type:'circle',   label:'Circle',    cls: Circle    },
+        { type:'diamond',  label:'Diamond',   cls: Diamond   },
+        { type:'triangle', label:'Triangle',  cls: Triangle  },
+        { type:'hexagon',  label:'Hexagon',   cls: Hexagon   },
+        { type:'pentagon', label:'Pentagon',  cls: Pentagon  },
+        { type:'octagon',  label:'Octagon',   cls: Octagon   },
+      ].find(s => s.type === type);
+      if (!entry) return;
+      const local = this._paper.clientToLocalPoint({ x: e.clientX, y: e.clientY });
+      const shape = new entry.cls(entry.label.toUpperCase());
+      const iW = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 140;
+      const iH = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 50;
+      const pos = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
+      const cell = shape._buildCell(pos, joint.shapes);
+      cell.attr('label/text', shape._label);
+      shape._cell   = cell;
+      shape._canvas = this;
+      cell.addTo(this._graph);
+      this._shapes.set(cell.id, shape);
+      setTimeout(() => { this._autoSize(cell); this._selectCell(shape); }, 50);
+      this.emit('shape:add', shape);
     });
 
-    document.getElementById('zoom-fit').addEventListener('click', () => paper.scaleContentToFit({ padding: 50, minScale: 0.2, maxScale: 2 }));
-    document.getElementById('zoom-center').addEventListener('click', () => {
-        const bbox = graph.getBBox();
-        if (!bbox) return;
-        const paperSize = paper.getComputedSize();
-        paper.scale(1, 1);
-        paper.translate((paperSize.width / 2) - (bbox.x + bbox.width / 2), (paperSize.height / 2) - (bbox.y + bbox.height / 2));
+    // Image upload
+    this._propPanelEl.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
+      this._propPanelEl.querySelector('[data-action="image-file"]').click();
     });
-
-    function focusSelected() {
-        if (!selectedCellView) return;
-        const center = selectedCellView.model.getBBox().center();
-        const paperSize = paper.getComputedSize();
-        paper.scale(1, 1);
-        paper.translate((paperSize.width / 2) - center.x, (paperSize.height / 2) - center.y);
-    }
-
-    function duplicateSelected() {
-        if (selectedCellView && selectedCellView.model.isElement()) {
-            const clone = selectedCellView.model.clone();
-            clone.translate(40, 40).addTo(graph);
-            const view = paper.findViewByModel(clone);
-            if (view) paper.trigger('element:pointerdown', view, {});
-        }
-    }
-
-    function deleteSelected() {
-        if (selectedCellView) selectedCellView.model.remove();
-        deselectAll();
-    }
-
-    document.getElementById('focus-element').addEventListener('click', focusSelected);
-    document.getElementById('duplicate-element').addEventListener('click', () => {
-        duplicateSelected();
-        if (isMobile()) { const r = document.getElementById('right-sidebar'); if (!r.classList.contains('collapsed')) toggleSidebar('right-sidebar'); }
+    this._propPanelEl.querySelector('[data-action="image-file"]').addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        this._propPanelEl.querySelector('[data-prop="imageUrl"]').value = ev.target.result;
+        if (this._selected instanceof Shape) this._selected.imageUrl = ev.target.result;
+      };
+      reader.readAsDataURL(file);
     });
-    document.getElementById('delete-element').addEventListener('click', () => {
-        deleteSelected();
-        if (isMobile()) { const r = document.getElementById('right-sidebar'); if (!r.classList.contains('collapsed')) toggleSidebar('right-sidebar'); }
-    });
+  }
 
+  _handlePropInput(e) {
+    if (!(this._selected instanceof Shape)) return;
+    const el   = e.target.closest('[data-prop]'); if (!el) return;
+    const prop = el.dataset.prop;
+    const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
+
+    // Sync color picker <-> hex text
+    if (el.dataset.pair) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
+    if (el.dataset.pairPicker) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
+
+    // Strip 'Hex' suffix to get the real property name
+    const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
+    if (realProp in this._selected) this._selected[realProp] = val;
+  }
+
+  _handleLinkInput(e) {
+    if (!(this._selected instanceof Connection)) return;
+    const el   = e.target.closest('[data-prop]'); if (!el) return;
+    const prop = el.dataset.prop;
+    const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
+
+    if (el.dataset.pair) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
+    if (el.dataset.pairPicker) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
+
+    const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
+    if (realProp in this._selected) this._selected[realProp] = val;
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: Paper events
+  // ═══════════════════════════════════════════
+  _bindPaperEvents() {
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
-        tagName: 'circle',
-        attributes: { 'r': 6, 'fill': '#3498db', 'stroke': '#fff', 'stroke-width': 2, 'cursor': 'move' }
+      tagName: 'circle',
+      attributes: { r:6, fill:'#3498db', stroke:'#fff', 'stroke-width':2, cursor:'move' }
     });
 
-    let selectedCellView = null;
-    const menu = document.getElementById('context-menu');
-    const container = document.getElementById('canvas-container');
-
-    function deselectAll() {
-        if (selectedCellView) selectedCellView.el.classList.remove('selected');
-        paper.removeTools();
-        joint.highlighters.stroke.removeAll(paper);
-        document.getElementById('prop-panel-element').style.display = 'none';
-        document.getElementById('prop-panel-link').style.display = 'none';
-        document.getElementById('sidebar-actions').style.display = 'none';
-        document.getElementById('no-selection').style.display = 'block';
-        selectedCellView = null;
-    }
-
-    paper.on('cell:contextmenu', (cellView, evt) => {
-        evt.preventDefault();
-        selectedCellView = cellView;
-        const rect = container.getBoundingClientRect();
-        menu.style.display = 'block';
-        menu.style.left = (evt.clientX - rect.left) + 'px';
-        menu.style.top = (evt.clientY - rect.top) + 'px';
-        document.getElementById('clone-item').style.display = cellView.model.isElement() ? 'flex' : 'none';
+    this._paper.on('element:pointerdown', (cellView, evt) => {
+      const shape = this._shapes.get(cellView.model.id);
+      if (!shape) return;
+      this._pointerDownPos      = { x: evt.clientX, y: evt.clientY };
+      this._wasAlreadySelected  = this._selected === shape;
+      this._deselectAll();
+      shape._cell.toFront();
+      this._selectCell(shape);
     });
 
-    function syncColorInput(sourceId, targetId, attrPath) {
-        const val = document.getElementById(sourceId).value;
-        document.getElementById(targetId).value = val;
-        updateProperty(attrPath, val, true);
-    }
+    this._paper.on('element:pointerup', (cellView, evt) => {
+      const dx = Math.abs(evt.clientX - (this._pointerDownPos?.x ?? evt.clientX));
+      const dy = Math.abs(evt.clientY - (this._pointerDownPos?.y ?? evt.clientY));
+      if (dx < 5 && dy < 5 && this._wasAlreadySelected) {
+        if (this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
+      }
+      this._pointerDownPos     = null;
+      this._wasAlreadySelected = false;
 
-    function syncLinkPropertyColor(sourceId, targetId, key) {
-        const val = document.getElementById(sourceId).value;
-        document.getElementById(targetId).value = val;
-        updateLinkProperty(key, val);
-    }
-
-    function handleImageUpload(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const base64 = e.target.result;
-            document.getElementById('prop-image').value = base64;
-            updateProperty('imageUrl', base64);
-        };
-        reader.readAsDataURL(file);
-    }
-
-    let pointerDownPos = null;
-    let wasAlreadySelected = false;
-
-    paper.on('element:pointerdown', (cellView, evt) => {
-        pointerDownPos = { x: evt.clientX, y: evt.clientY };
-        wasAlreadySelected = selectedCellView && selectedCellView.model.id === cellView.model.id;
+      // Snap to grid / clear position
+      const shape = this._shapes.get(cellView.model.id);
+      if (shape) {
+        const bbox = shape._cell.getBBox();
+        const pos  = this._findClearPosition(bbox.x, bbox.y, bbox.width, bbox.height, shape._cell);
+        shape._cell.position(pos.x, pos.y);
+      }
     });
 
-    paper.on('element:pointerup', (cellView, evt) => {
-        const dx = Math.abs(evt.clientX - (pointerDownPos?.x ?? evt.clientX));
-        const dy = Math.abs(evt.clientY - (pointerDownPos?.y ?? evt.clientY));
-        if (dx < 5 && dy < 5 && wasAlreadySelected) {
-            const right = document.getElementById('right-sidebar');
-            if (right.classList.contains('collapsed')) toggleSidebar('right-sidebar');
-        }
-        pointerDownPos = null;
-        wasAlreadySelected = false;
+    this._paper.on('link:pointerdown', (linkView) => {
+      const conn = this._connections.get(linkView.model.id);
+      if (!conn) return;
+      this._deselectAll();
+      linkView.model.toFront();
+      this._selectCell(conn);
+      linkView.addTools(new joint.dia.ToolsView({
+        tools: [
+          new joint.linkTools.Vertices(),
+          new CustomSourceArrowhead(),
+          new joint.linkTools.TargetArrowhead({ offset:-1 }),
+          new joint.linkTools.Remove({ distance:20 })
+        ]
+      }));
     });
 
-    paper.on('element:pointerdown', (cellView) => {
-        deselectAll();
-        cellView.model.toFront();
-        selectedCellView = cellView;
-        cellView.el.classList.add('selected');
-        joint.highlighters.stroke.add(cellView, 'root', 'selection', { padding: 5, attrs: { 'stroke': '#3498db', 'stroke-width': 3 } });
-        
-        document.getElementById('prop-panel-element').style.display = 'block';
-        document.getElementById('no-selection').style.display = 'none';
-        document.getElementById('sidebar-actions').style.display = 'flex';
-        document.getElementById('duplicate-element').style.display = 'flex';
-        
-        document.getElementById('prop-label').value = cellView.model.attr('label/text') || '';
-        document.getElementById('prop-font-size').value = cellView.model.get('fontSizePercent') || 100;
-        document.getElementById('prop-desc').value = cellView.model.get('description') || '';
-        document.getElementById('prop-status').value = cellView.model.get('status') || 'pending';
-        document.getElementById('prop-priority').value = cellView.model.get('priority') || 1;
-        document.getElementById('prop-image').value = cellView.model.get('imageUrl') || '';
-        document.getElementById('prop-img-w').value = cellView.model.get('imageWidth') || 32;
-        document.getElementById('prop-img-h').value = cellView.model.get('imageHeight') || 32;
-        
-        const fill = cellView.model.attr('body/fill') || '#ffffff';
-        const stroke = cellView.model.attr('body/stroke') || '#adb5bd';
-        const labelFill = cellView.model.attr('label/fill') || '#212529';
-        const descFill = cellView.model.attr('descriptionLabel/fill') || '#6c757d';
-        
-        document.getElementById('prop-bg-hex').value = fill;
-        document.getElementById('prop-bg-picker').value = fill;
-        document.getElementById('prop-border-hex').value = stroke;
-        document.getElementById('prop-border-picker').value = stroke;
-        document.getElementById('prop-label-hex').value = labelFill;
-        document.getElementById('prop-label-picker').value = labelFill;
-        document.getElementById('prop-desc-hex').value = descFill;
-        document.getElementById('prop-desc-picker').value = descFill;
+    this._paper.on('cell:pointerdown tool:pointerdown', (v, evt) => {
+      if (evt?.target?.closest?.('.joint-port')) this._paper.el.classList.add('wf-dragging-link');
+    });
+    this._paper.on('cell:pointerup link:pointerup tool:pointerup', () => {
+      this._paper.el.classList.remove('wf-dragging-link');
     });
 
-    paper.on('link:pointerdown', (linkView) => {
-        deselectAll();
-        linkView.model.toFront();
-        selectedCellView = linkView;
-        linkView.addTools(new joint.dia.ToolsView({
-            tools: [new joint.linkTools.Vertices(), new CustomSourceArrowhead(), new joint.linkTools.TargetArrowhead({ offset: -1 }), new joint.linkTools.Remove({ distance: 20 })]
-        }));
-        
-        document.getElementById('prop-panel-link').style.display = 'block';
-        document.getElementById('no-selection').style.display = 'none';
-        document.getElementById('sidebar-actions').style.display = 'flex';
-        document.getElementById('duplicate-element').style.display = 'none';
-
-        const getMarkerType = (m) => (m && m.d === MARKERS.classic.d) ? 'classic' : (m && m.d === MARKERS.block.d) ? 'block' : 'none';
-        const dash = linkView.model.attr('line/strokeDasharray') || '';
-        const lineColor = linkView.model.attr('line/stroke') || '#495057';
-        const labelColor = linkView.model.label(0)?.attrs?.text?.fill || '#333333';
-
-        document.getElementById('link-prop-label').value = linkView.model.label(0)?.attrs?.text?.text || '';
-        document.getElementById('link-prop-font-size').value = linkView.model.get('fontSizePercent') || 100;
-        
-        document.getElementById('link-prop-color-picker').value = lineColor;
-        document.getElementById('link-prop-color-hex').value = lineColor;
-        document.getElementById('link-prop-fg-picker').value = labelColor;
-        document.getElementById('link-prop-fg-hex').value = labelColor;
-
-        document.getElementById('link-prop-desc').value = linkView.model.get('description') || '';
-        document.getElementById('link-prop-source-arrow').value = getMarkerType(linkView.model.attr('line/sourceMarker'));
-        document.getElementById('link-prop-target-arrow').value = getMarkerType(linkView.model.attr('line/targetMarker'));
-        document.getElementById('link-prop-connector').value = linkView.model.connector()?.name === 'smooth' ? 'curved' : linkView.model.router()?.name === 'normal' ? 'straight' : 'elbow';
-        document.getElementById('link-prop-style').value = dash === '5,5' ? 'dashed' : dash === '1,5' ? 'dotted' : 'solid';
+    this._paper.on('cell:contextmenu', (cellView, evt) => {
+      evt.preventDefault();
+      const isShape = this._shapes.has(cellView.model.id);
+      const rect    = this._canvasContainer.getBoundingClientRect();
+      this._contextMenu.style.display = 'block';
+      this._contextMenu.style.left    = (evt.clientX - rect.left) + 'px';
+      this._contextMenu.style.top     = (evt.clientY - rect.top)  + 'px';
+      this._contextMenu.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
     });
 
-    paper.on('cell:pointerdown tool:pointerdown', (v, evt) => { if (evt.target.closest('.joint-port') || v instanceof joint.linkTools.SourceArrowhead) paper.el.classList.add('dragging-link'); });
-    paper.on('cell:pointerup link:pointerup tool:pointerup', () => paper.el.classList.remove('dragging-link'));
-    paper.on('cell:pointerup', (cv) => {
-        if (cv.model.isElement()) {
-            const bbox = cv.model.getBBox();
-            const pos = findNearestClearPosition(bbox.x, bbox.y, bbox.width, bbox.height, cv.model);
-            cv.model.position(pos.x, pos.y);
-        }
+    this._paper.on('blank:pointerdown', (evt) => {
+      this._collapseBothSidebars();
+      this._deselectAll();
+      if (this._isMobile()) return;
+      const startX = evt.clientX, startY = evt.clientY, origin = this._paper.translate();
+      const onMove = e => this._paper.translate(origin.tx + (e.clientX - startX), origin.ty + (e.clientY - startY));
+      const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
     });
 
-    function updateProperty(key, val, isAttr = false) {
-        if (!selectedCellView || !selectedCellView.model.isElement()) return;
-        if (isAttr) {
-            selectedCellView.model.attr(key, val);
-        } else {
-            selectedCellView.model.set(key, val);
-            if (key === 'description') selectedCellView.model.attr('descriptionLabel/text', val);
-            if (key === 'imageUrl') {
-                selectedCellView.model.attr('image/xlink:href', val);
-                selectedCellView.model.attr('image/display', val ? 'block' : 'none');
-            }
-        }
-        autoSize(selectedCellView.model);
-    }
-
-    function updateLinkProperty(key, val) {
-        if (!selectedCellView || !selectedCellView.model.isLink()) return;
-        const link = selectedCellView.model;
-        switch(key) {
-            case 'label': 
-                const fontSize = 12 * ((link.get('fontSizePercent') || 100) / 100);
-                const color = link.get('labelColor') || '#333333';
-                link.labels(val ? [{ attrs: { text: { text: val, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }] : []); 
-                break;
-            case 'labelColor':
-                link.set('labelColor', val);
-                const currentLabel = link.label(0)?.attrs?.text?.text || '';
-                updateLinkProperty('label', currentLabel);
-                break;
-            case 'fontSizePercent':
-                link.set('fontSizePercent', val);
-                const currentText = link.label(0)?.attrs?.text?.text || '';
-                updateLinkProperty('label', currentText);
-                break;
-            case 'connector': 
-                if (val === 'elbow') { link.router('manhattan', { step: GRID_SIZE, padding: 20 }); link.connector('rounded'); }
-                else if (val === 'straight') { link.router('normal'); link.connector('normal'); }
-                else { link.router('normal'); link.connector('smooth'); }
-                break;
-            case 'color': link.attr('line/stroke', val); break;
-            case 'style': link.attr('line/strokeDasharray', val === 'dashed' ? '5,5' : val === 'dotted' ? '1,5' : ''); break;
-            case 'sourceArrow': link.attr('line/sourceMarker', MARKERS[val]); break;
-            case 'targetArrow': link.attr('line/targetMarker', MARKERS[val]); break;
-            case 'description': link.set('description', val); break;
-        }
-    }
-
-    function autoSize(element) {
-        const view = paper.findViewByModel(element);
-        if (!view) return;
-        const labelNode = view.el.querySelector('.label'), descNode = view.el.querySelector('.descriptionLabel');
-        if (!labelNode || !descNode) return;
-
-        const scale = (element.get('fontSizePercent') || 100) / 100;
-        const baseFontSize = 13, baseDescSize = 11;
-        
-        element.attr({
-            label: { fontSize: baseFontSize * scale },
-            descriptionLabel: { fontSize: baseDescSize * scale }
-        });
-
-        const imageUrl = element.get('imageUrl'), type = element.get('type'), descText = element.attr('descriptionLabel/text') || '';
-        const imgW = parseInt(element.get('imageWidth') || 32), imgH = parseInt(element.get('imageHeight') || 32);
-        
-        const labelBBox = labelNode.getBBox(), descBBox = descNode.getBBox();
-        const pad = 15, imgSpace = imageUrl ? 10 : 0;
-        const textW = Math.max(labelBBox.width, descBBox.width);
-        const totalContentW = (imageUrl ? imgW : 0) + imgSpace + textW;
-        
-        let width = Math.max(140, pad + totalContentW + pad);
-        const totalTextH = descText ? (labelBBox.height + descBBox.height) : labelBBox.height;
-        let height = Math.max(50, pad + Math.max(imageUrl ? imgH : 0, totalTextH) + pad);
-
-        if (type === 'diamond') width = height = Math.max(width, height);
-        else if (['triangle', 'hexagon', 'pentagon', 'octagon'].includes(type)) {
-            if (width / height > 1.2) height = width / 1.2; else width = height * 1.2;
-            if (type === 'triangle') { width *= 1.25; height *= 1.25; }
-        }
-
-        const startX = (width - totalContentW) / 2;
-        element.attr('image', { refX: 0, refX2: startX, refY: 0.5, y: -imgH / 2, width: imgW, height: imgH });
-        const textCenterX = startX + (imageUrl ? imgW : 0) + imgSpace + (textW / 2);
-        
-        if (descText) {
-            const contentY = (height - totalTextH) / 2;
-            element.attr('label', { refX: 0, refX2: textCenterX, refY: 0, refY2: contentY + (labelBBox.height / 2), textAnchor: 'middle', textVerticalAnchor: 'middle' });
-            element.attr('descriptionLabel', { refX: 0, refX2: textCenterX, refY: 0, refY2: contentY + labelBBox.height + (descBBox.height / 2), textAnchor: 'middle', textVerticalAnchor: 'middle' });
-        } else {
-            element.attr('label', { refX: 0, refX2: textCenterX, refY: 0.5, refY2: 0, textAnchor: 'middle', textVerticalAnchor: 'middle' });
-        }
-        element.resize(width, height);
-    }
-
-    document.getElementById('clone-item').addEventListener('click', () => { duplicateSelected(); menu.style.display = 'none'; });
-    document.getElementById('delete-item').addEventListener('click', () => { deleteSelected(); menu.style.display = 'none'; });
-    window.addEventListener('click', (e) => { if (!e.target.closest('#context-menu')) menu.style.display = 'none'; });
-
-    paper.on('blank:pointerdown', (evt) => {
-        collapseBothSidebars();
-        deselectAll();
-        if (!isMobile()) return; // handled by touch events on mobile
-        const startX = evt.clientX, startY = evt.clientY, origin = paper.translate();
-        const onMouseMove = (e) => paper.translate(origin.tx + (e.clientX - startX), origin.ty + (e.clientY - startY));
-        const onMouseUp = () => { document.removeEventListener('mousemove', onMouseMove); document.removeEventListener('mouseup', onMouseUp); };
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+    // New connections
+    this._paper.on('link:connect', (linkView) => {
+      const link   = linkView.model;
+      const srcEl  = link.getSourceElement();
+      const tgtEl  = link.getTargetElement();
+      if (!srcEl || !tgtEl) return;
+      const source = this._shapes.get(srcEl.id);
+      const target = this._shapes.get(tgtEl.id);
+      if (!source || !target) return;
+      if (this._connections.has(link.id)) return;
+      const conn = new Connection(link, source, target, this);
+      this._connections.set(link.id, conn);
+      this.emit('connection:add', conn);
     });
 
-    // Mobile touch: pinch-to-zoom + single-finger pan on blank canvas
-    let touchState = null;
+    // Removed cells
+    this._graph.on('remove', cell => {
+      if (cell.isLink()) {
+        const conn = this._connections.get(cell.id);
+        if (conn) { this._connections.delete(cell.id); this.emit('connection:remove', conn); }
+      } else {
+        const shape = this._shapes.get(cell.id);
+        if (shape) { this._shapes.delete(cell.id); this.emit('shape:remove', shape); }
+      }
+    });
 
-    function getTouchMidpoint(t1, t2) {
-        return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
-    }
-    function getTouchDist(t1, t2) {
-        const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
+    this._graph.on('change:position', cell => {
+      const shape = this._shapes.get(cell.id);
+      if (shape) { this._autoPortDistributor(cell); shape.emit('move', shape); }
+    });
+  }
 
-    paper.el.addEventListener('touchstart', (e) => {
-        if (!isMobile()) return;
-        if (e.touches.length === 1) {
-            const t = e.touches[0];
-            const el = document.elementFromPoint(t.clientX, t.clientY);
-            const onCell = el && el.closest('.joint-cell');
-            if (onCell) return;
-            e.stopPropagation(); // prevent JointJS blank:pointerdown from firing
-            touchState = { type: 'pan', x: t.clientX, y: t.clientY, origin: paper.translate() };
-        } else if (e.touches.length === 2) {
-            e.stopPropagation();
-            const [t1, t2] = [e.touches[0], e.touches[1]];
-            touchState = {
-                type: 'pinch',
-                dist: getTouchDist(t1, t2),
-                mid: getTouchMidpoint(t1, t2),
-                scale: paper.scale().sx,
-                origin: paper.translate()
-            };
-        }
+  // ═══════════════════════════════════════════
+  // Internal: Touch events (mobile only)
+  // ═══════════════════════════════════════════
+  _bindTouchEvents() {
+    this._paper.el.addEventListener('touchstart', (e) => {
+      if (!this._isMobile()) return;
+      if (e.touches.length === 1) {
+        const t  = e.touches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        if (el?.closest('.joint-cell')) return;
+        e.stopPropagation();
+        this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin: this._paper.translate() };
+      } else if (e.touches.length === 2) {
+        e.stopPropagation();
+        const [t1, t2] = [e.touches[0], e.touches[1]];
+        this._touchState = { type:'pinch', dist:this._touchDist(t1,t2), mid:this._touchMid(t1,t2), scale:this._paper.scale().sx, origin:this._paper.translate() };
+      }
     }, { passive: true });
 
-    paper.el.addEventListener('touchmove', (e) => {
-        if (!isMobile() || !touchState) return;
-        e.preventDefault();
-        if (touchState.type === 'pan' && e.touches.length === 1) {
-            const t = e.touches[0];
-            const dx = t.clientX - touchState.x;
-            const dy = t.clientY - touchState.y;
-            paper.translate(touchState.origin.tx + dx, touchState.origin.ty + dy);
-        } else if (touchState.type === 'pinch' && e.touches.length === 2) {
-            const [t1, t2] = [e.touches[0], e.touches[1]];
-            const newDist = getTouchDist(t1, t2);
-            const factor = newDist / touchState.dist;
-            const newScale = Math.max(0.1, Math.min(10, touchState.scale * factor));
-            const mid = getTouchMidpoint(t1, t2);
-            const rect = paper.el.getBoundingClientRect();
-            const x = mid.x - rect.left, y = mid.y - rect.top;
-            const originX = (x - touchState.origin.tx) / touchState.scale;
-            const originY = (y - touchState.origin.ty) / touchState.scale;
-            paper.scale(newScale, newScale);
-            paper.translate(x - originX * newScale, y - originY * newScale);
-        }
+    this._paper.el.addEventListener('touchmove', (e) => {
+      if (!this._isMobile() || !this._touchState) return;
+      e.preventDefault();
+      const s = this._touchState;
+      if (s.type === 'pan' && e.touches.length === 1) {
+        const t = e.touches[0];
+        this._paper.translate(s.origin.tx + (t.clientX - s.x), s.origin.ty + (t.clientY - s.y));
+      } else if (s.type === 'pinch' && e.touches.length === 2) {
+        const [t1,t2] = [e.touches[0], e.touches[1]];
+        const factor   = this._touchDist(t1,t2) / s.dist;
+        const newScale = Math.max(0.1, Math.min(10, s.scale * factor));
+        const mid      = this._touchMid(t1,t2);
+        const rect     = this._paper.el.getBoundingClientRect();
+        const x = mid.x - rect.left, y = mid.y - rect.top;
+        const ox = (x - s.origin.tx) / s.scale, oy = (y - s.origin.ty) / s.scale;
+        this._paper.scale(newScale, newScale);
+        this._paper.translate(x - ox * newScale, y - oy * newScale);
+      }
     }, { passive: false });
 
-    paper.el.addEventListener('touchend', (e) => {
-        if (!isMobile()) return;
-        // If switching from pinch to single finger, reset pan origin
-        if (touchState?.type === 'pinch' && e.touches.length === 1) {
-            const t = e.touches[0];
-            touchState = { type: 'pan', x: t.clientX, y: t.clientY, origin: paper.translate() };
-        } else {
-            touchState = null;
-        }
+    this._paper.el.addEventListener('touchend', (e) => {
+      if (!this._isMobile()) return;
+      if (this._touchState?.type === 'pinch' && e.touches.length === 1) {
+        const t = e.touches[0];
+        this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
+      } else {
+        this._touchState = null;
+      }
     }, { passive: true });
+  }
 
-    function findNearestClearPosition(x, y, w, h, exclude = null) {
-        const clearance = 4 * GRID_SIZE;
-        let cx = Math.round(x / GRID_SIZE) * GRID_SIZE, cy = Math.round(y / GRID_SIZE) * GRID_SIZE;
-        const isObs = (px, py) => {
-            const rect = new joint.g.Rect(px, py, w, h).inflate(clearance);
-            return graph.getElements().some(el => (exclude && el.id === exclude.id) ? false : rect.intersect(el.getBBox().clone().inflate(clearance)));
-        };
-        if (!isObs(cx, cy)) return { x: cx, y: cy };
-        let s = 1;
-        while (s < 30) {
-            for (let dx = -s; dx <= s; dx++) {
-                for (let dy = -s; dy <= s; dy++) {
-                    if (Math.abs(dx) !== s && Math.abs(dy) !== s) continue;
-                    const tx = cx + (dx * GRID_SIZE), ty = cy + (dy * GRID_SIZE);
-                    if (!isObs(tx, ty)) return { x: tx, y: ty };
-                }
-            }
-            s++;
-        }
-        return { x: cx, y: cy };
+  // ═══════════════════════════════════════════
+  // Internal: Selection
+  // ═══════════════════════════════════════════
+  _selectCell(shapeOrConn) {
+    this._selected = shapeOrConn;
+    const isShape  = shapeOrConn instanceof Shape;
+    const cell     = isShape ? shapeOrConn._cell : shapeOrConn._link;
+    const cellView = this._paper.findViewByModel(cell);
+    if (cellView) {
+      cellView.el.classList.add('wf-selected');
+      joint.highlighters.stroke.add(cellView, 'root', 'selection', { padding:5, attrs:{ stroke:'#3498db', 'stroke-width':3 } });
+    }
+    this._rightHeaderActions.style.display = 'flex';
+    this._rightHeaderActions.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
+
+    if (isShape) { this._showPanel('element'); this._populateElementPanel(shapeOrConn); }
+    else         { this._showPanel('link');    this._populateLinkPanel(shapeOrConn); }
+
+    this.emit('selection:change', shapeOrConn);
+  }
+
+  _deselectAll() {
+    if (this._selected) {
+      const cell = this._selected instanceof Shape ? this._selected._cell : this._selected._link;
+      const view = this._paper.findViewByModel(cell);
+      if (view) view.el.classList.remove('wf-selected');
+    }
+    this._paper.removeTools();
+    joint.highlighters.stroke.removeAll(this._paper);
+    this._selected = null;
+    this._rightHeaderActions.style.display = 'none';
+    this._showPanel('none');
+    this.emit('selection:change', null);
+  }
+
+  _showPanel(type) {
+    this._propPanelEl.style.display   = type === 'element' ? 'flex' : 'none';
+    this._propPanelLink.style.display = type === 'link'    ? 'flex' : 'none';
+    this._noSelection.style.display   = type === 'none'    ? 'block' : 'none';
+  }
+
+  _populateElementPanel(shape) {
+    const p = this._propPanelEl;
+    const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
+    set('label',            shape.label);
+    set('labelFontSize',    shape.labelFontSize);
+    set('description',      shape.description);
+    set('status',           shape.status);
+    set('priority',         shape.priority);
+    set('imageUrl',         shape.imageUrl);
+    set('imageWidth',       shape.imageWidth);
+    set('imageHeight',      shape.imageHeight);
+    set('backgroundColor',    shape.backgroundColor);
+    set('backgroundColorHex', shape.backgroundColor);
+    set('borderColor',        shape.borderColor);
+    set('borderColorHex',     shape.borderColor);
+    set('labelColor',         shape.labelColor);
+    set('labelColorHex',      shape.labelColor);
+    set('descriptionColor',   shape.descriptionColor);
+    set('descriptionColorHex',shape.descriptionColor);
+  }
+
+  _populateLinkPanel(conn) {
+    const p = this._propPanelLink;
+    const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
+    set('label',          conn.label);
+    set('labelFontSize',  conn.labelFontSize);
+    set('labelColor',     conn.labelColor);
+    set('labelColorHex',  conn.labelColor);
+    set('lineColor',      conn.lineColor);
+    set('lineColorHex',   conn.lineColor);
+    set('lineStyle',      conn.lineStyle);
+    set('connectorType',  conn.connectorType);
+    set('sourceArrow',    conn.sourceArrow);
+    set('targetArrow',    conn.targetArrow);
+    set('description',    conn.description);
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: Sidebar
+  // ═══════════════════════════════════════════
+  _toggleSidebar(sidebar) {
+    const isLeft   = sidebar === this._leftSidebar;
+    const icon     = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
+    const tBefore  = this._paper.translate();
+    const isCollapsed = sidebar.classList.toggle('wf-collapsed');
+    icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+
+    if (this._isMobile() && !isCollapsed) {
+      const other     = isLeft ? this._rightSidebar : this._leftSidebar;
+      const otherIcon = isLeft ? this._rightCollapseIcon : this._leftCollapseIcon;
+      if (!other.classList.contains('wf-collapsed')) {
+        other.classList.add('wf-collapsed');
+        otherIcon.style.transform = 'rotate(180deg)';
+      }
     }
 
-    function autoPortDistributor(element) {
-        if (!isAutoPortEnabled) return;
-        graph.getConnectedLinks(element).forEach(link => {
-            const source = link.getSourceElement(), target = link.getTargetElement();
-            if (!source || !target) return;
-            const getBest = (el, other) => {
-                const targetAngle = Math.atan2(other.center().y - el.getBBox().center().y, other.center().x - el.getBBox().center().y);
-                let best = null, min = Infinity;
-                el.getPorts().forEach(p => {
-                    const pPos = el.getPortsPositions('all')[p.id];
-                    const pAngle = Math.atan2(pPos.y - (el.getBBox().height / 2), pPos.x - (el.getBBox().width / 2));
-                    let d = Math.abs(targetAngle - pAngle);
-                    if (d > Math.PI) d = 2 * Math.PI - d;
-                    if (d < min) { min = d; best = p.id; }
-                });
-                return best;
-            };
-            const bS = getBest(source, target.getBBox()), bT = getBest(target, source.getBBox());
-            if (link.get('source').port !== bS) link.source({ id: source.id, port: bS });
-            if (link.get('target').port !== bT) link.target({ id: target.id, port: bT });
-        });
-    }
+    const interval = setInterval(() => {
+      const c = this._canvasContainer;
+      this._paper.setDimensions(c.clientWidth, c.clientHeight);
+      this._paper.translate(tBefore.tx, tBefore.ty);
+    }, 16);
+    setTimeout(() => clearInterval(interval), 350);
+  }
 
-    graph.on('change:position', (el) => autoPortDistributor(el));
+  _setSidebarCollapsed(sidebar, collapsed) {
+    const isLeft = sidebar === this._leftSidebar;
+    const icon   = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
+    sidebar.classList.toggle('wf-collapsed', collapsed);
+    icon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
 
-    function createNode(type, x, y, label, precomputedLocal) {
-        let shape, points = [], local = precomputedLocal || paper.clientToLocalPoint({ x, y });
-        const iW = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 140, iH = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 50;
-        const pos = findNearestClearPosition(local.x - iW / 2, local.y - iH / 2, iW, iH);
-        const markup = [{ tagName: 'rect', selector: 'body', className: 'body' }, { tagName: 'image', selector: 'image', className: 'image' }, { tagName: 'text', selector: 'label', className: 'label' }, { tagName: 'text', selector: 'descriptionLabel', className: 'descriptionLabel' }];
-        
-        if (type === 'diamond') { shape = new namespace.standard.Polygon(); shape.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...markup.slice(1)]; shape.attr({ body: { refPoints: '0,10 10,0 20,10 10,20' }}); }
-        else if (type === 'triangle') { shape = new namespace.standard.Polygon(); shape.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...markup.slice(1)]; points = [[10,0], [20,20], [0,20]]; shape.attr({ body: { refPoints: points.map(p => p.join(',')).join(' ') }}); }
-        else if (type === 'hexagon') { shape = new namespace.standard.Polygon(); shape.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...markup.slice(1)]; points = [[5,0], [15,0], [20,10], [15,20], [5,20], [0,10]]; shape.attr({ body: { refPoints: points.map(p => p.join(',')).join(' ') }}); }
-        else if (type === 'pentagon') { shape = new namespace.standard.Polygon(); shape.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...markup.slice(1)]; points = [[10,0], [20,7], [16,20], [4,20], [0,7]]; shape.attr({ body: { refPoints: points.map(p => p.join(',')).join(' ') }}); }
-        else if (type === 'octagon') { shape = new namespace.standard.Polygon(); shape.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...markup.slice(1)]; points = [[6,0], [14,0], [20,6], [20,14], [14,20], [6,20], [0,14], [0,6]]; shape.attr({ body: { refPoints: points.map(p => p.join(',')).join(' ') }}); }
-        else if (type === 'ellipse' || type === 'circle') { shape = new namespace.standard.Ellipse(); shape.markup = [{ tagName: 'ellipse', selector: 'body', className: 'body' }, ...markup.slice(1)]; }
-        else { shape = new namespace.standard.Rectangle(); shape.markup = markup; }
+  _collapseBothSidebars() {
+    if (!this._isMobile()) return;
+    const tBefore = this._paper.translate();
+    this._setSidebarCollapsed(this._leftSidebar,  true);
+    this._setSidebarCollapsed(this._rightSidebar, true);
+    const interval = setInterval(() => {
+      const c = this._canvasContainer;
+      this._paper.setDimensions(c.clientWidth, c.clientHeight);
+      this._paper.translate(tBefore.tx, tBefore.ty);
+    }, 16);
+    setTimeout(() => clearInterval(interval), 350);
+  }
 
-        shape.position(pos.x, pos.y).resize(iW, iH).prop('ports/groups', { all: { position: points.length > 0 ? 'absolute' : 'ellipseSpread', attrs: { circle: { r: 6, fill: '#3498db', magnet: true, stroke: '#fff', strokeWidth: 2 } } } });
-        
-        const portData = [];
-        if (points.length === 0) portData.push({ group: 'all', args: { x: '50%', y: '0%' } }, { group: 'all', args: { x: '100%', y: '50%' } }, { group: 'all', args: { x: '50%', y: '100%' } }, { group: 'all', args: { x: '0%', y: '50%' } });
-        else for (let i = 0; i < points.length; i++) { const midX = (points[i][0] + points[(i + 1) % points.length][0]) / 2, midY = (points[i][1] + points[(i + 1) % points.length][1]) / 2; portData.push({ group: 'all', args: { x: (midX / 20) * 100 + '%', y: (midY / 20) * 100 + '%' } }); }
-        
-        shape.addPorts(portData).attr({ body: { fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2, rx: 5, ry: 5 }, image: { display: 'none' }, label: { text: label, fill: '#212529', fontSize: 13, fontWeight: 'bold', pointerEvents: 'none' }, descriptionLabel: { text: '', fill: '#6c757d', fontSize: 11, pointerEvents: 'none' } });
-        shape.set({ type, description: '', status: 'pending', priority: 1, imageUrl: '', imageWidth: 32, imageHeight: 32, fontSizePercent: 100 }).addTo(graph);
-        setTimeout(() => { const v = paper.findViewByModel(shape); if (v) paper.trigger('element:pointerdown', v, {}); autoSize(shape); }, 50);
-        return shape;
-    }
+  // ═══════════════════════════════════════════
+  // Internal: Actions
+  // ═══════════════════════════════════════════
+  _duplicateSelected() {
+    if (!(this._selected instanceof Shape)) return;
+    const clone = this._selected._cell.clone();
+    clone.translate(40, 40).addTo(this._graph);
+    const shapeClass  = this._selected.constructor;
+    const cloneShape  = new shapeClass(this._selected.label);
+    cloneShape._cell   = clone;
+    cloneShape._canvas = this;
+    this._shapes.set(clone.id, cloneShape);
+    this._selectCell(cloneShape);
+    this.emit('shape:add', cloneShape);
+  }
 
-    container.addEventListener('dragover', e => e.preventDefault());
-    container.addEventListener('drop', e => { e.preventDefault(); createNode(e.dataTransfer.getData('type'), e.clientX, e.clientY, e.dataTransfer.getData('type').toUpperCase()); });
-    document.querySelectorAll('.node-template').forEach(el => {
-        el.addEventListener('dragstart', e => e.dataTransfer.setData('type', e.target.dataset.type));
-        el.addEventListener('click', e => {
-            if (!isMobile()) return;
-            const type = e.currentTarget.dataset.type;
-            const rect = paper.el.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            const local = paper.clientToLocalPoint({ x: cx, y: cy });
-            createNode(type, cx, cy, type.toUpperCase(), local);
-            // Collapse left sidebar
-            const left = document.getElementById('left-sidebar');
-            if (!left.classList.contains('collapsed')) toggleSidebar('left-sidebar');
-        });
+  _deleteSelected() {
+    if (!this._selected) return;
+    const sel = this._selected;
+    this._deselectAll();
+    sel.remove();
+  }
+
+  _focusSelected() {
+    if (!this._selected) return;
+    const cell   = this._selected instanceof Shape ? this._selected._cell : this._selected._link;
+    const center = cell.getBBox().center();
+    const s      = this._paper.getComputedSize();
+    this._paper.scale(1,1);
+    this._paper.translate(s.width/2 - center.x, s.height/2 - center.y);
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: Connection creation
+  // ═══════════════════════════════════════════
+  _createConnection(source, target, sourcePort, targetPort) {
+    const link = new joint.shapes.standard.Link({
+      attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker: MARKERS.classic } }
     });
+    const srcPorts = source._cell.getPorts();
+    const tgtPorts = target._cell.getPorts();
+    const srcPort  = sourcePort !== null && srcPorts[sourcePort-1] ? srcPorts[sourcePort-1].id : srcPorts[0]?.id;
+    const tgtPort  = targetPort !== null && tgtPorts[targetPort-1] ? tgtPorts[targetPort-1].id : tgtPorts[0]?.id;
+    link.source({ id: source._cell.id, port: srcPort });
+    link.target({ id: target._cell.id, port: tgtPort });
+    link.addTo(this._graph);
+    const conn = new Connection(link, source, target, this);
+    this._connections.set(link.id, conn);
+    this.emit('connection:add', conn);
+    return conn;
+  }
 
-    function isMobile() {
-        return window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches;
+  _getConnectionsForShape(shape) {
+    return [...this._connections.values()].filter(c => c.source === shape || c.target === shape);
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: Auto-sizing
+  // ═══════════════════════════════════════════
+  _autoSize(cell) {
+    const view = this._paper.findViewByModel(cell);
+    if (!view) return;
+    const labelNode = view.el.querySelector('.label');
+    const descNode  = view.el.querySelector('.descriptionLabel');
+    if (!labelNode || !descNode) return;
+
+    const scale        = (cell.get('fontSizePercent') || 100) / 100;
+    const baseFontSize = 13, baseDescSize = 11;
+    cell.attr({ label: { fontSize: baseFontSize * scale }, descriptionLabel: { fontSize: baseDescSize * scale } });
+
+    const imageUrl  = cell.get('imageUrl');
+    const type      = cell.get('type');
+    const descText  = cell.attr('descriptionLabel/text') || '';
+    const imgW      = parseInt(cell.get('imageWidth')  || 32);
+    const imgH      = parseInt(cell.get('imageHeight') || 32);
+    const labelBBox = labelNode.getBBox();
+    const descBBox  = descNode.getBBox();
+    const pad       = 15, imgSpace = imageUrl ? 10 : 0;
+    const textW     = Math.max(labelBBox.width, descBBox.width);
+    const totalW    = (imageUrl ? imgW : 0) + imgSpace + textW;
+
+    let width  = Math.max(140, pad + totalW + pad);
+    const totalTextH = descText ? labelBBox.height + descBBox.height : labelBBox.height;
+    let height = Math.max(50, pad + Math.max(imageUrl ? imgH : 0, totalTextH) + pad);
+
+    if (type === 'diamond') { width = height = Math.max(width, height); }
+    else if (['triangle','hexagon','pentagon','octagon'].includes(type)) {
+      if (width/height > 1.2) height = width/1.2; else width = height*1.2;
+      if (type === 'triangle') { width *= 1.25; height *= 1.25; }
     }
 
-    function layout() {}
+    const startX      = (width - totalW) / 2;
+    const textCenterX = startX + (imageUrl ? imgW : 0) + imgSpace + textW/2;
+    cell.attr('image', { refX:0, refX2:startX, refY:0.5, y:-imgH/2, width:imgW, height:imgH });
 
-    // Collapse both sidebars on mobile phones
-    if (isMobile()) {
-        document.getElementById('left-sidebar').classList.add('collapsed');
-        document.getElementById('right-sidebar').classList.add('collapsed');
-        document.getElementById('left-icon').style.transform = 'rotate(180deg)';
-        document.getElementById('right-icon').style.transform = 'rotate(180deg)';
+    if (descText) {
+      const cY = (height - totalTextH) / 2;
+      cell.attr('label',            { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height/2,              textAnchor:'middle', textVerticalAnchor:'middle' });
+      cell.attr('descriptionLabel', { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height + descBBox.height/2, textAnchor:'middle', textVerticalAnchor:'middle' });
+    } else {
+      cell.attr('label', { refX:0, refX2:textCenterX, refY:0.5, refY2:0, textAnchor:'middle', textVerticalAnchor:'middle' });
     }
+    cell.resize(width, height);
+  }
 
-    createNode('ellipse', 400, 100, 'START');
-    createNode('rect', 400, 300, 'PROCESS');
+  // ═══════════════════════════════════════════
+  // Internal: Auto-port distribution
+  // ═══════════════════════════════════════════
+  _autoPortDistributor(element) {
+    if (!this._autoPortEnabled) return;
+    this._graph.getConnectedLinks(element).forEach(link => {
+      const conn = this._connections.get(link.id);
+      if (conn?.sourcePort !== null || conn?.targetPort !== null) return; // respect manual ports
+      const src = link.getSourceElement(), tgt = link.getTargetElement();
+      if (!src || !tgt) return;
+      const getBest = (el, other) => {
+        const angle = Math.atan2(other.center().y - el.getBBox().center().y, other.center().x - el.getBBox().center().x);
+        let best = null, min = Infinity;
+        el.getPorts().forEach(p => {
+          const pos = el.getPortsPositions('all')[p.id];
+          const a   = Math.atan2(pos.y - el.getBBox().height/2, pos.x - el.getBBox().width/2);
+          let d = Math.abs(angle - a);
+          if (d > Math.PI) d = 2*Math.PI - d;
+          if (d < min) { min = d; best = p.id; }
+        });
+        return best;
+      };
+      const bS = getBest(src, tgt.getBBox()), bT = getBest(tgt, src.getBBox());
+      if (link.get('source').port !== bS) link.source({ id: src.id, port: bS });
+      if (link.get('target').port !== bT) link.target({ id: tgt.id, port: bT });
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // Internal: Helpers
+  // ═══════════════════════════════════════════
+  _isMobile() { return window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches; }
+
+  _createEl(tag, className = '') {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    return el;
+  }
+
+  _zoomBtn(parent, title, html) {
+    const btn = parent.appendChild(this._createEl('button', 'wf-ctrl-btn'));
+    btn.title = title; btn.innerHTML = html;
+    return btn;
+  }
+
+  _zoomAtPoint(factor, clientX, clientY) {
+    const cur  = this._paper.scale().sx;
+    const next = Math.max(0.1, Math.min(10, cur * factor));
+    const rect = this._paper.el.getBoundingClientRect();
+    const x = clientX - rect.left, y = clientY - rect.top;
+    const t = this._paper.translate();
+    const ox = (x - t.tx) / cur, oy = (y - t.ty) / cur;
+    this._paper.scale(next, next);
+    this._paper.translate(x - ox*next, y - oy*next);
+  }
+
+  _zoomCenter(factor) {
+    const rect = this._paper.el.getBoundingClientRect();
+    this._zoomAtPoint(factor, rect.left + rect.width/2, rect.top + rect.height/2);
+  }
+
+  _findClearPosition(x, y, w, h, exclude = null) {
+    const cl = 4 * this._GRID;
+    let cx = Math.round(x/this._GRID)*this._GRID, cy = Math.round(y/this._GRID)*this._GRID;
+    const isObs = (px, py) => {
+      const r = new joint.g.Rect(px, py, w, h).inflate(cl);
+      return this._graph.getElements().some(el => (exclude && el.id === exclude.id) ? false : r.intersect(el.getBBox().clone().inflate(cl)));
+    };
+    if (!isObs(cx,cy)) return { x:cx, y:cy };
+    for (let s=1; s<30; s++) {
+      for (let dx=-s; dx<=s; dx++) for (let dy=-s; dy<=s; dy++) {
+        if (Math.abs(dx)!==s && Math.abs(dy)!==s) continue;
+        const tx=cx+dx*this._GRID, ty=cy+dy*this._GRID;
+        if (!isObs(tx,ty)) return { x:tx, y:ty };
+      }
+    }
+    return { x:cx, y:cy };
+  }
+
+  _touchDist(t1,t2) { const dx=t1.clientX-t2.clientX, dy=t1.clientY-t2.clientY; return Math.sqrt(dx*dx+dy*dy); }
+  _touchMid(t1,t2)  { return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Bootstrap
+// ═══════════════════════════════════════════════════════════════
+const canvas = new Canvas(document.body);
+const start   = canvas.addShape(new Ellipse('START'));
+const process = canvas.addShape(new Rectangle('PROCESS'));
 </script>
 </body>
 </html>
