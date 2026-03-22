@@ -979,19 +979,12 @@ class Canvas extends EventEmitter {
     // Export / Import
     this._exportBtn.addEventListener('click', () => {
       const json = this.serialize();
-      const w = window.open('', '_blank');
-      if (w) {
-        w.document.open();
-        w.document.write('<pre>' + json.replace(/</g, '&lt;') + '</pre>');
-        w.document.close();
-      } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard?.writeText(json).then(() => {
-          alert('Diagram JSON copied to clipboard!');
-        }).catch(() => {
-          prompt('Copy the JSON below:', json);
-        });
-      }
+      const a    = document.createElement('a');
+      a.href     = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      a.download = 'diagram.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     });
 
     this._importBtn.addEventListener('click', () => this._importFileInput.click());
