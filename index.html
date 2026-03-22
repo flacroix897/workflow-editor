@@ -28,6 +28,14 @@
             transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            min-height: 0;
+        }
+
+        .sidebar-left .component-list,
+        .sidebar-right .properties-panel {
+            overflow-y: auto;
+            flex: 1 1 0;
+            min-height: 0;
         }
 
         .sidebar-left.collapsed, .sidebar-right.collapsed {
@@ -46,7 +54,11 @@
             justify-content: space-between;
             align-items: center;
             height: 48px;
+            min-height: 48px;
+            max-height: 48px;
+            box-sizing: border-box;
             white-space: nowrap;
+            overflow: hidden;
         }
 
         /* Center toggle button when collapsed */
@@ -492,18 +504,40 @@
         const sidebar = document.getElementById(id);
         const icon = document.getElementById(id === 'left-sidebar' ? 'left-icon' : 'right-icon');
         const isCollapsed = sidebar.classList.toggle('collapsed');
-        
-        if (id === 'left-sidebar') {
-            icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-        } else {
-            icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+        icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+
+        // On mobile: closing the other sidebar when expanding
+        if (window.innerWidth < 768 && !isCollapsed) {
+            const otherId = id === 'left-sidebar' ? 'right-sidebar' : 'left-sidebar';
+            const other = document.getElementById(otherId);
+            const otherIcon = document.getElementById(otherId === 'left-sidebar' ? 'left-icon' : 'right-icon');
+            if (!other.classList.contains('collapsed')) {
+                other.classList.add('collapsed');
+                otherIcon.style.transform = 'rotate(180deg)';
+            }
         }
-        
+
         const resizeInterval = setInterval(() => {
             const container = document.getElementById('canvas-container');
             paper.setDimensions(container.clientWidth, container.clientHeight);
         }, 16);
-        
+        setTimeout(() => clearInterval(resizeInterval), 350);
+    }
+
+    function collapseBothSidebars() {
+        if (window.innerWidth >= 768) return;
+        ['left-sidebar', 'right-sidebar'].forEach(id => {
+            const sidebar = document.getElementById(id);
+            const icon = document.getElementById(id === 'left-sidebar' ? 'left-icon' : 'right-icon');
+            if (!sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                icon.style.transform = 'rotate(180deg)';
+            }
+        });
+        const resizeInterval = setInterval(() => {
+            const container = document.getElementById('canvas-container');
+            paper.setDimensions(container.clientWidth, container.clientHeight);
+        }, 16);
         setTimeout(() => clearInterval(resizeInterval), 350);
     }
 
@@ -643,6 +677,23 @@
         reader.readAsDataURL(file);
     }
 
+    let pointerDownPos = null;
+
+    paper.on('element:pointerdown', (cellView, evt) => {
+        pointerDownPos = { x: evt.clientX, y: evt.clientY };
+    });
+
+    paper.on('element:pointerup', (cellView, evt) => {
+        const dx = Math.abs(evt.clientX - (pointerDownPos?.x ?? evt.clientX));
+        const dy = Math.abs(evt.clientY - (pointerDownPos?.y ?? evt.clientY));
+        if (dx < 5 && dy < 5) {
+            collapseBothSidebars();
+            const right = document.getElementById('right-sidebar');
+            if (right.classList.contains('collapsed')) toggleSidebar('right-sidebar');
+        }
+        pointerDownPos = null;
+    });
+
     paper.on('element:pointerdown', (cellView) => {
         deselectAll();
         cellView.model.toFront();
@@ -650,10 +701,6 @@
         cellView.el.classList.add('selected');
         joint.highlighters.stroke.add(cellView, 'root', 'selection', { padding: 5, attrs: { 'stroke': '#3498db', 'stroke-width': 3 } });
         
-        if (document.getElementById('right-sidebar').classList.contains('collapsed')) {
-            toggleSidebar('right-sidebar');
-        }
-
         document.getElementById('prop-panel-element').style.display = 'block';
         document.getElementById('no-selection').style.display = 'none';
         document.getElementById('sidebar-actions').style.display = 'flex';
@@ -691,10 +738,6 @@
             tools: [new joint.linkTools.Vertices(), new CustomSourceArrowhead(), new joint.linkTools.TargetArrowhead({ offset: -1 }), new joint.linkTools.Remove({ distance: 20 })]
         }));
         
-        if (document.getElementById('right-sidebar').classList.contains('collapsed')) {
-            toggleSidebar('right-sidebar');
-        }
-
         document.getElementById('prop-panel-link').style.display = 'block';
         document.getElementById('no-selection').style.display = 'none';
         document.getElementById('sidebar-actions').style.display = 'flex';
@@ -828,6 +871,7 @@
     window.addEventListener('click', (e) => { if (!e.target.closest('#context-menu')) menu.style.display = 'none'; });
 
     paper.on('blank:pointerdown', (evt) => {
+        collapseBothSidebars();
         deselectAll();
         const startX = evt.clientX, startY = evt.clientY, origin = paper.translate();
         const onMouseMove = (e) => paper.translate(origin.tx + (e.clientX - startX), origin.ty + (e.clientY - startY));
@@ -911,9 +955,31 @@
 
     container.addEventListener('dragover', e => e.preventDefault());
     container.addEventListener('drop', e => { e.preventDefault(); createNode(e.dataTransfer.getData('type'), e.clientX, e.clientY, e.dataTransfer.getData('type').toUpperCase()); });
-    document.querySelectorAll('.node-template').forEach(el => el.addEventListener('dragstart', e => e.dataTransfer.setData('type', e.target.dataset.type)));
+    document.querySelectorAll('.node-template').forEach(el => {
+        el.addEventListener('dragstart', e => e.dataTransfer.setData('type', e.target.dataset.type));
+        el.addEventListener('click', e => {
+            if (window.innerWidth >= 768) return;
+            const type = e.currentTarget.dataset.type;
+            const rect = paper.el.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            createNode(type, cx, cy, type.toUpperCase());
+            // Collapse left sidebar
+            const left = document.getElementById('left-sidebar');
+            if (!left.classList.contains('collapsed')) toggleSidebar('left-sidebar');
+        });
+    });
 
     function layout() {}
+
+    // Collapse both sidebars on mobile phones
+    if (window.innerWidth < 768) {
+        document.getElementById('left-sidebar').classList.add('collapsed');
+        document.getElementById('right-sidebar').classList.add('collapsed');
+        document.getElementById('left-icon').style.transform = 'rotate(180deg)';
+        document.getElementById('right-icon').style.transform = 'rotate(180deg)';
+    }
+
     createNode('ellipse', 400, 100, 'START');
     createNode('rect', 400, 300, 'PROCESS');
 </script>
