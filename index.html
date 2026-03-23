@@ -125,8 +125,8 @@
     .wf-menu-item.danger:hover { color: #e74c3c; }
 
     /* ── JointJS overrides ── */
-    .joint-port { display: none; }
-    .joint-cell.wf-selected .joint-port { display: block; }
+    .joint-port { display: none !important; }
+    .joint-cell.wf-selected .joint-port { display: block !important; }
     .joint-paper.wf-dragging-link .joint-port { display: block !important; }
   </style>
 </head>
@@ -664,6 +664,7 @@ class Canvas extends EventEmitter {
     this._registeredShapes = this._registeredShapes || {};
     this._registeredShapes[label] = ShapeClass;
   }
+
   addShape(shape, x, y) {
     const ns  = joint.shapes;
     const container = this._canvasContainer;
@@ -695,6 +696,8 @@ class Canvas extends EventEmitter {
 
     cell.addTo(this._graph);
     this._shapes.set(cell.id, shape);
+
+    this._deselectAll();
 
     setTimeout(() => {
       this._autoSize(cell);
@@ -884,8 +887,6 @@ class Canvas extends EventEmitter {
       this.emit('connection:add', conn);
     });
 
-    this._autoPortEnabled = prevAutoPort;
-
     // Apply render functions after everything is in place
     [...this._shapes.values()].forEach(shape => {
       if (shape._renderFn) shape._renderFn(shape);
@@ -918,7 +919,6 @@ class Canvas extends EventEmitter {
     this._canvasContainer = this._el.appendChild(this._createEl('div', 'wf-canvas-container'));
     this._paperEl = this._canvasContainer.appendChild(this._createEl('div', 'wf-paper'));
 
-    // Bottom-left controls
     // Top-right controls
     const topRight = this._canvasContainer.appendChild(this._createEl('div', 'wf-top-right'));
     topRight.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
@@ -1016,8 +1016,6 @@ class Canvas extends EventEmitter {
         if (!this._leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._leftSidebar);
       });
     });
-
-
   }
 
   _buildElementPropsPanel() {
@@ -1209,6 +1207,8 @@ class Canvas extends EventEmitter {
         Object.entries(shape._customProps).forEach(([key, val]) => cell.set(`custom_${key}`, val));
         cell.addTo(this._graph);
         this._shapes.set(cell.id, shape);
+        // FIX: deselect before selecting newly dropped shape
+        this._deselectAll();
         setTimeout(() => { this._autoSize(cell); if (shape._renderFn) shape._renderFn(shape); this._selectCell(shape); }, 50);
         this.emit('shape:add', shape);
         return;
@@ -1237,6 +1237,8 @@ class Canvas extends EventEmitter {
       shape._canvas = this;
       cell.addTo(this._graph);
       this._shapes.set(cell.id, shape);
+      // FIX: deselect before selecting newly dropped shape
+      this._deselectAll();
       setTimeout(() => { this._autoSize(cell); this._selectCell(shape); }, 50);
       this.emit('shape:add', shape);
     });
@@ -1495,7 +1497,6 @@ class Canvas extends EventEmitter {
         this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin: this._paper.translate() };
       } else if (e.touches.length === 2) {
         e.stopPropagation();
-        // Reset to pinch cleanly regardless of prior state
         const [t1, t2] = [e.touches[0], e.touches[1]];
         this._touchState = { type:'pinch', dist:this._touchDist(t1,t2), mid:this._touchMid(t1,t2), scale:this._paper.scale().sx, origin:this._paper.translate() };
       }
@@ -1505,7 +1506,7 @@ class Canvas extends EventEmitter {
       if (!this._isMobile() || !this._touchState) return;
       e.preventDefault();
       const s = this._touchState;
-            if (s.type === 'pan' && e.touches.length === 1) {
+      if (s.type === 'pan' && e.touches.length === 1) {
         const t = e.touches[0];
         this._paper.translate(s.origin.tx + (t.clientX - s.x), s.origin.ty + (t.clientY - s.y));
       } else if (s.type === 'pinch' && e.touches.length === 2) {
@@ -1910,7 +1911,6 @@ class Canvas extends EventEmitter {
 // ═══════════════════════════════════════════════════════════════
 const canvas = new Canvas(document.body);
 
-// Example custom shape
 const TaskShape = Shape.define(Rectangle,
   { label: 'New Task', backgroundColor: '#f0f8ff' },
   {
