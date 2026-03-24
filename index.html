@@ -728,6 +728,7 @@ class Canvas extends EventEmitter {
       else{const s=this._shapes.get(cell.id);if(s){this._shapes.delete(cell.id);this.emit('shape:remove',s);}}
     });
     this._graph.on('change:position',cell=>{
+      if(this._isPanning)return;
       const shape=this._shapes.get(cell.id);
       if(shape){this._autoPortDistributor(cell);shape.emit('move',shape);}
     });
@@ -787,9 +788,11 @@ class Canvas extends EventEmitter {
         const t=e.touches[0];
         if(document.elementFromPoint(t.clientX,t.clientY)?.closest('.joint-cell'))return;
         e.stopPropagation();
+        this._isPanning=true;
         this._touchState={type:'pan',x:t.clientX,y:t.clientY,origin:this._paper.translate()};
       } else if(e.touches.length===2){
         e.stopPropagation();
+        this._isPanning=true;
         const [t1,t2]=[e.touches[0],e.touches[1]];
         this._touchState={type:'pinch',dist:this._touchDist(t1,t2),mid:this._touchMid(t1,t2),scale:this._paper.scale().sx,origin:this._paper.translate()};
       }
@@ -813,7 +816,7 @@ class Canvas extends EventEmitter {
       if(!this._isMobile())return;
       if(this._touchState?.type==='pinch'&&e.touches.length===1){
         const t=e.touches[0]; this._touchState={type:'pan',x:t.clientX,y:t.clientY,origin:this._paper.translate()};
-      } else this._touchState=null;
+      } else { this._touchState=null; this._isPanning=false; }
     },{passive:true});
   }
 
