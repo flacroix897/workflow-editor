@@ -610,34 +610,20 @@ class Canvas extends EventEmitter {
     const g = new dagre.graphlib.Graph();
     g.setGraph({ rankdir: 'TB', ranksep: 60, nodesep: 40, marginx: 40, marginy: 40 });
     g.setDefaultEdgeLabel(() => ({}));
-
-    // Add nodes with their current sizes
     this._graph.getElements().forEach(el => {
       const { width, height } = el.size();
       g.setNode(el.id, { width, height });
     });
-
-    // Add edges
     this._graph.getLinks().forEach(link => {
       const src = link.getSourceElement(), tgt = link.getTargetElement();
       if (src && tgt) g.setEdge(src.id, tgt.id);
     });
-
     dagre.layout(g);
-
-    // Apply positions — keep ports/connections intact, distributor re-routes
     this._graph.getElements().forEach(el => {
-      const node = g.node(el.id);
-      if (!node) return;
-      // Dagre gives center x/y, JointJS uses top-left
+      const node = g.node(el.id); if (!node) return;
       el.position(Math.round(node.x - node.width / 2), Math.round(node.y - node.height / 2));
     });
-
-    // Re-run distributor on all elements after layout
-    if (this._autoPortEnabled) {
-      this._graph.getElements().forEach(el => this._autoPortDistributor(el));
-    }
-
+    if (this._autoPortEnabled) this._graph.getElements().forEach(el => this._autoPortDistributor(el));
     this.moveToCenter();
     return this;
   }
@@ -1096,6 +1082,11 @@ class Canvas extends EventEmitter {
       if (!srcEl||!tgtEl) return;
       const source=this._shapes.get(srcEl.id), target=this._shapes.get(tgtEl.id);
       if (!source||!target||this._connections.has(link.id)) return;
+      // Block if the reverse connection already exists
+      const reverseExists = [...this._connections.values()].some(
+        c => c.source === target && c.target === source
+      );
+      if (reverseExists) { link.remove(); return; }
       const conn = new Connection(link, source, target, this);
       this._connections.set(link.id, conn);
       this.emit('connection:add', conn);
@@ -1356,6 +1347,12 @@ class Canvas extends EventEmitter {
   // Internal: Connections
   // ═══════════════════════════════════════════
   _createConnection(source, target, sourcePort, targetPort) {
+    // Block if the reverse connection already exists
+    const reverseExists = [...this._connections.values()].some(
+      c => c.source === target && c.target === source
+    );
+    if (reverseExists) return null;
+
     const link = new joint.shapes.standard.Link({ attrs:{ line:{ stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } });
     const srcPorts=source._cell.getPorts(), tgtPorts=target._cell.getPorts();
     const srcPortObj = sourcePort !== null ? srcPorts[sourcePort-1] : null;
