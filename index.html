@@ -673,13 +673,7 @@ class Canvas extends EventEmitter {
       const shape=this._shapes.get(cv.model.id); if(!shape)return;
       this._pointerDownPos={x:evt.clientX,y:evt.clientY}; this._wasAlreadySelected=this._selected===shape;
       this._deselectAll();
-      if(this._isMobile()){
-        // Prevent JointJS from treating this touch as a shape drag,
-        // which causes position recalculations and ghost repaints during pan/zoom
-        cv.preventDefaultInteraction(evt);
-      } else {
-        shape._cell.toFront();
-      }
+      if(!this._isMobile()) shape._cell.toFront();
       this._selectCell(shape);
     });
     this._paper.on('element:pointerup',(cv,evt)=>{
