@@ -117,9 +117,9 @@
     .wf-menu-item:hover { background: #f1f1f1; }
     .wf-menu-item.danger:hover { color: #e74c3c; }
 
-    .joint-port { display: none !important; }
-    .joint-cell.wf-selected .joint-port { display: block !important; }
-    .joint-paper.wf-dragging-link .joint-port { display: block !important; }
+    .joint-port { opacity: 0; pointer-events: none; }
+    .joint-cell.wf-selected .joint-port { opacity: 1; pointer-events: all; }
+    .joint-paper.wf-dragging-link .joint-port { opacity: 1; pointer-events: all; }
 
     /* Ensure port circles are always on top of cell bodies in SVG z-order */
     .joint-ports { pointer-events: none; }
@@ -1329,9 +1329,11 @@ class Canvas extends EventEmitter {
   _createConnection(source, target, sourcePort, targetPort) {
     const link = new joint.shapes.standard.Link({ attrs:{ line:{ stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } });
     const srcPorts=source._cell.getPorts(), tgtPorts=target._cell.getPorts();
-    // Connect cell-to-cell initially (no port) — distributor assigns correct ports after
-    const srcPort=sourcePort!==null&&srcPorts[sourcePort-1] ? srcPorts[sourcePort-1].id : undefined;
-    const tgtPort=targetPort!==null&&tgtPorts[targetPort-1] ? tgtPorts[targetPort-1].id : undefined;
+    // Verify port exists in model before using it
+    const srcPortObj = sourcePort !== null ? srcPorts[sourcePort-1] : null;
+    const tgtPortObj = targetPort !== null ? tgtPorts[targetPort-1] : null;
+    const srcPort = srcPortObj ? srcPortObj.id : undefined;
+    const tgtPort = tgtPortObj ? tgtPortObj.id : undefined;
     link.source(srcPort ? { id:source._cell.id, port:srcPort } : { id:source._cell.id });
     link.target(tgtPort ? { id:target._cell.id, port:tgtPort } : { id:target._cell.id });
     // Only store explicit port assignments (non-null) so the distributor
@@ -1343,6 +1345,7 @@ class Canvas extends EventEmitter {
     this._graph.startBatch('connection');
     link.addTo(this._graph);
     this._graph.stopBatch('connection');
+    this._paper.updateViews();
     const conn=new Connection(link,source,target,this);
     this._connections.set(link.id,conn);
     this.emit('connection:add',conn);
@@ -1400,7 +1403,8 @@ class Canvas extends EventEmitter {
   _autoPortDistributor(element) {
     if (!this._autoPortEnabled || this._deserializing) return;
     this._graph.getConnectedLinks(element).forEach(link => {
-      if (typeof link.get('sourcePort') === 'number' || typeof link.get('targetPort') === 'number') return;
+      if (typeof link.get('sourcePort') === 'number') return;
+      if (typeof link.get('targetPort') === 'number') return;
       const src=link.getSourceElement(), tgt=link.getTargetElement(); if (!src||!tgt) return;
 
       const centerOf = el => {
