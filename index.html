@@ -623,9 +623,8 @@ class Canvas extends EventEmitter {
     const connections = [...this._connections.values()].map(c => {
       return {
         sourceId: c.source._cell.id, targetId: c.target._cell.id,
-        // Never save port indices — auto-port distributor re-routes on import
-        sourcePort: null,
-        targetPort: null,
+        sourcePort: (() => { const id = c._link.source()?.port; if (!id) return null; const i = c.source._cell.getPorts().findIndex(p => p.id === id); return i >= 0 ? i + 1 : null; })(),
+        targetPort: (() => { const id = c._link.target()?.port; if (!id) return null; const i = c.target._cell.getPorts().findIndex(p => p.id === id); return i >= 0 ? i + 1 : null; })(),
         label: c.label, labelColor: c.labelColor, labelFontSize: c.labelFontSize,
         lineColor: c.lineColor, lineWidth: c.lineWidth, lineStyle: c.lineStyle,
         sourceArrow: c.sourceArrow, targetArrow: c.targetArrow,
@@ -1337,16 +1336,10 @@ class Canvas extends EventEmitter {
   }
   _getConnectionsForShape(shape) { return [...this._connections.values()].filter(c=>c.source===shape||c.target===shape); }
 
-  // Waits for JointJS to finish rendering a cell view by listening
-  // to the paper's render queue via requestAnimationFrame chains.
-  // Returns a promise that resolves once the view's ports are updated.
   _waitForRender(cell) {
     return new Promise(resolve => {
       const view = this._paper.findViewByModel(cell);
       if (!view) { resolve(); return; }
-      // JointJS processes model changes synchronously but SVG attribute
-      // updates are batched. Two rAFs guarantee both the resize and the
-      // subsequent SVG transform updates have been flushed to the DOM.
       requestAnimationFrame(() => requestAnimationFrame(() => resolve(view)));
     });
   }
@@ -1354,10 +1347,8 @@ class Canvas extends EventEmitter {
   async _autoSizeAsync(cell) {
     this._autoSize(cell);
     await this._waitForRender(cell);
-    // Rebuild JointJS spatial index so pointer events hit the resized cell correctly
     this._paper.updateViews();
   }
-
 
   _autoSize(cell) {
     const view=this._paper.findViewByModel(cell); if (!view) return;
