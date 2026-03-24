@@ -145,19 +145,16 @@
 // ═══════════════════════════════════════════════════════════════
 class EventEmitter {
   constructor() { this._listeners = {}; }
-
   on(event, cb) {
     if (!this._listeners[event]) this._listeners[event] = [];
     this._listeners[event].push(cb);
     return this;
   }
-
   off(event, cb) {
     if (!this._listeners[event]) return this;
     this._listeners[event] = this._listeners[event].filter(fn => fn !== cb);
     return this;
   }
-
   emit(event, ...args) {
     (this._listeners[event] || []).forEach(fn => fn(...args));
     return this;
@@ -174,10 +171,8 @@ class Vertex extends EventEmitter {
     this._link = link;
     this._index = index;
   }
-
   get x() { return this._link.vertices()[this._index]?.x ?? 0; }
   get y() { return this._link.vertices()[this._index]?.y ?? 0; }
-
   moveTo(x, y) {
     const verts = [...this._link.vertices()];
     verts[this._index] = { x, y };
@@ -185,9 +180,7 @@ class Vertex extends EventEmitter {
     this.emit('move', this);
     return this;
   }
-
   moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
-
   remove() {
     const verts = [...this._link.vertices()];
     verts.splice(this._index, 1);
@@ -214,12 +207,10 @@ class Connection extends EventEmitter {
     this._canvas = canvas;
     this._vertices = [];
   }
-
   get id()     { return this._link.id; }
   get source() { return this._source; }
   get target() { return this._target; }
 
-  // ── label ──
   get label()      { return this._link.label(0)?.attrs?.text?.text || ''; }
   set label(v)     { this._applyLabel(v); this.emit('change', this); }
 
@@ -229,7 +220,6 @@ class Connection extends EventEmitter {
   get labelFontSize() { return this._link.get('fontSizePercent') || 100; }
   set labelFontSize(v){ this._link.set('fontSizePercent', v); this._applyLabel(this.label); this.emit('change', this); }
 
-  // ── line ──
   get lineColor()  { return this._link.attr('line/stroke') || '#495057'; }
   set lineColor(v) { this._link.attr('line/stroke', v); this.emit('change', this); }
 
@@ -245,14 +235,12 @@ class Connection extends EventEmitter {
     this.emit('change', this);
   }
 
-  // ── arrows ──
   get sourceArrow() { return this._markerType(this._link.attr('line/sourceMarker')); }
   set sourceArrow(v){ this._link.attr('line/sourceMarker', MARKERS[v] || null); this.emit('change', this); }
 
   get targetArrow() { return this._markerType(this._link.attr('line/targetMarker')); }
   set targetArrow(v){ this._link.attr('line/targetMarker', MARKERS[v] || null); this.emit('change', this); }
 
-  // ── connector ──
   get connectorType() {
     const c = this._link.connector()?.name;
     const r = this._link.router()?.name;
@@ -260,26 +248,22 @@ class Connection extends EventEmitter {
   }
   set connectorType(v) {
     const GRID = this._canvas._GRID;
-    if (v === 'elbow')    { this._link.router('manhattan', { step: GRID, padding: 20 }); this._link.connector('rounded'); }
+    if (v === 'elbow')         { this._link.router('manhattan', { step: GRID, padding: 20 }); this._link.connector('rounded'); }
     else if (v === 'straight') { this._link.router('normal'); this._link.connector('normal'); }
-    else                  { this._link.router('normal'); this._link.connector('smooth'); }
+    else                       { this._link.router('normal'); this._link.connector('smooth'); }
     this.emit('change', this);
   }
 
-  // ── ports ──
   get sourcePort() { return this._link.get('sourcePort') ?? null; }
   set sourcePort(v){ this._setPort('source', v); }
 
   get targetPort() { return this._link.get('targetPort') ?? null; }
   set targetPort(v){ this._setPort('target', v); }
 
-  // ── description ──
   get description()  { return this._link.get('description') || ''; }
   set description(v) { this._link.set('description', v); this.emit('change', this); }
 
-  // ── vertices ──
   getVertices() { return [...this._vertices]; }
-
   addVertex(x, y) {
     const verts = [...this._link.vertices(), { x, y }];
     this._link.vertices(verts);
@@ -288,29 +272,21 @@ class Connection extends EventEmitter {
     return v;
   }
 
-  // ── selection ──
   select()   { this._canvas._selectCell(this); return this; }
   deselect() { this._canvas._deselectAll(); return this; }
+  remove()   { this._link.remove(); this.emit('remove', this); }
 
-  remove() {
-    this._link.remove();
-    this.emit('remove', this);
-  }
-
-  // ── internal ──
   _applyLabel(text) {
     const fontSize = 12 * ((this._link.get('fontSizePercent') || 100) / 100);
     const color = this._link.get('labelColor') || '#333333';
     this._link.labels(text ? [{ attrs: { text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }] : []);
   }
-
   _markerType(m) {
     if (!m) return 'none';
     if (m.d === MARKERS.classic.d) return 'classic';
     if (m.d === MARKERS.block.d)   return 'block';
     return 'none';
   }
-
   _setPort(side, portIndex) {
     const shape = side === 'source' ? this._source : this._target;
     this._link.set(`${side}Port`, portIndex);
@@ -351,7 +327,6 @@ class Shape extends EventEmitter {
 
   get id()     { return this._cell?.id ?? null; }
 
-  // ── position / size ──
   get x()      { return this._cell?.position().x ?? 0; }
   set x(v)     { this._cell?.position(v, this.y); this.emit('change', this); }
 
@@ -360,9 +335,8 @@ class Shape extends EventEmitter {
 
   get width()  { return this._cell?.size().width ?? 0; }
   get height() { return this._cell?.size().height ?? 0; }
-  get portCount() { return 4; } // overridden by subclasses
+  get portCount() { return 4; }
 
-  // ── label ──
   get label()  { return this._cell?.attr('label/text') ?? this._label; }
   set label(v) { this._cell?.attr('label/text', v); this._label = v; this._autoSize(); this.emit('change', this); }
 
@@ -372,14 +346,12 @@ class Shape extends EventEmitter {
   get labelFontSize()  { return this._cell?.get('fontSizePercent') ?? 100; }
   set labelFontSize(v) { this._cell?.set('fontSizePercent', v); this._autoSize(); this.emit('change', this); }
 
-  // ── description ──
   get description()  { return this._cell?.get('description') ?? ''; }
   set description(v) { this._cell?.set('description', v); this._cell?.attr('descriptionLabel/text', v); this._autoSize(); this.emit('change', this); }
 
   get descriptionColor()  { return this._cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
   set descriptionColor(v) { this._cell?.attr('descriptionLabel/fill', v); this.emit('change', this); }
 
-  // ── appearance ──
   get backgroundColor()  { return this._cell?.attr('body/fill') ?? '#ffffff'; }
   set backgroundColor(v) { this._cell?.attr('body/fill', v); this.emit('change', this); }
 
@@ -389,7 +361,6 @@ class Shape extends EventEmitter {
   get borderWidth()  { return this._cell?.attr('body/strokeWidth') ?? 2; }
   set borderWidth(v) { this._cell?.attr('body/strokeWidth', v); this.emit('change', this); }
 
-  // ── image ──
   get imageUrl()  { return this._cell?.get('imageUrl') ?? ''; }
   set imageUrl(v) {
     this._cell?.set('imageUrl', v);
@@ -404,25 +375,16 @@ class Shape extends EventEmitter {
   get imageHeight()  { return this._cell?.get('imageHeight') ?? 32; }
   set imageHeight(v) { this._cell?.set('imageHeight', v); this._autoSize(); this.emit('change', this); }
 
-  // ── metadata ──
   get status()  { return this._cell?.get('status') ?? 'pending'; }
   set status(v) { this._cell?.set('status', v); this.emit('change', this); }
 
   get priority()  { return this._cell?.get('priority') ?? 1; }
   set priority(v) { this._cell?.set('priority', v); this.emit('change', this); }
 
-  // ── methods ──
-  moveTo(x, y) {
-    this._cell?.position(x, y);
-    this.emit('move', this);
-    return this;
-  }
-
+  moveTo(x, y) { this._cell?.position(x, y); this.emit('move', this); return this; }
   moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
-
   toFront() { this._cell?.toFront(); return this; }
   toBack()  { this._cell?.toBack(); return this; }
-
   select()   { this._canvas?._selectCell(this); return this; }
   deselect() { this._canvas?._deselectAll(); return this; }
 
@@ -435,24 +397,15 @@ class Shape extends EventEmitter {
     return this._canvas?._createConnection(this, target, sourcePort, targetPort);
   }
 
-  remove() {
-    this._cell?.remove();
-    this.emit('remove', this);
-  }
+  remove() { this._cell?.remove(); this.emit('remove', this); }
 
-  // ── internal: implemented per subclass ──
   _buildCell(pos, ns) { throw new Error('_buildCell must be implemented by subclass'); }
-
-  _autoSize() {
-    if (!this._canvas || !this._cell) return;
-    this._canvas._autoSize(this._cell);
-  }
-
+  _autoSize() { if (!this._canvas || !this._cell) return; this._canvas._autoSize(this._cell); }
   _getShapeType() { return 'rect'; }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Shape.define — custom shape factory
+// Shape.define
 // ═══════════════════════════════════════════════════════════════
 Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) {
   class CustomShape extends BaseClass {
@@ -463,7 +416,6 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
       this._renderFn     = renderFn;
       this._defaultOpts  = defaults;
 
-      // Apply defaults then opts for built-in properties
       const merged = { ...defaults, ...opts };
       const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
         'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight',
@@ -471,7 +423,6 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
       builtIn.forEach(k => { if (merged[k] !== undefined) this[`_init_${k}`] = merged[k]; });
       this._label = merged.label ?? defaults.label ?? '';
 
-      // Apply custom property defaults then opts
       Object.entries(schema).forEach(([key, def]) => {
         this._customProps[key] = opts[key] !== undefined ? opts[key] : def.default;
       });
@@ -485,19 +436,14 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
       if (this._renderFn) this._renderFn(this);
       this.emit('change', this);
     }
-
     getSchema() { return this._schema; }
 
-    // Override _buildCell to re-apply init values after cell creation
-    _buildCell(pos, ns) {
-      const cell = super._buildCell(pos, ns);
-      return cell;
-    }
+    _buildCell(pos, ns) { return super._buildCell(pos, ns); }
   }
 
-  // Copy shape type methods from base
   CustomShape.prototype._getShapeType = BaseClass.prototype._getShapeType;
-  Object.defineProperty(CustomShape.prototype, 'portCount', Object.getOwnPropertyDescriptor(BaseClass.prototype, 'portCount') || { get() { return 4; } });
+  Object.defineProperty(CustomShape.prototype, 'portCount',
+    Object.getOwnPropertyDescriptor(BaseClass.prototype, 'portCount') || { get() { return 4; } });
 
   return CustomShape;
 };
@@ -510,49 +456,41 @@ class Rectangle extends Shape {
   _getShapeType() { return 'rect'; }
   _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'rect', 140, 50); }
 }
-
 class Square extends Shape {
   get portCount() { return 4; }
   _getShapeType() { return 'square'; }
   _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'square', 80, 80); }
 }
-
 class Ellipse extends Shape {
   get portCount() { return 4; }
   _getShapeType() { return 'ellipse'; }
   _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
 }
-
 class Circle extends Shape {
   get portCount() { return 4; }
   _getShapeType() { return 'circle'; }
   _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
 }
-
 class Diamond extends Shape {
   get portCount() { return 4; }
   _getShapeType() { return 'diamond'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
 }
-
 class Triangle extends Shape {
   get portCount() { return 3; }
   _getShapeType() { return 'triangle'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
 }
-
 class Hexagon extends Shape {
   get portCount() { return 6; }
   _getShapeType() { return 'hexagon'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
 }
-
 class Pentagon extends Shape {
   get portCount() { return 5; }
   _getShapeType() { return 'pentagon'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
 }
-
 class Octagon extends Shape {
   get portCount() { return 8; }
   _getShapeType() { return 'octagon'; }
@@ -598,7 +536,6 @@ function _buildStandardRect(pos, ns, type, w, h) {
   _attachPorts(cell, []);
   return cell;
 }
-
 function _buildEllipseCell(pos, ns, type, w, h) {
   const cell = new ns.standard.Ellipse();
   cell.markup = [{ tagName:'ellipse', selector:'body', className:'body' }, ..._sharedMarkup];
@@ -608,7 +545,6 @@ function _buildEllipseCell(pos, ns, type, w, h) {
   _attachPorts(cell, []);
   return cell;
 }
-
 function _buildPolygonCell(pos, ns, type, w, h, points) {
   const cell = new ns.standard.Polygon();
   cell.markup = [{ tagName:'polygon', selector:'body', className:'body' }, ..._sharedMarkup];
@@ -627,9 +563,9 @@ class Canvas extends EventEmitter {
     super();
     this._el      = element;
     this._GRID    = 10;
-    this.shapeClearance = 4; // minimum spacing between shapes in grid units
-    this._shapes  = new Map(); // cellId -> Shape
-    this._connections = new Map(); // linkId -> Connection
+    this.shapeClearance = 4;
+    this._shapes  = new Map();
+    this._connections = new Map();
     this._selected = null;
     this._autoPortEnabled = true;
     this._touchState = null;
@@ -679,7 +615,6 @@ class Canvas extends EventEmitter {
     shape._cell   = cell;
     shape._canvas = this;
 
-    // Apply built-in init options
     const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
       'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight',
       'status','priority'];
@@ -689,14 +624,12 @@ class Canvas extends EventEmitter {
       if (v !== undefined) shape[k] = v;
     });
 
-    // Apply custom property defaults to cell
     Object.entries(shape._customProps).forEach(([key, val]) => {
       cell.set(`custom_${key}`, val);
     });
 
     cell.addTo(this._graph);
     this._shapes.set(cell.id, shape);
-
     this._deselectAll();
 
     setTimeout(() => {
@@ -707,23 +640,15 @@ class Canvas extends EventEmitter {
     return shape;
   }
 
-  removeShape(shape) {
-    shape.remove();
-    this._shapes.delete(shape.id);
-    this.emit('shape:remove', shape);
-  }
+  removeShape(shape) { shape.remove(); this._shapes.delete(shape.id); this.emit('shape:remove', shape); }
 
-  getShapes() { return [...this._shapes.values()]; }
-
-  // ── Public: connections ──
+  getShapes()      { return [...this._shapes.values()]; }
   getConnections() { return [...this._connections.values()]; }
 
-  // ── Public: viewport ──
   moveTo(x, y) { this._paper.translate(x, y); return this; }
 
   moveToCenter() {
-    const bbox = this._graph.getBBox();
-    if (!bbox) return this;
+    const bbox = this._graph.getBBox(); if (!bbox) return this;
     const s = this._paper.getComputedSize();
     this._paper.scale(1,1);
     this._paper.translate(s.width/2 - (bbox.x + bbox.width/2), s.height/2 - (bbox.y + bbox.height/2));
@@ -736,11 +661,9 @@ class Canvas extends EventEmitter {
   zoomToFit()            { this._paper.scaleContentToFit({ padding:50, minScale:0.2, maxScale:2 }); return this; }
   getZoom()              { return this._paper.scale().sx; }
 
-  // ── Public: selection ──
-  getSelection()  { return this._selected; }
-  clearSelection(){ this._deselectAll(); return this; }
+  getSelection()   { return this._selected; }
+  clearSelection() { this._deselectAll(); return this; }
 
-  // ── Public: settings ──
   setAutoPortSwitching(enabled) {
     this._autoPortEnabled = enabled;
     this._autoPortBtn.classList.toggle('active', enabled);
@@ -763,7 +686,8 @@ class Canvas extends EventEmitter {
   // ── Public: persistence ──
   serialize() {
     const shapes = [...this._shapes.values()].map(s => ({
-      id:         s._cell.id,      shapeClass: s.constructor.name,
+      id:         s._cell.id,
+      shapeClass: s.constructor.name,
       x: s.x, y: s.y,
       props: {
         label:            s.label,
@@ -782,7 +706,6 @@ class Canvas extends EventEmitter {
     }));
 
     const connections = [...this._connections.values()].map(c => {
-      // Convert JointJS port ID back to clockwise index (1-based)
       const portIndex = (cell, portId) => {
         if (!portId) return null;
         const ports = cell.getPorts();
@@ -815,12 +738,14 @@ class Canvas extends EventEmitter {
     const parsed = typeof data === 'string' ? JSON.parse(data) : data;
     const { shapes, connections } = parsed;
     if (!Array.isArray(shapes)) throw new Error('Invalid diagram file format.');
+
+    // ── 1. Clear canvas ──
     this._deselectAll();
     this._shapes.clear();
     this._connections.clear();
     this._graph.clear();
 
-    // Build a lookup of all known shape classes
+    // ── 2. Build class lookup ──
     const classMap = {
       Rectangle, Square, Ellipse, Circle, Diamond,
       Triangle, Hexagon, Pentagon, Octagon,
@@ -829,68 +754,55 @@ class Canvas extends EventEmitter {
       )
     };
 
-    // Restore shapes first, then connections after autoSize settles
-    const idMap = {};
+    // ── 3. Restore shapes ──
+    // We use addShape() so all normal initialisation runs, then immediately
+    // overwrite the position with the saved one (bypassing _findClearPosition).
+    const idMap = {}; // saved id → Shape instance
+
     shapes.forEach(s => {
       const Cls = classMap[s.shapeClass];
       if (!Cls) { console.warn(`Unknown shape class: ${s.shapeClass}`); return; }
+
+      // Build the shape with all its props so addShape applies them correctly
       const shape = new Cls({ ...s.props, ...s.customProps });
-      const cell  = shape._buildCell({ x: s.x, y: s.y }, joint.shapes);
-      // Set saved size immediately so port positions are correct before connections are wired
-      if (s.width && s.height) cell.resize(s.width, s.height);
-      cell.attr('label/text', s.props.label);
-      shape._cell   = cell;
-      shape._canvas = this;
-      Object.entries(s.props).forEach(([k, v]) => { if (k in shape) shape[k] = v; });
-      Object.entries(s.customProps || {}).forEach(([k, v]) => {
-        shape._customProps[k] = v;
-        cell.set(`custom_${k}`, v);
-      });
-      cell.addTo(this._graph);
-      this._shapes.set(cell.id, shape);
+
+      // addShape centres on screen and finds a clear position — we correct
+      // the position right after so layout is exactly as saved.
+      this.addShape(shape);
+
+      // Force position to the saved coordinates, bypassing collision avoidance
+      shape._cell.position(s.x, s.y);
+
       idMap[s.id] = shape;
     });
 
-    // Restore connections synchronously — shapes are already at correct size
-    connections.forEach(c => {
-      const source = idMap[c.sourceId];
-      const target = idMap[c.targetId];
-      if (!source || !target) return;
+    // ── 4. Wait for autoSize to settle, then wire connections ──
+    // autoSize runs inside a setTimeout(fn, 50) in addShape, so we wait for
+    // all of those to complete before connecting.
+    setTimeout(() => {
+      connections.forEach(c => {
+        const source = idMap[c.sourceId];
+        const target = idMap[c.targetId];
+        if (!source || !target) return;
 
-      const link = new joint.shapes.standard.Link({
-        attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: MARKERS.classic } }
+        // connect() goes through the public API and registers the Connection
+        const conn = source.connect(target, c.sourcePort ?? null, c.targetPort ?? null);
+        if (!conn) return;
+
+        // Restore connection appearance / metadata via public setters
+        if (c.label)         conn.label         = c.label;
+        if (c.labelColor)    conn.labelColor     = c.labelColor;
+        if (c.labelFontSize) conn.labelFontSize  = c.labelFontSize;
+        conn.lineColor     = c.lineColor;
+        conn.lineWidth     = c.lineWidth;
+        conn.lineStyle     = c.lineStyle;
+        conn.sourceArrow   = c.sourceArrow;
+        conn.targetArrow   = c.targetArrow;
+        conn.connectorType = c.connectorType;
+        if (c.description)  conn.description    = c.description;
+        if (c.vertices?.length) conn._link.vertices(c.vertices);
       });
-
-      const srcPorts = source._cell.getPorts();
-      const tgtPorts = target._cell.getPorts();
-      const srcPort  = c.sourcePort != null ? srcPorts[c.sourcePort - 1]?.id : srcPorts[0]?.id;
-      const tgtPort  = c.targetPort != null ? tgtPorts[c.targetPort - 1]?.id : tgtPorts[0]?.id;
-      link.source({ id: source._cell.id, port: srcPort });
-      link.target({ id: target._cell.id, port: tgtPort });
-      link.addTo(this._graph);
-
-      const conn = new Connection(link, source, target, this);
-      this._connections.set(link.id, conn);
-
-      if (c.label)          conn.label         = c.label;
-      if (c.labelColor)     conn.labelColor    = c.labelColor;
-      if (c.labelFontSize)  conn.labelFontSize = c.labelFontSize;
-      conn.lineColor     = c.lineColor;
-      conn.lineWidth     = c.lineWidth;
-      conn.lineStyle     = c.lineStyle;
-      conn.sourceArrow   = c.sourceArrow;
-      conn.targetArrow   = c.targetArrow;
-      conn.connectorType = c.connectorType;
-      if (c.description)    conn.description   = c.description;
-      if (c.vertices?.length) link.vertices(c.vertices);
-
-      this.emit('connection:add', conn);
-    });
-
-    // Apply render functions after everything is in place
-    [...this._shapes.values()].forEach(shape => {
-      if (shape._renderFn) shape._renderFn(shape);
-    });
+    }, 100); // slightly longer than the 50 ms autoSize delay
 
     return this;
   }
@@ -902,7 +814,6 @@ class Canvas extends EventEmitter {
     this._el.innerHTML = '';
     this._el.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
-    // Left sidebar
     this._leftSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-left'));
     const leftHeader = this._leftSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
     leftHeader.innerHTML = `
@@ -915,11 +826,9 @@ class Canvas extends EventEmitter {
     this._library = this._leftSidebar.appendChild(this._createEl('div', 'wf-library wf-sidebar-body'));
     this._buildLibrary();
 
-    // Canvas container
     this._canvasContainer = this._el.appendChild(this._createEl('div', 'wf-canvas-container'));
     this._paperEl = this._canvasContainer.appendChild(this._createEl('div', 'wf-paper'));
 
-    // Top-right controls
     const topRight = this._canvasContainer.appendChild(this._createEl('div', 'wf-top-right'));
     topRight.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
 
@@ -949,7 +858,6 @@ class Canvas extends EventEmitter {
     this._zoomOutBtn    = this._zoomBtn(zoomGroup, 'Zoom Out', '−');
     this._zoomCenterBtn = this._zoomBtn(zoomGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
-    // Context menu
     this._contextMenu = this._canvasContainer.appendChild(this._createEl('div', 'wf-context-menu'));
     this._contextMenu.innerHTML = `
       <div class="wf-menu-item" data-action="duplicate">
@@ -961,7 +869,6 @@ class Canvas extends EventEmitter {
         Delete
       </div>`;
 
-    // Right sidebar
     this._rightSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-right'));
     const rightHeader = this._rightSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
     rightHeader.innerHTML = `
@@ -1101,68 +1008,47 @@ class Canvas extends EventEmitter {
   // Internal: UI binding
   // ═══════════════════════════════════════════
   _bindUI() {
-    // Export / Import
     this._exportBtn.addEventListener('click', () => {
       try {
         const json = this.serialize();
         const blob = new Blob([json], { type: 'application/json' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
-        a.href     = url;
-        a.download = 'diagram.json';
-        document.body.appendChild(a);
-        a.click();
+        a.href = url; a.download = 'diagram.json';
+        document.body.appendChild(a); a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch(err) {
-        console.error('Export error:', err);
-        alert('Export failed: ' + err.message);
-      }
+      } catch(err) { console.error('Export error:', err); alert('Export failed: ' + err.message); }
     });
 
     this._importBtn.addEventListener('click', () => this._importFileInput.click());
-
     this._importFileInput.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
-        try {
-          this.deserialize(ev.target.result);
-        } catch(err) {
-          console.error('Import error:', err);
-          alert('Failed to import: ' + err.message);
-        }
+        try { this.deserialize(ev.target.result); }
+        catch(err) { console.error('Import error:', err); alert('Failed to import: ' + err.message); }
       };
       reader.readAsText(file);
-      e.target.value = ''; // reset so same file can be re-imported
+      e.target.value = '';
     });
 
-    // Sidebar toggles
     this._leftCollapseBtn.addEventListener('click',  () => this._toggleSidebar(this._leftSidebar));
     this._rightCollapseBtn.addEventListener('click', () => this._toggleSidebar(this._rightSidebar));
-
-    // Auto port toggle
     this._autoPortBtn.addEventListener('click', () => this.setAutoPortSwitching(!this._autoPortEnabled));
 
-    // Zoom controls
     this._zoomFitBtn.addEventListener('click',    () => this.zoomToFit());
     this._zoomResetBtn.addEventListener('click',  () => this.zoomReset());
     this._zoomInBtn.addEventListener('click',     () => this.zoomIn());
     this._zoomOutBtn.addEventListener('click',    () => this.zoomOut());
     this._zoomCenterBtn.addEventListener('click', () => this.moveToCenter());
 
-    // Mouse wheel zoom/pan
     this._paper.el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      if (e.ctrlKey) {
-        this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
-      } else {
-        const t = this._paper.translate();
-        this._paper.translate(t.tx - e.deltaX, t.ty - e.deltaY);
-      }
+      if (e.ctrlKey) { this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }
+      else { const t = this._paper.translate(); this._paper.translate(t.tx - e.deltaX, t.ty - e.deltaY); }
     }, { passive: false });
 
-    // Context menu
     this._contextMenu.addEventListener('click', e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (action === 'duplicate') this._duplicateSelected();
@@ -1173,7 +1059,6 @@ class Canvas extends EventEmitter {
       if (!e.target.closest('.wf-context-menu')) this._contextMenu.style.display = 'none';
     });
 
-    // Right sidebar header actions
     this._rightHeaderActions.addEventListener('click', e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
@@ -1182,17 +1067,14 @@ class Canvas extends EventEmitter {
       if (action === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
     });
 
-    // Properties panel inputs
     this._propPanelEl.addEventListener('input',  e => this._handlePropInput(e));
     this._propPanelEl.addEventListener('change', e => this._handlePropInput(e));
     this._propPanelLink.addEventListener('input',  e => this._handleLinkInput(e));
     this._propPanelLink.addEventListener('change', e => this._handleLinkInput(e));
 
-    // Drag and drop from library
     this._canvasContainer.addEventListener('dragover', e => e.preventDefault());
     this._canvasContainer.addEventListener('drop', e => {
       e.preventDefault();
-      // Custom registered shape?
       const customLabel = e.dataTransfer.getData('customShape');
       if (customLabel && this._registeredShapes?.[customLabel]) {
         const local = this._paper.clientToLocalPoint({ x: e.clientX, y: e.clientY });
@@ -1207,7 +1089,6 @@ class Canvas extends EventEmitter {
         Object.entries(shape._customProps).forEach(([key, val]) => cell.set(`custom_${key}`, val));
         cell.addTo(this._graph);
         this._shapes.set(cell.id, shape);
-        // FIX: deselect before selecting newly dropped shape
         this._deselectAll();
         setTimeout(() => { this._autoSize(cell); if (shape._renderFn) shape._renderFn(shape); this._selectCell(shape); }, 50);
         this.emit('shape:add', shape);
@@ -1237,13 +1118,11 @@ class Canvas extends EventEmitter {
       shape._canvas = this;
       cell.addTo(this._graph);
       this._shapes.set(cell.id, shape);
-      // FIX: deselect before selecting newly dropped shape
       this._deselectAll();
       setTimeout(() => { this._autoSize(cell); this._selectCell(shape); }, 50);
       this.emit('shape:add', shape);
     });
 
-    // Image upload
     this._propPanelEl.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
       this._propPanelEl.querySelector('[data-action="image-file"]').click();
     });
@@ -1263,12 +1142,8 @@ class Canvas extends EventEmitter {
     const el   = e.target.closest('[data-prop]'); if (!el) return;
     const prop = el.dataset.prop;
     const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
-
-    // Sync color picker <-> hex text
     if (el.dataset.pair) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
     if (el.dataset.pairPicker) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-
-    // Strip 'Hex' suffix to get the real property name
     const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
     if (realProp in this._selected) this._selected[realProp] = val;
   }
@@ -1278,10 +1153,8 @@ class Canvas extends EventEmitter {
     const el   = e.target.closest('[data-prop]'); if (!el) return;
     const prop = el.dataset.prop;
     const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
-
     if (el.dataset.pair) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
     if (el.dataset.pairPicker) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-
     const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
     if (realProp in this._selected) this._selected[realProp] = val;
   }
@@ -1298,8 +1171,8 @@ class Canvas extends EventEmitter {
     this._paper.on('element:pointerdown', (cellView, evt) => {
       const shape = this._shapes.get(cellView.model.id);
       if (!shape) return;
-      this._pointerDownPos      = { x: evt.clientX, y: evt.clientY };
-      this._wasAlreadySelected  = this._selected === shape;
+      this._pointerDownPos     = { x: evt.clientX, y: evt.clientY };
+      this._wasAlreadySelected = this._selected === shape;
       this._deselectAll();
       shape._cell.toFront();
       this._selectCell(shape);
@@ -1313,8 +1186,6 @@ class Canvas extends EventEmitter {
       }
       this._pointerDownPos     = null;
       this._wasAlreadySelected = false;
-
-      // Snap to grid / clear position
       const shape = this._shapes.get(cellView.model.id);
       if (shape) {
         const bbox = shape._cell.getBBox();
@@ -1367,11 +1238,10 @@ class Canvas extends EventEmitter {
       document.addEventListener('mouseup',   onUp);
     });
 
-    // New connections
     this._paper.on('link:connect', (linkView) => {
-      const link   = linkView.model;
-      const srcEl  = link.getSourceElement();
-      const tgtEl  = link.getTargetElement();
+      const link  = linkView.model;
+      const srcEl = link.getSourceElement();
+      const tgtEl = link.getTargetElement();
       if (!srcEl || !tgtEl) return;
       const source = this._shapes.get(srcEl.id);
       const target = this._shapes.get(tgtEl.id);
@@ -1382,7 +1252,6 @@ class Canvas extends EventEmitter {
       this.emit('connection:add', conn);
     });
 
-    // Removed cells
     this._graph.on('remove', cell => {
       if (cell.isLink()) {
         const conn = this._connections.get(cell.id);
@@ -1406,12 +1275,10 @@ class Canvas extends EventEmitter {
     const MOVE_STEP = this._GRID;
     this._clipboard = null;
 
-    // Make canvas container focusable so it receives key events in iframe contexts
     this._canvasContainer.tabIndex = 0;
     this._canvasContainer.style.outline = 'none';
     this._canvasContainer.focus();
 
-    // Refocus canvas when clicking on it (but not on inputs)
     this._canvasContainer.addEventListener('mousedown', () => {
       if (document.activeElement?.tagName !== 'INPUT' &&
           document.activeElement?.tagName !== 'TEXTAREA') {
@@ -1439,9 +1306,7 @@ class Canvas extends EventEmitter {
       if (isTyping) return;
 
       if (e.key === 'Escape') { e.preventDefault(); this._deselectAll(); return; }
-
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this._deleteSelected(); return; }
-
       if (e.key === '-' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomOut(); return; }
       if ((e.key === '=' || e.key === '+') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
 
@@ -1449,13 +1314,12 @@ class Canvas extends EventEmitter {
         if (this._selected instanceof Shape) { e.preventDefault(); this._clipboard = this._selected; }
         return;
       }
-
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         if (this._clipboard) {
           e.preventDefault();
-          const bbox       = this._clipboard._cell.getBBox();
-          const pos        = this._findClearPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
-          const clone      = this._clipboard._cell.clone();
+          const bbox  = this._clipboard._cell.getBBox();
+          const pos   = this._findClearPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
+          const clone = this._clipboard._cell.clone();
           clone.position(pos.x, pos.y);
           clone.addTo(this._graph);
           this._deselectAll();
@@ -1484,7 +1348,7 @@ class Canvas extends EventEmitter {
   }
 
   // ═══════════════════════════════════════════
-  // Internal: Touch events (mobile only)
+  // Internal: Touch events
   // ═══════════════════════════════════════════
   _bindTouchEvents() {
     this._paper.el.addEventListener('touchstart', (e) => {
@@ -1527,9 +1391,7 @@ class Canvas extends EventEmitter {
       if (this._touchState?.type === 'pinch' && e.touches.length === 1) {
         const t = e.touches[0];
         this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
-      } else {
-        this._touchState = null;
-      }
+      } else { this._touchState = null; }
     }, { passive: true });
   }
 
@@ -1578,12 +1440,12 @@ class Canvas extends EventEmitter {
   _populateElementPanel(shape) {
     const p = this._propPanelEl;
     const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
-    set('label',             shape.label);
-    set('labelFontSize',     shape.labelFontSize);
-    set('description',       shape.description);
-    set('imageUrl',          shape.imageUrl);
-    set('imageWidth',        shape.imageWidth);
-    set('imageHeight',       shape.imageHeight);
+    set('label',              shape.label);
+    set('labelFontSize',      shape.labelFontSize);
+    set('description',        shape.description);
+    set('imageUrl',           shape.imageUrl);
+    set('imageWidth',         shape.imageWidth);
+    set('imageHeight',        shape.imageHeight);
     set('backgroundColor',    shape.backgroundColor);
     set('backgroundColorHex', shape.backgroundColor);
     set('borderColor',        shape.borderColor);
@@ -1593,9 +1455,7 @@ class Canvas extends EventEmitter {
     set('descriptionColor',   shape.descriptionColor);
     set('descriptionColorHex',shape.descriptionColor);
 
-    // Remove old custom section if any
     p.querySelector('.wf-custom-props')?.remove();
-
     const schema = shape.getSchema?.() ?? {};
     if (Object.keys(schema).length === 0) return;
 
@@ -1630,12 +1490,12 @@ class Canvas extends EventEmitter {
       } else if (def.type === 'color') {
         const wrapper = group.appendChild(this._createEl('div', 'wf-color-row'));
         const picker  = this._createEl('input'); picker.type = 'color'; picker.value = val ?? def.default ?? '#000000';
-        const hex     = this._createEl('input'); hex.type = 'text';   hex.value = val ?? def.default ?? '#000000';
+        const hex     = this._createEl('input'); hex.type = 'text';    hex.value = val ?? def.default ?? '#000000';
         picker.addEventListener('input', () => { hex.value = picker.value; shape.setCustomProperty(key, picker.value); });
         hex.addEventListener('input',    () => { picker.value = hex.value; shape.setCustomProperty(key, hex.value); });
         wrapper.appendChild(picker); wrapper.appendChild(hex);
         group.appendChild(wrapper);
-        return; // already wired, skip generic listener below
+        return;
       } else {
         input = this._createEl('input');
         input.type  = def.type === 'number' ? 'number' : 'text';
@@ -1658,26 +1518,26 @@ class Canvas extends EventEmitter {
   _populateLinkPanel(conn) {
     const p = this._propPanelLink;
     const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
-    set('label',          conn.label);
-    set('labelFontSize',  conn.labelFontSize);
-    set('labelColor',     conn.labelColor);
-    set('labelColorHex',  conn.labelColor);
-    set('lineColor',      conn.lineColor);
-    set('lineColorHex',   conn.lineColor);
-    set('lineStyle',      conn.lineStyle);
-    set('connectorType',  conn.connectorType);
-    set('sourceArrow',    conn.sourceArrow);
-    set('targetArrow',    conn.targetArrow);
-    set('description',    conn.description);
+    set('label',         conn.label);
+    set('labelFontSize', conn.labelFontSize);
+    set('labelColor',    conn.labelColor);
+    set('labelColorHex', conn.labelColor);
+    set('lineColor',     conn.lineColor);
+    set('lineColorHex',  conn.lineColor);
+    set('lineStyle',     conn.lineStyle);
+    set('connectorType', conn.connectorType);
+    set('sourceArrow',   conn.sourceArrow);
+    set('targetArrow',   conn.targetArrow);
+    set('description',   conn.description);
   }
 
   // ═══════════════════════════════════════════
   // Internal: Sidebar
   // ═══════════════════════════════════════════
   _toggleSidebar(sidebar) {
-    const isLeft   = sidebar === this._leftSidebar;
-    const icon     = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
-    const tBefore  = this._paper.translate();
+    const isLeft  = sidebar === this._leftSidebar;
+    const icon    = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
+    const tBefore = this._paper.translate();
     const isCollapsed = sidebar.classList.toggle('wf-collapsed');
     icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
 
@@ -1725,8 +1585,8 @@ class Canvas extends EventEmitter {
     if (!(this._selected instanceof Shape)) return;
     const clone = this._selected._cell.clone();
     clone.translate(40, 40).addTo(this._graph);
-    const shapeClass  = this._selected.constructor;
-    const cloneShape  = new shapeClass(this._selected.label);
+    const shapeClass = this._selected.constructor;
+    const cloneShape = new shapeClass(this._selected.label);
     cloneShape._cell   = clone;
     cloneShape._canvas = this;
     this._shapes.set(clone.id, cloneShape);
@@ -1788,16 +1648,16 @@ class Canvas extends EventEmitter {
     const baseFontSize = 13, baseDescSize = 11;
     cell.attr({ label: { fontSize: baseFontSize * scale }, descriptionLabel: { fontSize: baseDescSize * scale } });
 
-    const imageUrl  = cell.get('imageUrl');
-    const type      = cell.get('type');
-    const descText  = cell.attr('descriptionLabel/text') || '';
-    const imgW      = parseInt(cell.get('imageWidth')  || 32);
-    const imgH      = parseInt(cell.get('imageHeight') || 32);
+    const imageUrl = cell.get('imageUrl');
+    const type     = cell.get('type');
+    const descText = cell.attr('descriptionLabel/text') || '';
+    const imgW     = parseInt(cell.get('imageWidth')  || 32);
+    const imgH     = parseInt(cell.get('imageHeight') || 32);
     const labelBBox = labelNode.getBBox();
     const descBBox  = descNode.getBBox();
-    const pad       = 15, imgSpace = imageUrl ? 10 : 0;
-    const textW     = Math.max(labelBBox.width, descBBox.width);
-    const totalW    = (imageUrl ? imgW : 0) + imgSpace + textW;
+    const pad = 15, imgSpace = imageUrl ? 10 : 0;
+    const textW   = Math.max(labelBBox.width, descBBox.width);
+    const totalW  = (imageUrl ? imgW : 0) + imgSpace + textW;
 
     let width  = Math.max(140, pad + totalW + pad);
     const totalTextH = descText ? labelBBox.height + descBBox.height : labelBBox.height;
@@ -1815,7 +1675,7 @@ class Canvas extends EventEmitter {
 
     if (descText) {
       const cY = (height - totalTextH) / 2;
-      cell.attr('label',            { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height/2,              textAnchor:'middle', textVerticalAnchor:'middle' });
+      cell.attr('label',            { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height/2,                   textAnchor:'middle', textVerticalAnchor:'middle' });
       cell.attr('descriptionLabel', { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height + descBBox.height/2, textAnchor:'middle', textVerticalAnchor:'middle' });
     } else {
       cell.attr('label', { refX:0, refX2:textCenterX, refY:0.5, refY2:0, textAnchor:'middle', textVerticalAnchor:'middle' });
@@ -1830,7 +1690,7 @@ class Canvas extends EventEmitter {
     if (!this._autoPortEnabled) return;
     this._graph.getConnectedLinks(element).forEach(link => {
       const conn = this._connections.get(link.id);
-      if (conn?.sourcePort !== null || conn?.targetPort !== null) return; // respect manual ports
+      if (conn?.sourcePort !== null || conn?.targetPort !== null) return;
       const src = link.getSourceElement(), tgt = link.getTargetElement();
       if (!src || !tgt) return;
       const getBest = (el, other) => {
@@ -1839,8 +1699,7 @@ class Canvas extends EventEmitter {
         el.getPorts().forEach(p => {
           const pos = el.getPortsPositions('all')[p.id];
           const a   = Math.atan2(pos.y - el.getBBox().height/2, pos.x - el.getBBox().width/2);
-          let d = Math.abs(angle - a);
-          if (d > Math.PI) d = 2*Math.PI - d;
+          let d = Math.abs(angle - a); if (d > Math.PI) d = 2*Math.PI - d;
           if (d < min) { min = d; best = p.id; }
         });
         return best;
