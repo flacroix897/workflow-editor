@@ -467,6 +467,7 @@ class Canvas extends EventEmitter {
     this._zoomResetBtn  =this._zoomBtn(zg,'Reset Zoom','1:1');
     this._zoomInBtn     =this._zoomBtn(zg,'Zoom In','+');
     this._zoomOutBtn    =this._zoomBtn(zg,'Zoom Out','−');
+    if(this._isMobile()){ this._zoomInBtn.style.display='none'; this._zoomOutBtn.style.display='none'; }
     this._zoomCenterBtn =this._zoomBtn(zg,'Center',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
     this._contextMenu=this._canvasContainer.appendChild(this._createEl('div','wf-context-menu'));
