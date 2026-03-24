@@ -8,789 +8,475 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; touch-action: none; }
-
-    .wf-canvas-container {
-      flex-grow: 1; background: #fdfdfd;
-      position: relative; overflow: hidden; cursor: grab;
-    }
-    .wf-canvas-container:active { cursor: grabbing; }
-    .wf-paper { width: 100%; height: 100%; }
-
-    .wf-sidebar {
-      width: 260px; background: #f8f9fa;
-      display: flex; flex-direction: column;
-      z-index: 20; position: relative; overflow: hidden; min-height: 0;
-      transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
-    }
-    .wf-sidebar.wf-collapsed { width: 44px; }
-    .wf-sidebar-left  { border-right: 1px solid #dee2e6; }
-    .wf-sidebar-right { border-left:  1px solid #dee2e6; }
-
-    .wf-sidebar-header {
-      padding: 0 15px; background: #fff; border-bottom: 1px solid #dee2e6;
-      font-weight: bold; display: flex; justify-content: space-between;
-      align-items: center; height: 48px; min-height: 48px; max-height: 48px;
-      white-space: nowrap; overflow: hidden;
-    }
-    .wf-sidebar.wf-collapsed .wf-sidebar-header { justify-content: center; padding: 0; border-bottom: none; }
+    .wf-canvas-container { flex-grow:1; background:#fdfdfd; position:relative; overflow:hidden; cursor:grab; }
+    .wf-canvas-container:active { cursor:grabbing; }
+    .wf-paper { width:100%; height:100%; }
+    .wf-sidebar { width:260px; background:#f8f9fa; display:flex; flex-direction:column; z-index:20; position:relative; overflow:hidden; min-height:0; transition:width 0.3s cubic-bezier(0.4,0,0.2,1); }
+    .wf-sidebar.wf-collapsed { width:44px; }
+    .wf-sidebar-left  { border-right:1px solid #dee2e6; }
+    .wf-sidebar-right { border-left:1px solid #dee2e6; }
+    .wf-sidebar-header { padding:0 15px; background:#fff; border-bottom:1px solid #dee2e6; font-weight:bold; display:flex; justify-content:space-between; align-items:center; height:48px; min-height:48px; max-height:48px; white-space:nowrap; overflow:hidden; }
+    .wf-sidebar.wf-collapsed .wf-sidebar-header { justify-content:center; padding:0; border-bottom:none; }
     .wf-sidebar.wf-collapsed .wf-sidebar-header .wf-sidebar-title,
     .wf-sidebar.wf-collapsed .wf-sidebar-body,
-    .wf-sidebar.wf-collapsed .wf-header-actions { display: none !important; }
-
-    .wf-header-actions { display: flex; gap: 4px; }
-    .wf-header-btn {
-      background: none; border: 1px solid #dee2e6; border-radius: 4px;
-      padding: 4px; cursor: pointer; display: flex; align-items: center; color: #6c757d;
-    }
-    .wf-header-btn:hover { background: #f1f3f5; color: #3498db; }
-    .wf-header-btn.danger:hover { color: #e74c3c; border-color: #fadbd8; background: #fdf2f2; }
-
-    .wf-collapse-btn {
-      border: none; background: none; cursor: pointer; color: #6c757d;
-      padding: 8px; display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s; border-radius: 4px;
-    }
-    .wf-collapse-btn:hover { background: #f1f3f5; color: #3498db; }
-    .wf-collapse-icon { transition: transform 0.3s; }
-
-    .wf-library {
-      padding: 15px; display: flex; flex-direction: column;
-      gap: 10px; overflow-y: auto; flex: 1 1 0; min-height: 0;
-    }
-    .wf-node-template {
-      padding: 12px; background: white; border: 1px solid #ced4da;
-      cursor: grab; text-align: center; border-radius: 6px;
-      transition: all 0.2s; font-size: 13px; color: #495057;
-    }
-    .wf-node-template:hover { border-color: #3498db; background: #f1f9ff; }
-
-    .wf-properties {
-      padding: 15px; display: flex; flex-direction: column;
-      gap: 12px; overflow-y: auto; flex: 1 1 0; min-height: 0;
-    }
-    .wf-custom-props { display: flex; flex-direction: column; gap: 12px; }
-    .wf-no-selection { padding: 20px; color: #adb5bd; font-size: 13px; text-align: center; }
-    .wf-prop-group { display: flex; flex-direction: column; gap: 6px; }
-    .wf-prop-group label { font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .wf-prop-group input, .wf-prop-group textarea, .wf-prop-group select {
-      width: 100%; padding: 8px; border: 1px solid #ced4da;
-      border-radius: 4px; font-family: inherit; font-size: 13px;
-    }
-    .wf-prop-group textarea { resize: vertical; min-height: 60px; }
-    .wf-color-row { display: flex; gap: 8px; align-items: center; }
-    .wf-color-row input[type="color"] { width: 40px; padding: 2px; height: 32px; cursor: pointer; flex-shrink: 0; }
-    .wf-prop-row { display: flex; gap: 10px; }
-    .wf-prop-row > .wf-prop-group { flex: 1; }
-    .wf-image-row { display: flex; gap: 8px; align-items: center; }
-    .wf-upload-btn {
-      flex-shrink: 0; width: 40px; height: 34px; padding: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: #fff; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;
-    }
-    .wf-upload-btn:hover { background: #f1f3f5; border-color: #3498db; color: #3498db; }
-
-    .wf-bottom-left {
-      position: absolute; bottom: 20px; left: 20px;
-      z-index: 100; display: flex; flex-direction: column; gap: 10px;
-    }
-    .wf-zoom-group { display: flex; flex-direction: column; gap: 5px; }
-    .wf-ctrl-btn {
-      width: 40px; height: 40px; padding: 0; cursor: pointer;
-      background: #fff; color: #2c3e50; border: 1px solid #dee2e6;
-      border-radius: 4px; font-weight: 500; font-size: 16px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .wf-ctrl-btn:hover { background: #f1f3f5; color: #3498db; }
-    .wf-ctrl-btn.active { background: #3498db; color: white; border-color: #2980b9; }
-
-    .wf-context-menu {
-      position: absolute; display: none;
-      background: white; border: 1px solid #ccc;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-      z-index: 2000; border-radius: 4px; padding: 5px 0; min-width: 160px;
-    }
-    .wf-menu-item {
-      padding: 8px 15px; cursor: pointer; color: #333; font-size: 14px;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .wf-menu-item:hover { background: #f1f1f1; }
-    .wf-menu-item.danger:hover { color: #e74c3c; }
-
-    .joint-port { opacity: 0; pointer-events: none; }
-    .joint-cell.wf-selected .joint-port { opacity: 1; pointer-events: all; }
-    .joint-paper.wf-dragging-link .joint-port { opacity: 1; pointer-events: all; }
-
-    /* Ensure port circles are always on top of cell bodies in SVG z-order */
-    .joint-ports { pointer-events: none; }
-    .joint-port-body { pointer-events: all !important; }
+    .wf-sidebar.wf-collapsed .wf-header-actions { display:none !important; }
+    .wf-header-actions { display:flex; gap:4px; }
+    .wf-header-btn { background:none; border:1px solid #dee2e6; border-radius:4px; padding:4px; cursor:pointer; display:flex; align-items:center; color:#6c757d; }
+    .wf-header-btn:hover { background:#f1f3f5; color:#3498db; }
+    .wf-header-btn.danger:hover { color:#e74c3c; border-color:#fadbd8; background:#fdf2f2; }
+    .wf-collapse-btn { border:none; background:none; cursor:pointer; color:#6c757d; padding:8px; display:flex; align-items:center; justify-content:center; transition:background 0.2s; border-radius:4px; }
+    .wf-collapse-btn:hover { background:#f1f3f5; color:#3498db; }
+    .wf-collapse-icon { transition:transform 0.3s; }
+    .wf-library { padding:15px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; flex:1 1 0; min-height:0; }
+    .wf-node-template { padding:12px; background:white; border:1px solid #ced4da; cursor:grab; text-align:center; border-radius:6px; transition:all 0.2s; font-size:13px; color:#495057; }
+    .wf-node-template:hover { border-color:#3498db; background:#f1f9ff; }
+    .wf-properties { padding:15px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex:1 1 0; min-height:0; }
+    .wf-custom-props { display:flex; flex-direction:column; gap:12px; }
+    .wf-no-selection { padding:20px; color:#adb5bd; font-size:13px; text-align:center; }
+    .wf-prop-group { display:flex; flex-direction:column; gap:6px; }
+    .wf-prop-group label { font-size:11px; color:#6c757d; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .wf-prop-group input, .wf-prop-group textarea, .wf-prop-group select { width:100%; padding:8px; border:1px solid #ced4da; border-radius:4px; font-family:inherit; font-size:13px; }
+    .wf-prop-group textarea { resize:vertical; min-height:60px; }
+    .wf-color-row { display:flex; gap:8px; align-items:center; }
+    .wf-color-row input[type="color"] { width:40px; padding:2px; height:32px; cursor:pointer; flex-shrink:0; }
+    .wf-prop-row { display:flex; gap:10px; }
+    .wf-prop-row > .wf-prop-group { flex:1; }
+    .wf-image-row { display:flex; gap:8px; align-items:center; }
+    .wf-upload-btn { flex-shrink:0; width:40px; height:34px; padding:0; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #ced4da; border-radius:4px; cursor:pointer; }
+    .wf-upload-btn:hover { background:#f1f3f5; border-color:#3498db; color:#3498db; }
+    .wf-bottom-left { position:absolute; bottom:20px; left:20px; z-index:100; display:flex; flex-direction:column; gap:10px; }
+    .wf-zoom-group { display:flex; flex-direction:column; gap:5px; }
+    .wf-ctrl-btn { width:40px; height:40px; padding:0; cursor:pointer; background:#fff; color:#2c3e50; border:1px solid #dee2e6; border-radius:4px; font-weight:500; font-size:16px; box-shadow:0 2px 4px rgba(0,0,0,0.05); display:flex; align-items:center; justify-content:center; }
+    .wf-ctrl-btn:hover { background:#f1f3f5; color:#3498db; }
+    .wf-ctrl-btn.active { background:#3498db; color:white; border-color:#2980b9; }
+    .wf-context-menu { position:absolute; display:none; background:white; border:1px solid #ccc; box-shadow:2px 2px 5px rgba(0,0,0,0.2); z-index:2000; border-radius:4px; padding:5px 0; min-width:160px; }
+    .wf-menu-item { padding:8px 15px; cursor:pointer; color:#333; font-size:14px; display:flex; align-items:center; gap:10px; }
+    .wf-menu-item:hover { background:#f1f1f1; }
+    .wf-menu-item.danger:hover { color:#e74c3c; }
+    .joint-port { opacity:0; pointer-events:none; }
+    .joint-cell.wf-selected .joint-port { opacity:1; pointer-events:all; }
+    .joint-paper.wf-dragging-link .joint-port { opacity:1; pointer-events:all; }
+    .joint-ports { pointer-events:none; }
+    .joint-port-body { pointer-events:all !important; }
   </style>
 </head>
 <body>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
-
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════════════════════
-// EventEmitter
-// ═══════════════════════════════════════════════════════════════
 class EventEmitter {
   constructor() { this._listeners = {}; }
-  on(event, cb) {
-    if (!this._listeners[event]) this._listeners[event] = [];
-    this._listeners[event].push(cb);
-    return this;
-  }
-  off(event, cb) {
-    if (!this._listeners[event]) return this;
-    this._listeners[event] = this._listeners[event].filter(fn => fn !== cb);
-    return this;
-  }
-  emit(event, ...args) {
-    (this._listeners[event] || []).forEach(fn => fn(...args));
-    return this;
-  }
+  on(event, cb) { if (!this._listeners[event]) this._listeners[event] = []; this._listeners[event].push(cb); return this; }
+  off(event, cb) { if (!this._listeners[event]) return this; this._listeners[event] = this._listeners[event].filter(fn => fn !== cb); return this; }
+  emit(event, ...args) { (this._listeners[event] || []).forEach(fn => fn(...args)); return this; }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Vertex
-// ═══════════════════════════════════════════════════════════════
 class Vertex extends EventEmitter {
   constructor(link, index) {
     super();
     this.id = `vertex-${Math.random().toString(36).slice(2)}`;
-    this._link = link;
-    this._index = index;
+    this._link = link; this._index = index;
   }
   get x() { return this._link.vertices()[this._index]?.x ?? 0; }
   get y() { return this._link.vertices()[this._index]?.y ?? 0; }
-  moveTo(x, y) {
-    const verts = [...this._link.vertices()];
-    verts[this._index] = { x, y };
-    this._link.vertices(verts);
-    this.emit('move', this);
-    return this;
-  }
-  moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
-  remove() {
-    const verts = [...this._link.vertices()];
-    verts.splice(this._index, 1);
-    this._link.vertices(verts);
-    this.emit('remove', this);
-  }
+  moveTo(x, y) { const v = [...this._link.vertices()]; v[this._index] = {x,y}; this._link.vertices(v); this.emit('move',this); return this; }
+  moveBy(dx, dy) { return this.moveTo(this.x+dx, this.y+dy); }
+  remove() { const v = [...this._link.vertices()]; v.splice(this._index,1); this._link.vertices(v); this.emit('remove',this); }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Connection
-// ═══════════════════════════════════════════════════════════════
 const MARKERS = {
   none:    null,
-  classic: { type: 'path', d: 'M 10 -5 0 0 10 5 Z' },
-  block:   { type: 'path', d: 'M 10 -10 0 0 10 10 Z' }
+  classic: { type:'path', d:'M 10 -5 0 0 10 5 Z' },
+  block:   { type:'path', d:'M 10 -10 0 0 10 10 Z' }
 };
 
 class Connection extends EventEmitter {
   constructor(link, source, target, canvas) {
     super();
-    this._link   = link;
-    this._source = source;
-    this._target = target;
-    this._canvas = canvas;
-    this._vertices = [];
+    this._link=link; this._source=source; this._target=target; this._canvas=canvas; this._vertices=[];
   }
   get id()     { return this._link.id; }
   get source() { return this._source; }
   get target() { return this._target; }
-
   get label()         { return this._link.label(0)?.attrs?.text?.text || ''; }
-  set label(v)        { this._applyLabel(v); this.emit('change', this); }
+  set label(v)        { this._applyLabel(v); this.emit('change',this); }
   get labelColor()    { return this._link.label(0)?.attrs?.text?.fill || '#333333'; }
-  set labelColor(v)   { this._link.prop('labelColor', v); this._applyLabel(this.label); this.emit('change', this); }
+  set labelColor(v)   { this._link.prop('labelColor',v); this._applyLabel(this.label); this.emit('change',this); }
   get labelFontSize() { return this._link.get('fontSizePercent') || 100; }
-  set labelFontSize(v){ this._link.set('fontSizePercent', v); this._applyLabel(this.label); this.emit('change', this); }
+  set labelFontSize(v){ this._link.set('fontSizePercent',v); this._applyLabel(this.label); this.emit('change',this); }
   get lineColor()     { return this._link.attr('line/stroke') || '#495057'; }
-  set lineColor(v)    { this._link.attr('line/stroke', v); this.emit('change', this); }
+  set lineColor(v)    { this._link.attr('line/stroke',v); this.emit('change',this); }
   get lineWidth()     { return this._link.attr('line/strokeWidth') || 2; }
-  set lineWidth(v)    { this._link.attr('line/strokeWidth', v); this.emit('change', this); }
-  get lineStyle() {
-    const d = this._link.attr('line/strokeDasharray') || '';
-    return d === '5,5' ? 'dashed' : d === '1,5' ? 'dotted' : 'solid';
-  }
-  set lineStyle(v) {
-    this._link.attr('line/strokeDasharray', v === 'dashed' ? '5,5' : v === 'dotted' ? '1,5' : '');
-    this.emit('change', this);
-  }
+  set lineWidth(v)    { this._link.attr('line/strokeWidth',v); this.emit('change',this); }
+  get lineStyle() { const d=this._link.attr('line/strokeDasharray')||''; return d==='5,5'?'dashed':d==='1,5'?'dotted':'solid'; }
+  set lineStyle(v) { this._link.attr('line/strokeDasharray',v==='dashed'?'5,5':v==='dotted'?'1,5':''); this.emit('change',this); }
   get sourceArrow()   { return this._markerType(this._link.attr('line/sourceMarker')); }
-  set sourceArrow(v)  { this._link.attr('line/sourceMarker', MARKERS[v] || null); this.emit('change', this); }
+  set sourceArrow(v)  { this._link.attr('line/sourceMarker',MARKERS[v]||null); this.emit('change',this); }
   get targetArrow()   { return this._markerType(this._link.attr('line/targetMarker')); }
-  set targetArrow(v)  { this._link.attr('line/targetMarker', MARKERS[v] || null); this.emit('change', this); }
-  get connectorType() {
-    const c = this._link.connector()?.name, r = this._link.router()?.name;
-    return c === 'smooth' ? 'curved' : r === 'normal' ? 'straight' : 'elbow';
-  }
+  set targetArrow(v)  { this._link.attr('line/targetMarker',MARKERS[v]||null); this.emit('change',this); }
+  get connectorType() { const c=this._link.connector()?.name,r=this._link.router()?.name; return c==='smooth'?'curved':r==='normal'?'straight':'elbow'; }
   set connectorType(v) {
-    const G = this._canvas._GRID;
-    if (v === 'elbow')         { this._link.router('manhattan', { step:G, padding:20 }); this._link.connector('rounded'); }
-    else if (v === 'straight') { this._link.router('normal'); this._link.connector('normal'); }
-    else                       { this._link.router('normal'); this._link.connector('smooth'); }
-    this.emit('change', this);
+    const G=this._canvas._GRID;
+    if (v==='elbow')         { this._link.router('manhattan',{step:G,padding:20}); this._link.connector('rounded'); }
+    else if (v==='straight') { this._link.router('normal'); this._link.connector('normal'); }
+    else                     { this._link.router('normal'); this._link.connector('smooth'); }
+    this.emit('change',this);
   }
-  get sourcePort()    { return this._link.get('sourcePort') ?? null; }
-  set sourcePort(v)   { this._setPort('source', v); }
-  get targetPort()    { return this._link.get('targetPort') ?? null; }
-  set targetPort(v)   { this._setPort('target', v); }
-  get description()   { return this._link.get('description') || ''; }
-  set description(v)  { this._link.set('description', v); this.emit('change', this); }
-
+  get sourcePort()  { return this._link.get('sourcePort') ?? null; }
+  set sourcePort(v) { this._setPort('source',v); }
+  get targetPort()  { return this._link.get('targetPort') ?? null; }
+  set targetPort(v) { this._setPort('target',v); }
+  get description() { return this._link.get('description') || ''; }
+  set description(v){ this._link.set('description',v); this.emit('change',this); }
   getVertices() { return [...this._vertices]; }
-  addVertex(x, y) {
-    const verts = [...this._link.vertices(), { x, y }];
-    this._link.vertices(verts);
-    const v = new Vertex(this._link, verts.length - 1);
-    this._vertices.push(v);
-    return v;
-  }
+  addVertex(x,y) { const v=[...this._link.vertices(),{x,y}]; this._link.vertices(v); const vx=new Vertex(this._link,v.length-1); this._vertices.push(vx); return vx; }
   select()   { this._canvas._selectCell(this); return this; }
   deselect() { this._canvas._deselectAll(); return this; }
-  remove()   { this._link.remove(); this.emit('remove', this); }
-
+  remove()   { this._link.remove(); this.emit('remove',this); }
   _applyLabel(text) {
-    const fontSize = 12 * ((this._link.get('fontSizePercent') || 100) / 100);
-    const color = this._link.get('labelColor') || '#333333';
-    this._link.labels(text ? [{ attrs: { text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }] : []);
+    const fontSize=12*((this._link.get('fontSizePercent')||100)/100), color=this._link.get('labelColor')||'#333333';
+    this._link.labels(text?[{attrs:{text:{text,fill:color,fontSize,textVerticalAnchor:'middle'},rect:{fill:'white',opacity:0.9}},position:{distance:0.5}}]:[]);
   }
-  _markerType(m) {
-    if (!m) return 'none';
-    if (m.d === MARKERS.classic.d) return 'classic';
-    if (m.d === MARKERS.block.d)   return 'block';
-    return 'none';
-  }
+  _markerType(m) { if(!m)return'none'; if(m.d===MARKERS.classic.d)return'classic'; if(m.d===MARKERS.block.d)return'block'; return'none'; }
   _setPort(side, portIndex) {
-    const shape = side === 'source' ? this._source : this._target;
-    this._link.set(`${side}Port`, portIndex);
-    if (portIndex === null) {
-      this._link[side]({ id: shape._cell.id });
-    } else {
-      const port = shape._cell.getPorts()[portIndex - 1];
-      if (port) this._link[side]({ id: shape._cell.id, port: port.id });
-    }
-    this.emit('change', this);
+    const shape=side==='source'?this._source:this._target;
+    this._link.set(`${side}Port`,portIndex);
+    if (portIndex===null) { this._link[side]({id:shape._cell.id}); }
+    else { const port=shape._cell.getPorts()[portIndex-1]; if(port) this._link[side]({id:shape._cell.id,port:port.id}); }
+    this.emit('change',this);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Shape
-// ═══════════════════════════════════════════════════════════════
 class Shape extends EventEmitter {
-  constructor(opts = {}) {
+  constructor(opts={}) {
     super();
-    this._label     = typeof opts === 'string' ? opts : (opts.label ?? '');
-    this._initOpts  = typeof opts === 'string' ? {} : opts;
-    this._cell      = null;
-    this._canvas    = null;
-    this._schema    = {};
-    this._customProps = {};
-    this._renderFn  = null;
+    this._label=typeof opts==='string'?opts:(opts.label??'');
+    this._initOpts=typeof opts==='string'?{}:opts;
+    this._cell=null; this._canvas=null; this._schema={}; this._customProps={}; this._renderFn=null;
   }
-
   getCustomProperty(key)      { return this._customProps[key]; }
-  setCustomProperty(key, val) {
-    this._customProps[key] = val;
-    this._cell?.set(`custom_${key}`, val);
-    if (this._renderFn) this._renderFn(this);
-    this.emit('change', this);
-  }
+  setCustomProperty(key,val)  { this._customProps[key]=val; this._cell?.set(`custom_${key}`,val); if(this._renderFn)this._renderFn(this); this.emit('change',this); }
   getSchema() { return this._schema; }
-
-  get id()     { return this._cell?.id ?? null; }
-  get x()      { return this._cell?.position().x ?? 0; }
-  set x(v)     { this._cell?.position(v, this.y); this.emit('change', this); }
-  get y()      { return this._cell?.position().y ?? 0; }
-  set y(v)     { this._cell?.position(this.x, v); this.emit('change', this); }
-  get width()  { return this._cell?.size().width ?? 0; }
-  get height() { return this._cell?.size().height ?? 0; }
+  get id()     { return this._cell?.id??null; }
+  get x()      { return this._cell?.position().x??0; }
+  set x(v)     { this._cell?.position(v,this.y); this.emit('change',this); }
+  get y()      { return this._cell?.position().y??0; }
+  set y(v)     { this._cell?.position(this.x,v); this.emit('change',this); }
+  get width()  { return this._cell?.size().width??0; }
+  get height() { return this._cell?.size().height??0; }
   get portCount() { return 4; }
-
-  get label()          { return this._cell?.attr('label/text') ?? this._label; }
-  set label(v)         { this._cell?.attr('label/text', v); this._label = v; this._autoSize(); this.emit('change', this); }
-  get labelColor()     { return this._cell?.attr('label/fill') ?? '#212529'; }
-  set labelColor(v)    { this._cell?.attr('label/fill', v); this.emit('change', this); }
-  get labelFontSize()  { return this._cell?.get('fontSizePercent') ?? 100; }
-  set labelFontSize(v) { this._cell?.set('fontSizePercent', v); this._autoSize(); this.emit('change', this); }
-  get description()    { return this._cell?.get('description') ?? ''; }
-  set description(v)   { this._cell?.set('description', v); this._cell?.attr('descriptionLabel/text', v); this._autoSize(); this.emit('change', this); }
-  get descriptionColor()  { return this._cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
-  set descriptionColor(v) { this._cell?.attr('descriptionLabel/fill', v); this.emit('change', this); }
-  get backgroundColor()   { return this._cell?.attr('body/fill') ?? '#ffffff'; }
-  set backgroundColor(v)  { this._cell?.attr('body/fill', v); this.emit('change', this); }
-  get borderColor()    { return this._cell?.attr('body/stroke') ?? '#adb5bd'; }
-  set borderColor(v)   { this._cell?.attr('body/stroke', v); this.emit('change', this); }
-  get borderWidth()    { return this._cell?.attr('body/strokeWidth') ?? 2; }
-  set borderWidth(v)   { this._cell?.attr('body/strokeWidth', v); this.emit('change', this); }
-  get imageUrl()       { return this._cell?.get('imageUrl') ?? ''; }
-  set imageUrl(v)      { this._cell?.set('imageUrl', v); this._cell?.attr('image/xlink:href', v); this._cell?.attr('image/display', v ? 'block' : 'none'); this._autoSize(); this.emit('change', this); }
-  get imageWidth()     { return this._cell?.get('imageWidth') ?? 32; }
-  set imageWidth(v)    { this._cell?.set('imageWidth', v); this._autoSize(); this.emit('change', this); }
-  get imageHeight()    { return this._cell?.get('imageHeight') ?? 32; }
-  set imageHeight(v)   { this._cell?.set('imageHeight', v); this._autoSize(); this.emit('change', this); }
-  get status()         { return this._cell?.get('status') ?? 'pending'; }
-  set status(v)        { this._cell?.set('status', v); this.emit('change', this); }
-  get priority()       { return this._cell?.get('priority') ?? 1; }
-  set priority(v)      { this._cell?.set('priority', v); this.emit('change', this); }
-
-  moveTo(x, y)  { this._cell?.position(x, y); this.emit('move', this); return this; }
-  moveBy(dx,dy) { return this.moveTo(this.x+dx, this.y+dy); }
-  toFront()     { this._cell?.toFront(); return this; }
-  toBack()      { this._cell?.toBack();  return this; }
-  select()      { this._canvas?._selectCell(this); return this; }
-  deselect()    { this._canvas?._deselectAll(); return this; }
-
-  getConnections()         { return this._canvas?._getConnectionsForShape(this) ?? []; }
-  getIncomingConnections() { return this.getConnections().filter(c => c.target === this); }
-  getOutgoingConnections() { return this.getConnections().filter(c => c.source === this); }
-
-  connect(target, sourcePort = null, targetPort = null) {
-    if (target === this) throw new Error('A shape cannot connect to itself.');
-    return this._canvas?._createConnection(this, target, sourcePort, targetPort);
-  }
-
-  remove() { this._cell?.remove(); this.emit('remove', this); }
-
-  _buildCell(pos, ns) { throw new Error('_buildCell must be implemented by subclass'); }
-  _autoSize()         { if (!this._canvas || !this._cell) return; this._canvas._autoSize(this._cell); }
-  _getShapeType()     { return 'rect'; }
+  get label()          { return this._cell?.attr('label/text')??this._label; }
+  set label(v)         { this._cell?.attr('label/text',v); this._label=v; this._autoSize(); this.emit('change',this); }
+  get labelColor()     { return this._cell?.attr('label/fill')??'#212529'; }
+  set labelColor(v)    { this._cell?.attr('label/fill',v); this.emit('change',this); }
+  get labelFontSize()  { return this._cell?.get('fontSizePercent')??100; }
+  set labelFontSize(v) { this._cell?.set('fontSizePercent',v); this._autoSize(); this.emit('change',this); }
+  get description()    { return this._cell?.get('description')??''; }
+  set description(v)   { this._cell?.set('description',v); this._cell?.attr('descriptionLabel/text',v); this._autoSize(); this.emit('change',this); }
+  get descriptionColor()  { return this._cell?.attr('descriptionLabel/fill')??'#6c757d'; }
+  set descriptionColor(v) { this._cell?.attr('descriptionLabel/fill',v); this.emit('change',this); }
+  get backgroundColor()   { return this._cell?.attr('body/fill')??'#ffffff'; }
+  set backgroundColor(v)  { this._cell?.attr('body/fill',v); this.emit('change',this); }
+  get borderColor()    { return this._cell?.attr('body/stroke')??'#adb5bd'; }
+  set borderColor(v)   { this._cell?.attr('body/stroke',v); this.emit('change',this); }
+  get borderWidth()    { return this._cell?.attr('body/strokeWidth')??2; }
+  set borderWidth(v)   { this._cell?.attr('body/strokeWidth',v); this.emit('change',this); }
+  get imageUrl()       { return this._cell?.get('imageUrl')??''; }
+  set imageUrl(v)      { this._cell?.set('imageUrl',v); this._cell?.attr('image/xlink:href',v); this._cell?.attr('image/display',v?'block':'none'); this._autoSize(); this.emit('change',this); }
+  get imageWidth()     { return this._cell?.get('imageWidth')??32; }
+  set imageWidth(v)    { this._cell?.set('imageWidth',v); this._autoSize(); this.emit('change',this); }
+  get imageHeight()    { return this._cell?.get('imageHeight')??32; }
+  set imageHeight(v)   { this._cell?.set('imageHeight',v); this._autoSize(); this.emit('change',this); }
+  get status()         { return this._cell?.get('status')??'pending'; }
+  set status(v)        { this._cell?.set('status',v); this.emit('change',this); }
+  get priority()       { return this._cell?.get('priority')??1; }
+  set priority(v)      { this._cell?.set('priority',v); this.emit('change',this); }
+  moveTo(x,y)  { this._cell?.position(x,y); this.emit('move',this); return this; }
+  moveBy(dx,dy){ return this.moveTo(this.x+dx,this.y+dy); }
+  toFront()    { this._cell?.toFront(); return this; }
+  toBack()     { this._cell?.toBack();  return this; }
+  select()     { this._canvas?._selectCell(this); return this; }
+  deselect()   { this._canvas?._deselectAll(); return this; }
+  getConnections()         { return this._canvas?._getConnectionsForShape(this)??[]; }
+  getIncomingConnections() { return this.getConnections().filter(c=>c.target===this); }
+  getOutgoingConnections() { return this.getConnections().filter(c=>c.source===this); }
+  connect(target, sourcePort=null, targetPort=null) { if(target===this)throw new Error('A shape cannot connect to itself.'); return this._canvas?._createConnection(this,target,sourcePort,targetPort); }
+  remove() { this._cell?.remove(); this.emit('remove',this); }
+  _buildCell(pos,ns) { throw new Error('_buildCell must be implemented by subclass'); }
+  _autoSize()  { if(!this._canvas||!this._cell)return; this._canvas._autoSize(this._cell); }
+  _getShapeType() { return 'rect'; }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Shape.define
-// ═══════════════════════════════════════════════════════════════
-Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) {
+Shape.define = function(BaseClass, defaults={}, schema={}, renderFn=null) {
   class CustomShape extends BaseClass {
-    constructor(opts = {}) {
+    constructor(opts={}) {
       super();
-      this._customProps = {};
-      this._schema      = schema;
-      this._renderFn    = renderFn;
-      this._defaultOpts = defaults;
-      const merged = { ...defaults, ...opts };
-      const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
-        'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-      builtIn.forEach(k => { if (merged[k] !== undefined) this[`_init_${k}`] = merged[k]; });
-      this._label = merged.label ?? defaults.label ?? '';
-      Object.entries(schema).forEach(([key, def]) => {
-        this._customProps[key] = opts[key] !== undefined ? opts[key] : def.default;
-      });
+      this._customProps={}; this._schema=schema; this._renderFn=renderFn; this._defaultOpts=defaults;
+      const merged={...defaults,...opts};
+      const builtIn=['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+      builtIn.forEach(k=>{ if(merged[k]!==undefined)this[`_init_${k}`]=merged[k]; });
+      this._label=merged.label??defaults.label??'';
+      Object.entries(schema).forEach(([key,def])=>{ this._customProps[key]=opts[key]!==undefined?opts[key]:def.default; });
     }
-    getCustomProperty(key)      { return this._customProps[key]; }
-    setCustomProperty(key, val) {
-      if (!(key in this._schema)) throw new Error(`Unknown custom property: ${key}`);
-      this._customProps[key] = val;
-      this._cell?.set(`custom_${key}`, val);
-      if (this._renderFn) this._renderFn(this);
-      this.emit('change', this);
-    }
+    getCustomProperty(key)     { return this._customProps[key]; }
+    setCustomProperty(key,val) { if(!(key in this._schema))throw new Error(`Unknown custom property: ${key}`); this._customProps[key]=val; this._cell?.set(`custom_${key}`,val); if(this._renderFn)this._renderFn(this); this.emit('change',this); }
     getSchema() { return this._schema; }
-    _buildCell(pos, ns) { return super._buildCell(pos, ns); }
+    _buildCell(pos,ns) { return super._buildCell(pos,ns); }
   }
-  CustomShape.prototype._getShapeType = BaseClass.prototype._getShapeType;
-  Object.defineProperty(CustomShape.prototype, 'portCount',
-    Object.getOwnPropertyDescriptor(BaseClass.prototype, 'portCount') || { get() { return 4; } });
+  CustomShape.prototype._getShapeType=BaseClass.prototype._getShapeType;
+  Object.defineProperty(CustomShape.prototype,'portCount',Object.getOwnPropertyDescriptor(BaseClass.prototype,'portCount')||{get(){return 4;}});
   return CustomShape;
 };
 
-// ═══════════════════════════════════════════════════════════════
-// Shape subclasses
-// ═══════════════════════════════════════════════════════════════
-class Rectangle extends Shape {
-  get portCount() { return 4; } _getShapeType() { return 'rect'; }
-  _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'rect', 140, 50); }
-}
-class Square extends Shape {
-  get portCount() { return 4; } _getShapeType() { return 'square'; }
-  _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'square', 80, 80); }
-}
-class Ellipse extends Shape {
-  get portCount() { return 4; } _getShapeType() { return 'ellipse'; }
-  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
-}
-class Circle extends Shape {
-  get portCount() { return 4; } _getShapeType() { return 'circle'; }
-  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
-}
-class Diamond extends Shape {
-  get portCount() { return 4; } _getShapeType() { return 'diamond'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
-}
-class Triangle extends Shape {
-  get portCount() { return 3; } _getShapeType() { return 'triangle'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
-}
-class Hexagon extends Shape {
-  get portCount() { return 6; } _getShapeType() { return 'hexagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
-}
-class Pentagon extends Shape {
-  get portCount() { return 5; } _getShapeType() { return 'pentagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
-}
-class Octagon extends Shape {
-  get portCount() { return 8; } _getShapeType() { return 'octagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
-}
+class Rectangle extends Shape { get portCount(){return 4;} _getShapeType(){return'rect';}     _buildCell(p,ns){return _buildStandardRect(p,ns,'rect',140,50);} }
+class Square    extends Shape { get portCount(){return 4;} _getShapeType(){return'square';}   _buildCell(p,ns){return _buildStandardRect(p,ns,'square',80,80);} }
+class Ellipse   extends Shape { get portCount(){return 4;} _getShapeType(){return'ellipse';}  _buildCell(p,ns){return _buildEllipseCell(p,ns,'ellipse',140,50);} }
+class Circle    extends Shape { get portCount(){return 4;} _getShapeType(){return'circle';}   _buildCell(p,ns){return _buildEllipseCell(p,ns,'circle',80,80);} }
+class Diamond   extends Shape { get portCount(){return 4;} _getShapeType(){return'diamond';}  _buildCell(p,ns){return _buildPolygonCell(p,ns,'diamond',80,80,[[0,10],[10,0],[20,10],[10,20]]);} }
+class Triangle  extends Shape { get portCount(){return 3;} _getShapeType(){return'triangle';} _buildCell(p,ns){return _buildPolygonCell(p,ns,'triangle',140,50,[[10,0],[20,20],[0,20]]);} }
+class Hexagon   extends Shape { get portCount(){return 6;} _getShapeType(){return'hexagon';}  _buildCell(p,ns){return _buildPolygonCell(p,ns,'hexagon',140,50,[[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]);} }
+class Pentagon  extends Shape { get portCount(){return 5;} _getShapeType(){return'pentagon';} _buildCell(p,ns){return _buildPolygonCell(p,ns,'pentagon',140,50,[[10,0],[20,7],[16,20],[4,20],[0,7]]);} }
+class Octagon   extends Shape { get portCount(){return 8;} _getShapeType(){return'octagon';}  _buildCell(p,ns){return _buildPolygonCell(p,ns,'octagon',140,50,[[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]);} }
 
-const _sharedMarkup = [
-  { tagName:'image', selector:'image',            className:'image' },
-  { tagName:'text',  selector:'label',            className:'label' },
-  { tagName:'text',  selector:'descriptionLabel', className:'descriptionLabel' }
-];
-const _sharedAttrs = {
-  image:            { display:'none' },
-  label:            { fill:'#212529', fontSize:13, fontWeight:'bold', pointerEvents:'none' },
-  descriptionLabel: { text:'', fill:'#6c757d', fontSize:11, pointerEvents:'none' }
-};
-const _sharedProps = { description:'', status:'pending', priority:1, imageUrl:'', imageWidth:32, imageHeight:32, fontSizePercent:100 };
+const _sharedMarkup=[{tagName:'image',selector:'image',className:'image'},{tagName:'text',selector:'label',className:'label'},{tagName:'text',selector:'descriptionLabel',className:'descriptionLabel'}];
+const _sharedAttrs={image:{display:'none'},label:{fill:'#212529',fontSize:13,fontWeight:'bold',pointerEvents:'none'},descriptionLabel:{text:'',fill:'#6c757d',fontSize:11,pointerEvents:'none'}};
+const _sharedProps={description:'',status:'pending',priority:1,imageUrl:'',imageWidth:32,imageHeight:32,fontSizePercent:100};
 
-function _attachPorts(cell, points) {
-  cell.prop('ports/groups', {
-    all: {
-      position: 'absolute',
-      attrs: {
-        circle: { r:6, fill:'#3498db', magnet:true, stroke:'#fff', strokeWidth:2, pointerEvents:'all' },
-        text:   { display:'none' }
-      }
-    }
-  });
-  const portData = points.length === 0
-    ? [
-        { group:'all', args:{ x:'50%', y:'0%', dy:-1 } },
-        { group:'all', args:{ x:'100%', y:'50%' } },
-        { group:'all', args:{ x:'50%', y:'100%', dy:1 } },
-        { group:'all', args:{ x:'0%',  y:'50%'  } }
-      ]
-    : points.map((p,i) => {
-        const next = points[(i+1) % points.length];
-        return { group:'all', args:{ x:`${((p[0]+next[0])/2/20)*100}%`, y:`${((p[1]+next[1])/2/20)*100}%` } };
-      });
+function _attachPorts(cell,points) {
+  cell.prop('ports/groups',{all:{position:'absolute',attrs:{circle:{r:6,fill:'#3498db',magnet:true,stroke:'#fff',strokeWidth:2,pointerEvents:'all'},text:{display:'none'}}}});
+  const portData=points.length===0
+    ?[{group:'all',args:{x:'50%',y:'0%',dy:-1}},{group:'all',args:{x:'100%',y:'50%'}},{group:'all',args:{x:'50%',y:'100%',dy:1}},{group:'all',args:{x:'0%',y:'50%'}}]
+    :points.map((p,i)=>{const next=points[(i+1)%points.length];return{group:'all',args:{x:`${((p[0]+next[0])/2/20)*100}%`,y:`${((p[1]+next[1])/2/20)*100}%`}};});
   cell.addPorts(portData);
 }
-function _buildStandardRect(pos, ns, type, w, h) {
-  const cell = new ns.standard.Rectangle();
-  cell.markup = [{ tagName:'rect', selector:'body', className:'body' }, ..._sharedMarkup];
-  cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body:{ fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2, rx:5, ry:5 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps }); _attachPorts(cell, []); return cell;
+function _buildStandardRect(pos,ns,type,w,h) {
+  const cell=new ns.standard.Rectangle();
+  cell.markup=[{tagName:'rect',selector:'body',className:'body'},..._sharedMarkup];
+  cell.position(pos.x,pos.y).resize(w,h);
+  cell.attr({body:{fill:'#ffffff',stroke:'#adb5bd',strokeWidth:2,rx:5,ry:5},..._sharedAttrs});
+  cell.set({type,..._sharedProps}); _attachPorts(cell,[]); return cell;
 }
-function _buildEllipseCell(pos, ns, type, w, h) {
-  const cell = new ns.standard.Ellipse();
-  cell.markup = [{ tagName:'ellipse', selector:'body', className:'body' }, ..._sharedMarkup];
-  cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body:{ fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps }); _attachPorts(cell, []); return cell;
+function _buildEllipseCell(pos,ns,type,w,h) {
+  const cell=new ns.standard.Ellipse();
+  cell.markup=[{tagName:'ellipse',selector:'body',className:'body'},..._sharedMarkup];
+  cell.position(pos.x,pos.y).resize(w,h);
+  cell.attr({body:{fill:'#ffffff',stroke:'#adb5bd',strokeWidth:2},..._sharedAttrs});
+  cell.set({type,..._sharedProps}); _attachPorts(cell,[]); return cell;
 }
-function _buildPolygonCell(pos, ns, type, w, h, points) {
-  const cell = new ns.standard.Polygon();
-  cell.markup = [{ tagName:'polygon', selector:'body', className:'body' }, ..._sharedMarkup];
-  cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body:{ refPoints:points.map(p=>p.join(',')).join(' '), fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps }); _attachPorts(cell, points); return cell;
+function _buildPolygonCell(pos,ns,type,w,h,points) {
+  const cell=new ns.standard.Polygon();
+  cell.markup=[{tagName:'polygon',selector:'body',className:'body'},..._sharedMarkup];
+  cell.position(pos.x,pos.y).resize(w,h);
+  cell.attr({body:{refPoints:points.map(p=>p.join(',')).join(' '),fill:'#ffffff',stroke:'#adb5bd',strokeWidth:2},..._sharedAttrs});
+  cell.set({type,..._sharedProps}); _attachPorts(cell,points); return cell;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Canvas
-// ═══════════════════════════════════════════════════════════════
 class Canvas extends EventEmitter {
   constructor(element) {
     super();
-    this._el      = element;
-    this._GRID    = 10;
-    this.shapeClearance = 4;
-    this._shapes  = new Map();
-    this._connections = new Map();
-    this._selected = null;
-    this._autoPortEnabled = true;
-    this._touchState = null;
-    this._pointerDownPos = null;
-    this._wasAlreadySelected = false;
-
-    this._buildDOM();
-    this._initPaper();
-    this._bindUI();
-    this._bindPaperEvents();
-    this._bindTouchEvents();
-    this._bindKeyboard();
-
-    if (this._isMobile()) {
-      this._setSidebarCollapsed(this._leftSidebar, true);
-      this._setSidebarCollapsed(this._rightSidebar, true);
-    }
+    this._el=element; this._GRID=10; this.shapeClearance=4;
+    this._shapes=new Map(); this._connections=new Map();
+    this._selected=null; this._autoPortEnabled=true;
+    this._touchState=null; this._pointerDownPos=null; this._wasAlreadySelected=false;
+    this._buildDOM(); this._initPaper(); this._bindUI(); this._bindPaperEvents(); this._bindTouchEvents(); this._bindKeyboard();
+    if (this._isMobile()) { this._setSidebarCollapsed(this._leftSidebar,true); this._setSidebarCollapsed(this._rightSidebar,true); }
   }
 
   registerShape(label, ShapeClass) {
-    const el = this._library.appendChild(this._createEl('div', 'wf-node-template'));
-    el.textContent = label; el.draggable = true; el.dataset.shapeLabel = label;
-    el.addEventListener('click', () => {
-      if (!this._isMobile()) return;
-      this.addShape(new ShapeClass());
-      if (!this._leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._leftSidebar);
-    });
-    el.addEventListener('dragstart', e => e.dataTransfer.setData('customShape', label));
-    this._registeredShapes = this._registeredShapes || {};
-    this._registeredShapes[label] = ShapeClass;
+    const el=this._library.appendChild(this._createEl('div','wf-node-template'));
+    el.textContent=label; el.draggable=true; el.dataset.shapeLabel=label;
+    el.addEventListener('click',()=>{ if(!this._isMobile())return; this.addShape(new ShapeClass()); if(!this._leftSidebar.classList.contains('wf-collapsed'))this._toggleSidebar(this._leftSidebar); });
+    el.addEventListener('dragstart',e=>e.dataTransfer.setData('customShape',label));
+    this._registeredShapes=this._registeredShapes||{};
+    this._registeredShapes[label]=ShapeClass;
   }
 
-  addShape(shape, x, y) {
-    const ns = joint.shapes, container = this._canvasContainer;
-    const cx = x ?? container.clientWidth  / 2;
-    const cy = y ?? container.clientHeight / 2;
-    const local = this._paper.clientToLocalPoint({ x: cx + container.getBoundingClientRect().left, y: cy + container.getBoundingClientRect().top });
-    const iW = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 140;
-    const iH = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 50;
-    const pos  = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
-    const cell = shape._buildCell(pos, ns);
-    cell.attr('label/text', shape._label);
-    shape._cell   = cell;
-    shape._canvas = this;
-
-    const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
-      'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-    const opts = shape._initOpts || {};
-    builtIn.forEach(k => { const v = opts[k] ?? shape[`_init_${k}`]; if (v !== undefined) shape[k] = v; });
-    Object.entries(shape._customProps).forEach(([k, v]) => cell.set(`custom_${k}`, v));
-
-    cell.addTo(this._graph);
-    this._shapes.set(cell.id, shape);
-    this._deselectAll();
-
-    const ready = (async () => {
-      await this._waitForRender(cell);
-      await this._autoSizeAsync(cell);
-      if (shape._renderFn) shape._renderFn(shape);
-      await this._waitForRender(cell);
-      return shape;
-    })();
-
-    this.emit('shape:add', shape);
-    return ready;
+  addShape(shape,x,y) {
+    const ns=joint.shapes, container=this._canvasContainer;
+    const cx=x??container.clientWidth/2, cy=y??container.clientHeight/2;
+    const local=this._paper.clientToLocalPoint({x:cx+container.getBoundingClientRect().left,y:cy+container.getBoundingClientRect().top});
+    const iW=(shape instanceof Square||shape instanceof Circle||shape instanceof Diamond)?80:140;
+    const iH=(shape instanceof Square||shape instanceof Circle||shape instanceof Diamond)?80:50;
+    const pos=this._findClearPosition(local.x-iW/2,local.y-iH/2,iW,iH);
+    const cell=shape._buildCell(pos,ns);
+    cell.attr('label/text',shape._label);
+    shape._cell=cell; shape._canvas=this;
+    const builtIn=['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+    const opts=shape._initOpts||{};
+    builtIn.forEach(k=>{ const v=opts[k]??shape[`_init_${k}`]; if(v!==undefined)shape[k]=v; });
+    Object.entries(shape._customProps).forEach(([k,v])=>cell.set(`custom_${k}`,v));
+    cell.addTo(this._graph); this._shapes.set(cell.id,shape); this._deselectAll();
+    const ready=(async()=>{ await this._waitForRender(cell); await this._autoSizeAsync(cell); if(shape._renderFn)shape._renderFn(shape); await this._waitForRender(cell); return shape; })();
+    this.emit('shape:add',shape); return ready;
   }
 
-  removeShape(shape) { shape.remove(); this._shapes.delete(shape.id); this.emit('shape:remove', shape); }
+  removeShape(shape) { shape.remove(); this._shapes.delete(shape.id); this.emit('shape:remove',shape); }
   getShapes()        { return [...this._shapes.values()]; }
   getConnections()   { return [...this._connections.values()]; }
-
-  moveTo(x, y)    { this._paper.translate(x, y); return this; }
-  moveToCenter()  {
-    const bbox = this._graph.getBBox(); if (!bbox) return this;
-    const s = this._paper.getComputedSize();
-    this._paper.scale(1,1);
-    this._paper.translate(s.width/2-(bbox.x+bbox.width/2), s.height/2-(bbox.y+bbox.height/2));
-    return this;
+  moveTo(x,y)   { this._paper.translate(x,y); return this; }
+  moveToCenter() {
+    const bbox=this._graph.getBBox(); if(!bbox)return this;
+    const s=this._paper.getComputedSize(); this._paper.scale(1,1);
+    this._paper.translate(s.width/2-(bbox.x+bbox.width/2),s.height/2-(bbox.y+bbox.height/2)); return this;
   }
   zoomIn(f=1.25)  { this._zoomCenter(f); return this; }
   zoomOut(f=0.8)  { this._zoomCenter(f); return this; }
   zoomReset()     { this._zoomCenter(1/this._paper.scale().sx); return this; }
-  zoomToFit()     { this._paper.scaleContentToFit({ padding:50, minScale:0.2, maxScale:2 }); return this; }
+  zoomToFit()     { this._paper.scaleContentToFit({padding:50,minScale:0.2,maxScale:2}); return this; }
   getZoom()       { return this._paper.scale().sx; }
   getSelection()  { return this._selected; }
   clearSelection(){ this._deselectAll(); return this; }
 
   setAutoPortSwitching(enabled) {
-    this._autoPortEnabled = enabled;
-    this._autoPortBtn.classList.toggle('active', enabled);
-    if (enabled) this._graph.getElements().forEach(el => this._autoPortDistributor(el));
+    this._autoPortEnabled=enabled;
+    this._autoPortBtn.classList.toggle('active',enabled);
+    if(enabled)this._graph.getElements().forEach(el=>this._autoPortDistributor(el));
     return this;
   }
 
   autoArrange() {
-    const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'TB', ranksep: 60, nodesep: 40, marginx: 40, marginy: 40 });
-    g.setDefaultEdgeLabel(() => ({}));
-    this._graph.getElements().forEach(el => {
-      const { width, height } = el.size();
-      g.setNode(el.id, { width, height });
-    });
-    this._graph.getLinks().forEach(link => {
-      const src = link.getSourceElement(), tgt = link.getTargetElement();
-      if (src && tgt) g.setEdge(src.id, tgt.id);
-    });
+    const g=new dagre.graphlib.Graph();
+    g.setGraph({rankdir:'TB',ranksep:60,nodesep:40,marginx:40,marginy:40});
+    g.setDefaultEdgeLabel(()=>({}));
+    this._graph.getElements().forEach(el=>{ const {width,height}=el.size(); g.setNode(el.id,{width,height}); });
+    this._graph.getLinks().forEach(link=>{ const src=link.getSourceElement(),tgt=link.getTargetElement(); if(src&&tgt)g.setEdge(src.id,tgt.id); });
     dagre.layout(g);
-    this._graph.getElements().forEach(el => {
-      const node = g.node(el.id); if (!node) return;
-      el.position(Math.round(node.x - node.width / 2), Math.round(node.y - node.height / 2));
-    });
-    if (this._autoPortEnabled) this._graph.getElements().forEach(el => this._autoPortDistributor(el));
-    this.moveToCenter();
-    return this;
+    this._graph.getElements().forEach(el=>{ const node=g.node(el.id); if(!node)return; el.position(Math.round(node.x-node.width/2),Math.round(node.y-node.height/2)); });
+    if(this._autoPortEnabled)this._graph.getElements().forEach(el=>this._autoPortDistributor(el));
+    this.moveToCenter(); return this;
   }
 
   serialize() {
-    const shapes = [...this._shapes.values()].map(s => ({
-      id: s._cell.id, shapeClass: s.constructor.name, x: s.x, y: s.y,
-      props: {
-        label: s.label, labelColor: s.labelColor, labelFontSize: s.labelFontSize,
-        description: s.description, descriptionColor: s.descriptionColor,
-        backgroundColor: s.backgroundColor, borderColor: s.borderColor, borderWidth: s.borderWidth,
-        imageUrl: s.imageUrl, imageWidth: s.imageWidth, imageHeight: s.imageHeight,
-      },
-      customProps: { ...s._customProps },
+    const shapes=[...this._shapes.values()].map(s=>({
+      id:s._cell.id, shapeClass:s.constructor.name, x:s.x, y:s.y,
+      props:{label:s.label,labelColor:s.labelColor,labelFontSize:s.labelFontSize,description:s.description,descriptionColor:s.descriptionColor,backgroundColor:s.backgroundColor,borderColor:s.borderColor,borderWidth:s.borderWidth,imageUrl:s.imageUrl,imageWidth:s.imageWidth,imageHeight:s.imageHeight},
+      customProps:{...s._customProps}
     }));
-    const connections = [...this._connections.values()].map(c => {
-      return {
-        sourceId: c.source._cell.id, targetId: c.target._cell.id,
-        sourcePort: (() => { const id = c._link.source()?.port; if (!id) return null; const i = c.source._cell.getPorts().findIndex(p => p.id === id); return i >= 0 ? i + 1 : null; })(),
-        targetPort: (() => { const id = c._link.target()?.port; if (!id) return null; const i = c.target._cell.getPorts().findIndex(p => p.id === id); return i >= 0 ? i + 1 : null; })(),
-        label: c.label, labelColor: c.labelColor, labelFontSize: c.labelFontSize,
-        lineColor: c.lineColor, lineWidth: c.lineWidth, lineStyle: c.lineStyle,
-        sourceArrow: c.sourceArrow, targetArrow: c.targetArrow,
-        connectorType: c.connectorType, description: c.description,
-        vertices: c._link.vertices(),
-      };
-    });
-    return JSON.stringify({ shapes, connections });
+    const connections=[...this._connections.values()].map(c=>({
+      sourceId:c.source._cell.id, targetId:c.target._cell.id,
+      sourcePort:(()=>{ const id=c._link.source()?.port; if(!id)return null; const i=c.source._cell.getPorts().findIndex(p=>p.id===id); return i>=0?i+1:null; })(),
+      targetPort:(()=>{ const id=c._link.target()?.port; if(!id)return null; const i=c.target._cell.getPorts().findIndex(p=>p.id===id); return i>=0?i+1:null; })(),
+      label:c.label, labelColor:c.labelColor, labelFontSize:c.labelFontSize,
+      lineColor:c.lineColor, lineWidth:c.lineWidth, lineStyle:c.lineStyle,
+      sourceArrow:c.sourceArrow, targetArrow:c.targetArrow,
+      connectorType:c.connectorType, description:c.description, vertices:c._link.vertices()
+    }));
+    return JSON.stringify({shapes,connections});
   }
 
   async deserialize(data) {
-    const { shapes, connections } = typeof data === 'string' ? JSON.parse(data) : data;
-    if (!Array.isArray(shapes)) throw new Error('Invalid diagram file format.');
-
-    this._deselectAll();
-    this._shapes.clear();
-    this._connections.clear();
-    this._graph.clear();
-
-    const classMap = {
-      Rectangle, Square, Ellipse, Circle, Diamond, Triangle, Hexagon, Pentagon, Octagon,
-      ...Object.fromEntries(Object.entries(this._registeredShapes || {}).map(([,cls]) => [cls.name, cls]))
-    };
-
-    const prevAutoPort = this._autoPortEnabled;
-    this._autoPortEnabled = false;
-
-    this._deserializing = true;
-    const idMap = {};
+    const {shapes,connections}=typeof data==='string'?JSON.parse(data):data;
+    if(!Array.isArray(shapes))throw new Error('Invalid diagram file format.');
+    this._deselectAll(); this._shapes.clear(); this._connections.clear(); this._graph.clear();
+    const classMap={Rectangle,Square,Ellipse,Circle,Diamond,Triangle,Hexagon,Pentagon,Octagon,...Object.fromEntries(Object.entries(this._registeredShapes||{}).map(([,cls])=>[cls.name,cls]))};
+    const prevAutoPort=this._autoPortEnabled;
+    this._autoPortEnabled=false; this._deserializing=true;
+    const idMap={};
     for (const s of shapes) {
-      const Cls = classMap[s.shapeClass];
-      if (!Cls) { console.warn(`Unknown shape class: ${s.shapeClass}`); continue; }
-      const shape = new Cls({ ...s.props, ...s.customProps });
-      const cell = shape._buildCell({ x: s.x, y: s.y }, joint.shapes);
-      cell.attr('label/text', shape._label);
-      shape._cell   = cell;
-      shape._canvas = this;
-      const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
-        'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-      const opts = shape._initOpts || {};
-      builtIn.forEach(k => { const v = opts[k] ?? shape[`_init_${k}`]; if (v !== undefined) shape[k] = v; });
-      Object.entries(shape._customProps).forEach(([k, v]) => cell.set(`custom_${k}`, v));
-      cell.addTo(this._graph);
-      this._shapes.set(cell.id, shape);
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const Cls=classMap[s.shapeClass]; if(!Cls){console.warn(`Unknown shape class: ${s.shapeClass}`);continue;}
+      const shape=new Cls({...s.props,...s.customProps});
+      const cell=shape._buildCell({x:s.x,y:s.y},joint.shapes);
+      cell.attr('label/text',shape._label); shape._cell=cell; shape._canvas=this;
+      const builtIn=['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+      const opts=shape._initOpts||{};
+      builtIn.forEach(k=>{ const v=opts[k]??shape[`_init_${k}`]; if(v!==undefined)shape[k]=v; });
+      Object.entries(shape._customProps).forEach(([k,v])=>cell.set(`custom_${k}`,v));
+      cell.addTo(this._graph); this._shapes.set(cell.id,shape);
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       this._autoSize(cell);
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      this._paper.updateViews();
-      if (shape._renderFn) shape._renderFn(shape);
-      idMap[s.id] = shape;
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      this._paper.updateViews(); if(shape._renderFn)shape._renderFn(shape); idMap[s.id]=shape;
     }
-
     for (const c of connections) {
-      const source = idMap[c.sourceId], target = idMap[c.targetId];
-      if (!source || !target) continue;
-
-      const conn = source.connect(target, c.sourcePort, c.targetPort);
-      if (!conn) continue;
-
-      if (c.label)         conn.label        = c.label;
-      if (c.labelColor)    conn.labelColor   = c.labelColor;
-      if (c.labelFontSize) conn.labelFontSize = c.labelFontSize;
-      conn.lineColor     = c.lineColor;
-      conn.lineWidth     = c.lineWidth;
-      conn.lineStyle     = c.lineStyle;
-      conn.sourceArrow   = c.sourceArrow;
-      conn.targetArrow   = c.targetArrow;
-      conn.connectorType = c.connectorType;
-      if (c.description)      conn.description = c.description;
-      if (c.vertices?.length) conn._link.vertices(c.vertices);
+      const source=idMap[c.sourceId],target=idMap[c.targetId]; if(!source||!target)continue;
+      const conn=source.connect(target,c.sourcePort,c.targetPort); if(!conn)continue;
+      if(c.label)conn.label=c.label; if(c.labelColor)conn.labelColor=c.labelColor; if(c.labelFontSize)conn.labelFontSize=c.labelFontSize;
+      conn.lineColor=c.lineColor; conn.lineWidth=c.lineWidth; conn.lineStyle=c.lineStyle;
+      conn.sourceArrow=c.sourceArrow; conn.targetArrow=c.targetArrow; conn.connectorType=c.connectorType;
+      if(c.description)conn.description=c.description; if(c.vertices?.length)conn._link.vertices(c.vertices);
     }
-
-    this._deserializing = false;
-
-    const cells = this._graph.getCells();
-    this._graph.resetCells(cells);
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    // resetCells drops custom attributes — restore sourcePort/targetPort on links
-    this._graph.getLinks().forEach(link => {
-      const conn = this._connections.get(link.id); if (!conn) return;
-      const saved = connections.find(
-        c => idMap[c.sourceId]?._cell.id === conn.source._cell.id &&
-             idMap[c.targetId]?._cell.id === conn.target._cell.id
-      );
-      if (!saved) return;
-      if (saved.sourcePort != null) link.set('sourcePort', saved.sourcePort);
-      if (saved.targetPort != null) link.set('targetPort', saved.targetPort);
+    this._deserializing=false;
+    const cells=this._graph.getCells(); this._graph.resetCells(cells);
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    this._graph.getLinks().forEach(link=>{
+      const conn=this._connections.get(link.id); if(!conn)return;
+      const saved=connections.find(c=>idMap[c.sourceId]?._cell.id===conn.source._cell.id&&idMap[c.targetId]?._cell.id===conn.target._cell.id);
+      if(!saved)return;
+      if(saved.sourcePort!=null)link.set('sourcePort',saved.sourcePort);
+      if(saved.targetPort!=null)link.set('targetPort',saved.targetPort);
     });
-
     return this;
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: DOM
-  // ═══════════════════════════════════════════
-  _buildDOM() {
-    this._el.innerHTML = '';
-    this._el.style.cssText = 'display:flex;height:100%;overflow:hidden;';
+  // ── Mobile button visibility ──
+  _updateMobileButtonVisibility() {
+    if (!this._isMobile()) return;
+    const hide = this._selected !== null
+      || !this._leftSidebar.classList.contains('wf-collapsed')
+      || !this._rightSidebar.classList.contains('wf-collapsed');
+    const d = hide ? 'none' : '';
+    this._topRightGroup.style.display = d;
+    this._topLeftGroup.style.display  = d;
+    this._bottomLeft.style.display    = d;
+  }
 
-    this._leftSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-left'));
-    const lh = this._leftSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
-    lh.innerHTML = `<span class="wf-sidebar-title">Library</span><button class="wf-collapse-btn" title="Toggle Library"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>`;
-    this._leftCollapseBtn  = lh.querySelector('.wf-collapse-btn');
-    this._leftCollapseIcon = lh.querySelector('.wf-collapse-icon');
-    this._library = this._leftSidebar.appendChild(this._createEl('div', 'wf-library wf-sidebar-body'));
+  _buildDOM() {
+    this._el.innerHTML=''; this._el.style.cssText='display:flex;height:100%;overflow:hidden;';
+
+    this._leftSidebar=this._el.appendChild(this._createEl('div','wf-sidebar wf-sidebar-left'));
+    const lh=this._leftSidebar.appendChild(this._createEl('div','wf-sidebar-header'));
+    lh.innerHTML=`<span class="wf-sidebar-title">Library</span><button class="wf-collapse-btn" title="Toggle Library"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+    this._leftCollapseBtn=lh.querySelector('.wf-collapse-btn'); this._leftCollapseIcon=lh.querySelector('.wf-collapse-icon');
+    this._library=this._leftSidebar.appendChild(this._createEl('div','wf-library wf-sidebar-body'));
     this._buildLibrary();
 
-    this._canvasContainer = this._el.appendChild(this._createEl('div', 'wf-canvas-container'));
-    this._paperEl = this._canvasContainer.appendChild(this._createEl('div', 'wf-paper'));
+    this._canvasContainer=this._el.appendChild(this._createEl('div','wf-canvas-container'));
+    this._paperEl=this._canvasContainer.appendChild(this._createEl('div','wf-paper'));
 
-    const tr = this._canvasContainer.appendChild(this._createEl('div'));
-    tr.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
-    this._exportBtn = tr.appendChild(this._createEl('button', 'wf-ctrl-btn'));
-    this._exportBtn.title = 'Export';
-    this._exportBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-    this._importBtn = tr.appendChild(this._createEl('button', 'wf-ctrl-btn'));
-    this._importBtn.title = 'Import';
-    this._importBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
-    this._importFileInput = this._canvasContainer.appendChild(this._createEl('input'));
-    this._importFileInput.type = 'file'; this._importFileInput.accept = '.json'; this._importFileInput.style.display = 'none';
+    // Top-right: export + import
+    this._topRightGroup=this._canvasContainer.appendChild(this._createEl('div'));
+    this._topRightGroup.style.cssText='position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
+    this._exportBtn=this._topRightGroup.appendChild(this._createEl('button','wf-ctrl-btn'));
+    this._exportBtn.title='Export';
+    this._exportBtn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    this._importBtn=this._topRightGroup.appendChild(this._createEl('button','wf-ctrl-btn'));
+    this._importBtn.title='Import';
+    this._importBtn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+    this._importFileInput=this._canvasContainer.appendChild(this._createEl('input'));
+    this._importFileInput.type='file'; this._importFileInput.accept='.json'; this._importFileInput.style.display='none';
 
-    const tl = this._canvasContainer.appendChild(this._createEl('div'));
-    tl.style.cssText = 'position:absolute;top:20px;left:20px;z-index:100;display:flex;gap:8px;';
-    this._autoPortBtn = tl.appendChild(this._createEl('button', 'wf-ctrl-btn active'));
-    this._autoPortBtn.title = 'Toggle Auto Port Switching';
-    this._autoPortBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
-    this._autoArrangeBtn = tl.appendChild(this._createEl('button', 'wf-ctrl-btn'));
-    this._autoArrangeBtn.title = 'Auto Arrange';
-    this._autoArrangeBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="5" width="7" height="4" rx="1"/><rect x="14" y="15" width="7" height="4" rx="1"/><line x1="10" y1="5" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="17"/><line x1="10" y1="19" x2="14" y2="17"/></svg>`;
+    // Top-left: auto port + auto arrange
+    this._topLeftGroup=this._canvasContainer.appendChild(this._createEl('div'));
+    this._topLeftGroup.style.cssText='position:absolute;top:20px;left:20px;z-index:100;display:flex;gap:8px;';
+    this._autoPortBtn=this._topLeftGroup.appendChild(this._createEl('button','wf-ctrl-btn active'));
+    this._autoPortBtn.title='Toggle Auto Port Switching';
+    this._autoPortBtn.innerHTML=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
+    this._autoArrangeBtn=this._topLeftGroup.appendChild(this._createEl('button','wf-ctrl-btn'));
+    this._autoArrangeBtn.title='Auto Arrange';
+    this._autoArrangeBtn.innerHTML=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="5" width="7" height="4" rx="1"/><rect x="14" y="15" width="7" height="4" rx="1"/><line x1="10" y1="5" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="17"/><line x1="10" y1="19" x2="14" y2="17"/></svg>`;
 
-    const bl = this._canvasContainer.appendChild(this._createEl('div', 'wf-bottom-left'));
-    const zg = bl.appendChild(this._createEl('div', 'wf-zoom-group'));
-    this._zoomFitBtn    = this._zoomBtn(zg,'Fit',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
-    this._zoomResetBtn  = this._zoomBtn(zg,'Reset Zoom','1:1');
-    this._zoomInBtn     = this._zoomBtn(zg,'Zoom In','+');
-    this._zoomOutBtn    = this._zoomBtn(zg,'Zoom Out','−');
-    this._zoomCenterBtn = this._zoomBtn(zg,'Center',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
+    // Bottom-left: zoom controls
+    this._bottomLeft=this._canvasContainer.appendChild(this._createEl('div','wf-bottom-left'));
+    const zg=this._bottomLeft.appendChild(this._createEl('div','wf-zoom-group'));
+    this._zoomFitBtn    =this._zoomBtn(zg,'Fit',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
+    this._zoomResetBtn  =this._zoomBtn(zg,'Reset Zoom','1:1');
+    this._zoomInBtn     =this._zoomBtn(zg,'Zoom In','+');
+    this._zoomOutBtn    =this._zoomBtn(zg,'Zoom Out','−');
+    this._zoomCenterBtn =this._zoomBtn(zg,'Center',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
-    this._contextMenu = this._canvasContainer.appendChild(this._createEl('div', 'wf-context-menu'));
-    this._contextMenu.innerHTML = `
+    this._contextMenu=this._canvasContainer.appendChild(this._createEl('div','wf-context-menu'));
+    this._contextMenu.innerHTML=`
       <div class="wf-menu-item" data-action="duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate</div>
       <div class="wf-menu-item danger" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>`;
 
-    this._rightSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-right'));
-    const rh = this._rightSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
-    rh.innerHTML = `
+    this._rightSidebar=this._el.appendChild(this._createEl('div','wf-sidebar wf-sidebar-right'));
+    const rh=this._rightSidebar.appendChild(this._createEl('div','wf-sidebar-header'));
+    rh.innerHTML=`
       <button class="wf-collapse-btn" title="Toggle Properties"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
       <span class="wf-sidebar-title">Properties</span>
       <div class="wf-header-actions wf-sidebar-body" style="display:none;">
@@ -798,44 +484,28 @@ class Canvas extends EventEmitter {
         <button class="wf-header-btn" data-action="duplicate" title="Duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <button class="wf-header-btn danger" data-action="delete" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       </div>`;
-    this._rightCollapseBtn   = rh.querySelector('.wf-collapse-btn');
-    this._rightCollapseIcon  = rh.querySelector('.wf-collapse-icon');
-    this._rightHeaderActions = rh.querySelector('.wf-header-actions');
-
-    this._propPanelEl   = this._buildElementPropsPanel();
-    this._propPanelLink = this._buildLinkPropsPanel();
-    this._noSelection   = this._rightSidebar.appendChild(this._createEl('div', 'wf-no-selection wf-sidebar-body'));
-    this._noSelection.textContent = 'Select an item to view properties';
+    this._rightCollapseBtn=rh.querySelector('.wf-collapse-btn'); this._rightCollapseIcon=rh.querySelector('.wf-collapse-icon'); this._rightHeaderActions=rh.querySelector('.wf-header-actions');
+    this._propPanelEl=this._buildElementPropsPanel();
+    this._propPanelLink=this._buildLinkPropsPanel();
+    this._noSelection=this._rightSidebar.appendChild(this._createEl('div','wf-no-selection wf-sidebar-body'));
+    this._noSelection.textContent='Select an item to view properties';
     this._showPanel('none');
   }
 
   _buildLibrary() {
-    [
-      { label:'Rectangle', type:'rect',     cls:Rectangle },
-      { label:'Square',    type:'square',   cls:Square    },
-      { label:'Ellipse',   type:'ellipse',  cls:Ellipse   },
-      { label:'Circle',    type:'circle',   cls:Circle    },
-      { label:'Diamond',   type:'diamond',  cls:Diamond   },
-      { label:'Triangle',  type:'triangle', cls:Triangle  },
-      { label:'Hexagon',   type:'hexagon',  cls:Hexagon   },
-      { label:'Pentagon',  type:'pentagon', cls:Pentagon  },
-      { label:'Octagon',   type:'octagon',  cls:Octagon   },
-    ].forEach(({ label, type, cls }) => {
-      const el = this._library.appendChild(this._createEl('div', 'wf-node-template'));
-      el.textContent = label; el.draggable = true; el.dataset.type = type;
-      el.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
-      el.addEventListener('click', () => {
-        if (!this._isMobile()) return;
-        this.addShape(new cls(label.toUpperCase()));
-        if (!this._leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._leftSidebar);
-      });
+    [{label:'Rectangle',type:'rect',cls:Rectangle},{label:'Square',type:'square',cls:Square},{label:'Ellipse',type:'ellipse',cls:Ellipse},{label:'Circle',type:'circle',cls:Circle},{label:'Diamond',type:'diamond',cls:Diamond},{label:'Triangle',type:'triangle',cls:Triangle},{label:'Hexagon',type:'hexagon',cls:Hexagon},{label:'Pentagon',type:'pentagon',cls:Pentagon},{label:'Octagon',type:'octagon',cls:Octagon}]
+    .forEach(({label,type,cls})=>{
+      const el=this._library.appendChild(this._createEl('div','wf-node-template'));
+      el.textContent=label; el.draggable=true; el.dataset.type=type;
+      el.addEventListener('dragstart',e=>e.dataTransfer.setData('type',type));
+      el.addEventListener('click',()=>{ if(!this._isMobile())return; this.addShape(new cls(label.toUpperCase())); if(!this._leftSidebar.classList.contains('wf-collapsed'))this._toggleSidebar(this._leftSidebar); });
     });
   }
 
   _buildElementPropsPanel() {
-    const panel = this._rightSidebar.appendChild(this._createEl('div', 'wf-properties wf-prop-panel-element wf-sidebar-body'));
-    panel.style.display = 'none';
-    panel.innerHTML = `
+    const panel=this._rightSidebar.appendChild(this._createEl('div','wf-properties wf-prop-panel-element wf-sidebar-body'));
+    panel.style.display='none';
+    panel.innerHTML=`
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
       <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
       <div class="wf-prop-group"><label>Background Color</label><div class="wf-color-row"><input type="color" data-prop="backgroundColor" data-pair="backgroundColorHex"><input type="text" data-prop="backgroundColorHex" data-pair-picker="backgroundColor" placeholder="#FFFFFF"></div></div>
@@ -849,9 +519,9 @@ class Canvas extends EventEmitter {
   }
 
   _buildLinkPropsPanel() {
-    const panel = this._rightSidebar.appendChild(this._createEl('div', 'wf-properties wf-prop-panel-link wf-sidebar-body'));
-    panel.style.display = 'none';
-    panel.innerHTML = `
+    const panel=this._rightSidebar.appendChild(this._createEl('div','wf-properties wf-prop-panel-link wf-sidebar-body'));
+    panel.style.display='none';
+    panel.innerHTML=`
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
       <div class="wf-prop-group"><label>Label Color</label><div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#333333"></div></div>
       <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
@@ -864,427 +534,351 @@ class Canvas extends EventEmitter {
     return panel;
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: JointJS init
-  // ═══════════════════════════════════════════
   _initPaper() {
-    this._graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
-    this._paper = new joint.dia.Paper({
-      el: this._paperEl, model: this._graph,
-      width: '100%', height: '100%',
-      gridSize: this._GRID, drawGrid: { name:'dot', color:'#e9ecef' },
-      background: { color:'#ffffff' }, cellNamespace: joint.shapes,
-      defaultConnector: { name:'rounded' },
-      defaultRouter: { name:'manhattan', args:{ step:this._GRID, padding:30, maxIter:200 } },
-      interactive: { linkMove:true, vertexAdd:true, vertexMove:true, elementMove:true },
-      preventDefaultBlankAction: false, linkPinning: false,
-      snapLinks: { radius:25 }, markAvailable: true,
-      defaultLink: () => new joint.shapes.standard.Link({ attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } }),
-      validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt
+    this._graph=new joint.dia.Graph({},{cellNamespace:joint.shapes});
+    this._paper=new joint.dia.Paper({
+      el:this._paperEl, model:this._graph, width:'100%', height:'100%',
+      gridSize:this._GRID, drawGrid:{name:'dot',color:'#e9ecef'},
+      background:{color:'#ffffff'}, cellNamespace:joint.shapes,
+      defaultConnector:{name:'rounded'},
+      defaultRouter:{name:'manhattan',args:{step:this._GRID,padding:30,maxIter:200}},
+      interactive:{linkMove:true,vertexAdd:true,vertexMove:true,elementMove:true},
+      preventDefaultBlankAction:false, linkPinning:false,
+      snapLinks:{radius:25}, markAvailable:true,
+      defaultLink:()=>new joint.shapes.standard.Link({attrs:{line:{stroke:'#495057',strokeWidth:2,targetMarker:MARKERS.classic}}}),
+      validateConnection:(vs,ms,vt,mt)=>ms&&mt&&vs!==vt
     });
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: UI binding
-  // ═══════════════════════════════════════════
   _bindUI() {
-    this._exportBtn.addEventListener('click', () => {
+    this._exportBtn.addEventListener('click',()=>{
       try {
-        const blob = new Blob([this.serialize()], { type:'application/json' });
-        const url  = URL.createObjectURL(blob);
-        const a    = Object.assign(document.createElement('a'), { href:url, download:'diagram.json' });
+        const blob=new Blob([this.serialize()],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=Object.assign(document.createElement('a'),{href:url,download:'diagram.json'});
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch(e) { alert('Export failed: ' + e.message); }
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      } catch(e){alert('Export failed: '+e.message);}
     });
-
-    this._importBtn.addEventListener('click', () => this._importFileInput.click());
-    this._importFileInput.addEventListener('change', e => {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => this.deserialize(ev.target.result).catch(err => alert('Import failed: ' + err.message));
-      reader.readAsText(file);
-      e.target.value = '';
+    this._importBtn.addEventListener('click',()=>this._importFileInput.click());
+    this._importFileInput.addEventListener('change',e=>{
+      const file=e.target.files[0]; if(!file)return;
+      const reader=new FileReader();
+      reader.onload=ev=>this.deserialize(ev.target.result).catch(err=>alert('Import failed: '+err.message));
+      reader.readAsText(file); e.target.value='';
     });
+    this._leftCollapseBtn.addEventListener('click',()=>this._toggleSidebar(this._leftSidebar));
+    this._rightCollapseBtn.addEventListener('click',()=>this._toggleSidebar(this._rightSidebar));
+    this._autoPortBtn.addEventListener('click',()=>this.setAutoPortSwitching(!this._autoPortEnabled));
+    this._autoArrangeBtn.addEventListener('click',()=>this.autoArrange());
+    this._zoomFitBtn.addEventListener('click',()=>this.zoomToFit());
+    this._zoomResetBtn.addEventListener('click',()=>this.zoomReset());
+    this._zoomInBtn.addEventListener('click',()=>this.zoomIn());
+    this._zoomOutBtn.addEventListener('click',()=>this.zoomOut());
+    this._zoomCenterBtn.addEventListener('click',()=>this.moveToCenter());
 
-    this._leftCollapseBtn.addEventListener('click',  () => this._toggleSidebar(this._leftSidebar));
-    this._rightCollapseBtn.addEventListener('click', () => this._toggleSidebar(this._rightSidebar));
-    this._autoPortBtn.addEventListener('click', () => this.setAutoPortSwitching(!this._autoPortEnabled));
-    this._zoomFitBtn.addEventListener('click',    () => this.zoomToFit());
-    this._zoomResetBtn.addEventListener('click',  () => this.zoomReset());
-    this._zoomInBtn.addEventListener('click',     () => this.zoomIn());
-    this._zoomOutBtn.addEventListener('click',    () => this.zoomOut());
-    this._zoomCenterBtn.addEventListener('click', () => this.moveToCenter());
-    this._autoArrangeBtn.addEventListener('click', () => this.autoArrange());
-
-    this._paper.el.addEventListener('wheel', e => {
+    this._paper.el.addEventListener('wheel',e=>{
       e.preventDefault();
-      if (e.ctrlKey) this._zoomAtPoint(Math.exp(-e.deltaY*0.0015), e.clientX, e.clientY);
-      else { const t = this._paper.translate(); this._paper.translate(t.tx-e.deltaX, t.ty-e.deltaY); }
-    }, { passive:false });
+      if(e.ctrlKey)this._zoomAtPoint(Math.exp(-e.deltaY*0.0015),e.clientX,e.clientY);
+      else{const t=this._paper.translate();this._paper.translate(t.tx-e.deltaX,t.ty-e.deltaY);}
+    },{passive:false});
 
-    this._contextMenu.addEventListener('click', e => {
-      const a = e.target.closest('[data-action]')?.dataset.action;
-      if (a === 'duplicate') this._duplicateSelected();
-      if (a === 'delete')    this._deleteSelected();
-      this._contextMenu.style.display = 'none';
+    this._contextMenu.addEventListener('click',e=>{
+      const a=e.target.closest('[data-action]')?.dataset.action;
+      if(a==='duplicate')this._duplicateSelected();
+      if(a==='delete')this._deleteSelected();
+      this._contextMenu.style.display='none';
     });
-    window.addEventListener('click', e => { if (!e.target.closest('.wf-context-menu')) this._contextMenu.style.display = 'none'; });
+    window.addEventListener('click',e=>{if(!e.target.closest('.wf-context-menu'))this._contextMenu.style.display='none';});
 
-    this._rightHeaderActions.addEventListener('click', e => {
-      const a = e.target.closest('[data-action]')?.dataset.action; if (!a) return;
-      if (a === 'focus')     this._focusSelected();
-      if (a === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
-      if (a === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
+    this._rightHeaderActions.addEventListener('click',e=>{
+      const a=e.target.closest('[data-action]')?.dataset.action; if(!a)return;
+      if(a==='focus')this._focusSelected();
+      if(a==='duplicate'){this._duplicateSelected();if(this._isMobile())this._toggleSidebar(this._rightSidebar);}
+      if(a==='delete'){this._deleteSelected();if(this._isMobile())this._toggleSidebar(this._rightSidebar);}
     });
 
-    this._propPanelEl.addEventListener('input',    e => this._handlePropInput(e));
-    this._propPanelEl.addEventListener('change',   e => this._handlePropInput(e));
-    this._propPanelLink.addEventListener('input',  e => this._handleLinkInput(e));
-    this._propPanelLink.addEventListener('change', e => this._handleLinkInput(e));
+    this._propPanelEl.addEventListener('input',e=>this._handlePropInput(e));
+    this._propPanelEl.addEventListener('change',e=>this._handlePropInput(e));
+    this._propPanelLink.addEventListener('input',e=>this._handleLinkInput(e));
+    this._propPanelLink.addEventListener('change',e=>this._handleLinkInput(e));
 
-    this._canvasContainer.addEventListener('dragover', e => e.preventDefault());
-    this._canvasContainer.addEventListener('drop', e => {
+    this._canvasContainer.addEventListener('dragover',e=>e.preventDefault());
+    this._canvasContainer.addEventListener('drop',e=>{
       e.preventDefault();
-      const customLabel = e.dataTransfer.getData('customShape');
-      if (customLabel && this._registeredShapes?.[customLabel]) {
-        const local = this._paper.clientToLocalPoint({ x:e.clientX, y:e.clientY });
-        const ShapeClass = this._registeredShapes[customLabel];
-        const shape = new ShapeClass();
-        const pos   = this._findClearPosition(local.x-70, local.y-25, 140, 50);
-        const cell  = shape._buildCell(pos, joint.shapes);
-        cell.attr('label/text', shape._label);
-        shape._cell = cell; shape._canvas = this;
-        Object.entries(shape._customProps).forEach(([k,v]) => cell.set(`custom_${k}`,v));
-        cell.addTo(this._graph); this._shapes.set(cell.id, shape); this._deselectAll();
-        (async () => {
-          await this._waitForRender(cell);
-          await this._autoSizeAsync(cell);
-          if (shape._renderFn) shape._renderFn(shape);
-          await this._waitForRender(cell);
-          this._selectCell(shape);
-        })();
-        this.emit('shape:add', shape); return;
+      const customLabel=e.dataTransfer.getData('customShape');
+      if(customLabel&&this._registeredShapes?.[customLabel]){
+        const local=this._paper.clientToLocalPoint({x:e.clientX,y:e.clientY});
+        const ShapeClass=this._registeredShapes[customLabel];
+        const shape=new ShapeClass();
+        const pos=this._findClearPosition(local.x-70,local.y-25,140,50);
+        const cell=shape._buildCell(pos,joint.shapes);
+        cell.attr('label/text',shape._label); shape._cell=cell; shape._canvas=this;
+        Object.entries(shape._customProps).forEach(([k,v])=>cell.set(`custom_${k}`,v));
+        cell.addTo(this._graph); this._shapes.set(cell.id,shape); this._deselectAll();
+        (async()=>{ await this._waitForRender(cell); await this._autoSizeAsync(cell); if(shape._renderFn)shape._renderFn(shape); await this._waitForRender(cell); this._selectCell(shape); })();
+        this.emit('shape:add',shape); return;
       }
-      const type  = e.dataTransfer.getData('type');
-      const entry = [
-        { type:'rect',cls:Rectangle },{ type:'square',cls:Square },{ type:'ellipse',cls:Ellipse },
-        { type:'circle',cls:Circle },{ type:'diamond',cls:Diamond },{ type:'triangle',cls:Triangle },
-        { type:'hexagon',cls:Hexagon },{ type:'pentagon',cls:Pentagon },{ type:'octagon',cls:Octagon },
-      ].find(s => s.type === type);
-      if (!entry) return;
-      const label = type.charAt(0).toUpperCase()+type.slice(1);
-      const local = this._paper.clientToLocalPoint({ x:e.clientX, y:e.clientY });
-      const shape = new entry.cls(label.toUpperCase());
-      const iW = (type==='square'||type==='circle'||type==='diamond') ? 80 : 140;
-      const iH = (type==='square'||type==='circle'||type==='diamond') ? 80 : 50;
-      const pos  = this._findClearPosition(local.x-iW/2, local.y-iH/2, iW, iH);
-      const cell = shape._buildCell(pos, joint.shapes);
-      cell.attr('label/text', shape._label);
-      shape._cell = cell; shape._canvas = this;
-      cell.addTo(this._graph); this._shapes.set(cell.id, shape); this._deselectAll();
-      (async () => {
-        await this._waitForRender(cell);
-        await this._autoSizeAsync(cell);
-        await this._waitForRender(cell);
-        this._selectCell(shape);
-      })();
-      this.emit('shape:add', shape);
+      const type=e.dataTransfer.getData('type');
+      const entry=[{type:'rect',cls:Rectangle},{type:'square',cls:Square},{type:'ellipse',cls:Ellipse},{type:'circle',cls:Circle},{type:'diamond',cls:Diamond},{type:'triangle',cls:Triangle},{type:'hexagon',cls:Hexagon},{type:'pentagon',cls:Pentagon},{type:'octagon',cls:Octagon}].find(s=>s.type===type);
+      if(!entry)return;
+      const label=type.charAt(0).toUpperCase()+type.slice(1);
+      const local=this._paper.clientToLocalPoint({x:e.clientX,y:e.clientY});
+      const shape=new entry.cls(label.toUpperCase());
+      const iW=(type==='square'||type==='circle'||type==='diamond')?80:140;
+      const iH=(type==='square'||type==='circle'||type==='diamond')?80:50;
+      const pos=this._findClearPosition(local.x-iW/2,local.y-iH/2,iW,iH);
+      const cell=shape._buildCell(pos,joint.shapes);
+      cell.attr('label/text',shape._label); shape._cell=cell; shape._canvas=this;
+      cell.addTo(this._graph); this._shapes.set(cell.id,shape); this._deselectAll();
+      (async()=>{ await this._waitForRender(cell); await this._autoSizeAsync(cell); await this._waitForRender(cell); this._selectCell(shape); })();
+      this.emit('shape:add',shape);
     });
 
-    this._propPanelEl.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
-      this._propPanelEl.querySelector('[data-action="image-file"]').click();
-    });
-    this._propPanelEl.querySelector('[data-action="image-file"]').addEventListener('change', e => {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        this._propPanelEl.querySelector('[data-prop="imageUrl"]').value = ev.target.result;
-        if (this._selected instanceof Shape) this._selected.imageUrl = ev.target.result;
-      };
+    this._propPanelEl.querySelector('[data-action="upload-image"]').addEventListener('click',()=>this._propPanelEl.querySelector('[data-action="image-file"]').click());
+    this._propPanelEl.querySelector('[data-action="image-file"]').addEventListener('change',e=>{
+      const file=e.target.files[0]; if(!file)return;
+      const reader=new FileReader();
+      reader.onload=ev=>{ this._propPanelEl.querySelector('[data-prop="imageUrl"]').value=ev.target.result; if(this._selected instanceof Shape)this._selected.imageUrl=ev.target.result; };
       reader.readAsDataURL(file);
     });
   }
 
   _handlePropInput(e) {
-    if (!(this._selected instanceof Shape)) return;
-    const el = e.target.closest('[data-prop]'); if (!el) return;
-    const prop = el.dataset.prop, val = el.type==='number' ? parseFloat(el.value) : el.value;
-    if (el.dataset.pair)       this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
-    if (el.dataset.pairPicker) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-    const rp = prop.endsWith('Hex') ? prop.slice(0,-3) : prop;
-    if (rp in this._selected) this._selected[rp] = val;
+    if(!(this._selected instanceof Shape))return;
+    const el=e.target.closest('[data-prop]'); if(!el)return;
+    const prop=el.dataset.prop, val=el.type==='number'?parseFloat(el.value):el.value;
+    if(el.dataset.pair)this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value=val;
+    if(el.dataset.pairPicker)this._propPanelEl.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value=val;
+    const rp=prop.endsWith('Hex')?prop.slice(0,-3):prop;
+    if(rp in this._selected)this._selected[rp]=val;
   }
 
   _handleLinkInput(e) {
-    if (!(this._selected instanceof Connection)) return;
-    const el = e.target.closest('[data-prop]'); if (!el) return;
-    const prop = el.dataset.prop, val = el.type==='number' ? parseFloat(el.value) : el.value;
-    if (el.dataset.pair)       this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
-    if (el.dataset.pairPicker) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-    const rp = prop.endsWith('Hex') ? prop.slice(0,-3) : prop;
-    if (rp in this._selected) this._selected[rp] = val;
+    if(!(this._selected instanceof Connection))return;
+    const el=e.target.closest('[data-prop]'); if(!el)return;
+    const prop=el.dataset.prop, val=el.type==='number'?parseFloat(el.value):el.value;
+    if(el.dataset.pair)this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value=val;
+    if(el.dataset.pairPicker)this._propPanelLink.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value=val;
+    const rp=prop.endsWith('Hex')?prop.slice(0,-3):prop;
+    if(rp in this._selected)this._selected[rp]=val;
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Paper events
-  // ═══════════════════════════════════════════
   _bindPaperEvents() {
-    const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
-      tagName:'circle', attributes:{ r:6, fill:'#3498db', stroke:'#fff', 'stroke-width':2, cursor:'move' }
-    });
+    const CustomSourceArrowhead=joint.linkTools.SourceArrowhead.extend({tagName:'circle',attributes:{r:6,fill:'#3498db',stroke:'#fff','stroke-width':2,cursor:'move'}});
 
-    this._paper.on('element:pointerdown', (cv, evt) => {
-      const shape = this._shapes.get(cv.model.id); if (!shape) return;
-      this._pointerDownPos = { x:evt.clientX, y:evt.clientY };
-      this._wasAlreadySelected = this._selected === shape;
+    this._paper.on('element:pointerdown',(cv,evt)=>{
+      const shape=this._shapes.get(cv.model.id); if(!shape)return;
+      this._pointerDownPos={x:evt.clientX,y:evt.clientY}; this._wasAlreadySelected=this._selected===shape;
       this._deselectAll(); shape._cell.toFront(); this._selectCell(shape);
     });
-
-    this._paper.on('element:pointerup', (cv, evt) => {
-      const dx = Math.abs(evt.clientX-(this._pointerDownPos?.x??evt.clientX));
-      const dy = Math.abs(evt.clientY-(this._pointerDownPos?.y??evt.clientY));
-      if (dx<5 && dy<5 && this._wasAlreadySelected && this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
-      this._pointerDownPos = null; this._wasAlreadySelected = false;
-      const shape = this._shapes.get(cv.model.id);
-      if (shape) { const bb=shape._cell.getBBox(); const p=this._findClearPosition(bb.x,bb.y,bb.width,bb.height,shape._cell); shape._cell.position(p.x,p.y); }
+    this._paper.on('element:pointerup',(cv,evt)=>{
+      const dx=Math.abs(evt.clientX-(this._pointerDownPos?.x??evt.clientX));
+      const dy=Math.abs(evt.clientY-(this._pointerDownPos?.y??evt.clientY));
+      if(dx<5&&dy<5&&this._wasAlreadySelected&&this._rightSidebar.classList.contains('wf-collapsed'))this._toggleSidebar(this._rightSidebar);
+      this._pointerDownPos=null; this._wasAlreadySelected=false;
+      const shape=this._shapes.get(cv.model.id);
+      if(shape){const bb=shape._cell.getBBox();const p=this._findClearPosition(bb.x,bb.y,bb.width,bb.height,shape._cell);shape._cell.position(p.x,p.y);}
     });
-
-    this._paper.on('link:pointerdown', lv => {
-      const conn = this._connections.get(lv.model.id); if (!conn) return;
+    this._paper.on('link:pointerdown',lv=>{
+      const conn=this._connections.get(lv.model.id); if(!conn)return;
       this._deselectAll(); lv.model.toFront(); this._selectCell(conn);
-      lv.addTools(new joint.dia.ToolsView({ tools:[
-        new joint.linkTools.Vertices(),
-        new CustomSourceArrowhead(),
-        new joint.linkTools.TargetArrowhead({ offset:-1 }),
-        new joint.linkTools.Remove({ distance:20 })
-      ]}));
+      lv.addTools(new joint.dia.ToolsView({tools:[new joint.linkTools.Vertices(),new CustomSourceArrowhead(),new joint.linkTools.TargetArrowhead({offset:-1}),new joint.linkTools.Remove({distance:20})]}));
     });
-
-    this._paper.on('cell:pointerdown tool:pointerdown', (v,evt) => { if (evt?.target?.closest?.('.joint-port')) this._paper.el.classList.add('wf-dragging-link'); });
-    this._paper.on('cell:pointerup link:pointerup tool:pointerup', () => this._paper.el.classList.remove('wf-dragging-link'));
-
-    this._paper.on('cell:contextmenu', (cv, evt) => {
+    this._paper.on('cell:pointerdown tool:pointerdown',(v,evt)=>{if(evt?.target?.closest?.('.joint-port'))this._paper.el.classList.add('wf-dragging-link');});
+    this._paper.on('cell:pointerup link:pointerup tool:pointerup',()=>this._paper.el.classList.remove('wf-dragging-link'));
+    this._paper.on('cell:contextmenu',(cv,evt)=>{
       evt.preventDefault();
-      const rect = this._canvasContainer.getBoundingClientRect();
-      this._contextMenu.style.display = 'block';
-      this._contextMenu.style.left = (evt.clientX-rect.left)+'px';
-      this._contextMenu.style.top  = (evt.clientY-rect.top)+'px';
-      this._contextMenu.querySelector('[data-action="duplicate"]').style.display = this._shapes.has(cv.model.id) ? 'flex' : 'none';
+      const rect=this._canvasContainer.getBoundingClientRect();
+      this._contextMenu.style.display='block';
+      this._contextMenu.style.left=(evt.clientX-rect.left)+'px';
+      this._contextMenu.style.top=(evt.clientY-rect.top)+'px';
+      this._contextMenu.querySelector('[data-action="duplicate"]').style.display=this._shapes.has(cv.model.id)?'flex':'none';
     });
-
-    this._paper.on('blank:pointerdown', evt => {
+    this._paper.on('blank:pointerdown',evt=>{
       this._collapseBothSidebars(); this._deselectAll();
-      if (this._isMobile()) return;
-      const sx=evt.clientX, sy=evt.clientY, o=this._paper.translate();
-      const onMove = e => this._paper.translate(o.tx+(e.clientX-sx), o.ty+(e.clientY-sy));
-      const onUp   = () => { document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); };
+      if(this._isMobile())return;
+      const sx=evt.clientX,sy=evt.clientY,o=this._paper.translate();
+      const onMove=e=>this._paper.translate(o.tx+(e.clientX-sx),o.ty+(e.clientY-sy));
+      const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
       document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp);
     });
-
-    this._paper.on('link:connect', lv => {
-      const link=lv.model, srcEl=link.getSourceElement(), tgtEl=link.getTargetElement();
-      if (!srcEl||!tgtEl) return;
-      const source=this._shapes.get(srcEl.id), target=this._shapes.get(tgtEl.id);
-      if (!source||!target||this._connections.has(link.id)) return;
-      // Block if the reverse connection already exists
-      const reverseExists = [...this._connections.values()].some(
-        c => c.source === target && c.target === source
-      );
-      if (reverseExists) { link.remove(); return; }
-      const conn = new Connection(link, source, target, this);
-      this._connections.set(link.id, conn);
-      this.emit('connection:add', conn);
+    this._paper.on('link:connect',lv=>{
+      const link=lv.model,srcEl=link.getSourceElement(),tgtEl=link.getTargetElement();
+      if(!srcEl||!tgtEl)return;
+      const source=this._shapes.get(srcEl.id),target=this._shapes.get(tgtEl.id);
+      if(!source||!target||this._connections.has(link.id))return;
+      const reverseExists=[...this._connections.values()].some(c=>c.source===target&&c.target===source);
+      if(reverseExists){link.remove();return;}
+      const conn=new Connection(link,source,target,this);
+      this._connections.set(link.id,conn); this.emit('connection:add',conn);
     });
-
-    this._graph.on('remove', cell => {
-      if (cell.isLink()) { const c=this._connections.get(cell.id); if(c){this._connections.delete(cell.id);this.emit('connection:remove',c);} }
-      else               { const s=this._shapes.get(cell.id);      if(s){this._shapes.delete(cell.id);     this.emit('shape:remove',s);} }
+    this._graph.on('remove',cell=>{
+      if(cell.isLink()){const c=this._connections.get(cell.id);if(c){this._connections.delete(cell.id);this.emit('connection:remove',c);}}
+      else{const s=this._shapes.get(cell.id);if(s){this._shapes.delete(cell.id);this.emit('shape:remove',s);}}
     });
-
-    this._graph.on('change:position', cell => {
-      const shape = this._shapes.get(cell.id);
-      if (shape) { this._autoPortDistributor(cell); shape.emit('move',shape); }
+    this._graph.on('change:position',cell=>{
+      const shape=this._shapes.get(cell.id);
+      if(shape){this._autoPortDistributor(cell);shape.emit('move',shape);}
     });
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Keyboard
-  // ═══════════════════════════════════════════
   _bindKeyboard() {
-    this._clipboard = null;
-    this._canvasContainer.tabIndex = 0;
-    this._canvasContainer.style.outline = 'none';
-    this._canvasContainer.focus();
-    this._canvasContainer.addEventListener('mousedown', () => {
-      if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') this._canvasContainer.focus();
-    });
-    this._canvasContainer.addEventListener('keydown', async e => {
-      const tag = document.activeElement?.tagName;
-      const isTyping = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
-      if (e.key==='F2'||(!isTyping&&e.key==='Enter')) {
-        if (this._selected instanceof Shape||this._selected instanceof Connection) {
+    this._clipboard=null;
+    this._canvasContainer.tabIndex=0; this._canvasContainer.style.outline='none'; this._canvasContainer.focus();
+    this._canvasContainer.addEventListener('mousedown',()=>{ if(document.activeElement?.tagName!=='INPUT'&&document.activeElement?.tagName!=='TEXTAREA')this._canvasContainer.focus(); });
+    this._canvasContainer.addEventListener('keydown',async e=>{
+      const tag=document.activeElement?.tagName;
+      const isTyping=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+      if(e.key==='F2'||(!isTyping&&e.key==='Enter')){
+        if(this._selected instanceof Shape||this._selected instanceof Connection){
           e.preventDefault();
-          if (this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
-          await this._waitForRender(this._selected._cell ?? this._selected._link);
-          const panel = this._selected instanceof Shape ? this._propPanelEl : this._propPanelLink;
-          const input = panel.querySelector('[data-prop="label"]');
-          if (input) { input.focus(); input.select(); }
+          if(this._rightSidebar.classList.contains('wf-collapsed'))this._toggleSidebar(this._rightSidebar);
+          await this._waitForRender(this._selected._cell??this._selected._link);
+          const panel=this._selected instanceof Shape?this._propPanelEl:this._propPanelLink;
+          const input=panel.querySelector('[data-prop="label"]');
+          if(input){input.focus();input.select();}
         }
         return;
       }
-      if (isTyping) return;
-      if (e.key==='Escape')                          { e.preventDefault(); this._deselectAll(); return; }
-      if (e.key==='Delete'||e.key==='Backspace')     { e.preventDefault(); this._deleteSelected(); return; }
-      if (e.key==='-'&&!e.ctrlKey&&!e.metaKey)       { e.preventDefault(); this.zoomOut(); return; }
-      if ((e.key==='='||e.key==='+')&&!e.ctrlKey&&!e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
-      if ((e.ctrlKey||e.metaKey)&&e.key==='c') { if(this._selected instanceof Shape){e.preventDefault();this._clipboard=this._selected;} return; }
-      if ((e.ctrlKey||e.metaKey)&&e.key==='v') {
-        if (this._clipboard) {
+      if(isTyping)return;
+      if(e.key==='Escape'){e.preventDefault();this._deselectAll();return;}
+      if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();this._deleteSelected();return;}
+      if(e.key==='-'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();this.zoomOut();return;}
+      if((e.key==='='||e.key==='+')&&!e.ctrlKey&&!e.metaKey){e.preventDefault();this.zoomIn();return;}
+      if((e.ctrlKey||e.metaKey)&&e.key==='c'){if(this._selected instanceof Shape){e.preventDefault();this._clipboard=this._selected;}return;}
+      if((e.ctrlKey||e.metaKey)&&e.key==='v'){
+        if(this._clipboard){
           e.preventDefault();
-          const bb=this._clipboard._cell.getBBox(), pos=this._findClearPosition(bb.x+40,bb.y+40,bb.width,bb.height);
+          const bb=this._clipboard._cell.getBBox(),pos=this._findClearPosition(bb.x+40,bb.y+40,bb.width,bb.height);
           const clone=this._clipboard._cell.clone(); clone.position(pos.x,pos.y); clone.addTo(this._graph);
           this._deselectAll();
           const cs=new this._clipboard.constructor(this._clipboard.label); cs._cell=clone; cs._canvas=this;
           this._shapes.set(clone.id,cs);
-          (async () => {
-            await this._waitForRender(clone);
-            await this._autoSizeAsync(clone);
-            await this._waitForRender(clone);
-            this._selectCell(cs);
-          })();
+          (async()=>{ await this._waitForRender(clone); await this._autoSizeAsync(clone); await this._waitForRender(clone); this._selectCell(cs); })();
           this.emit('shape:add',cs);
         }
         return;
       }
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
         e.preventDefault();
         const dx=e.key==='ArrowLeft'?-this._GRID:e.key==='ArrowRight'?this._GRID:0;
         const dy=e.key==='ArrowUp'?-this._GRID:e.key==='ArrowDown'?this._GRID:0;
-        if (this._selected instanceof Shape) this._selected.moveBy(dx,dy);
-        else if (!this._selected) { const t=this._paper.translate(); this._paper.translate(t.tx-dx,t.ty-dy); }
+        if(this._selected instanceof Shape)this._selected.moveBy(dx,dy);
+        else if(!this._selected){const t=this._paper.translate();this._paper.translate(t.tx-dx,t.ty-dy);}
       }
     });
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Touch
-  // ═══════════════════════════════════════════
   _bindTouchEvents() {
-    this._paper.el.addEventListener('touchstart', e => {
-      if (!this._isMobile()) return;
-      if (e.touches.length===1) {
+    this._paper.el.addEventListener('touchstart',e=>{
+      if(!this._isMobile())return;
+      if(e.touches.length===1){
         const t=e.touches[0];
-        if (document.elementFromPoint(t.clientX,t.clientY)?.closest('.joint-cell')) return;
+        if(document.elementFromPoint(t.clientX,t.clientY)?.closest('.joint-cell'))return;
         e.stopPropagation();
-        this._touchState={ type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
-      } else if (e.touches.length===2) {
+        this._touchState={type:'pan',x:t.clientX,y:t.clientY,origin:this._paper.translate()};
+      } else if(e.touches.length===2){
         e.stopPropagation();
         const [t1,t2]=[e.touches[0],e.touches[1]];
-        this._touchState={ type:'pinch', dist:this._touchDist(t1,t2), mid:this._touchMid(t1,t2), scale:this._paper.scale().sx, origin:this._paper.translate() };
+        this._touchState={type:'pinch',dist:this._touchDist(t1,t2),mid:this._touchMid(t1,t2),scale:this._paper.scale().sx,origin:this._paper.translate()};
       }
-    },{ passive:true });
-    this._paper.el.addEventListener('touchmove', e => {
-      if (!this._isMobile()||!this._touchState) return;
+    },{passive:true});
+    this._paper.el.addEventListener('touchmove',e=>{
+      if(!this._isMobile()||!this._touchState)return;
       e.preventDefault();
       const s=this._touchState;
-      if (s.type==='pan'&&e.touches.length===1) {
+      if(s.type==='pan'&&e.touches.length===1){
         const t=e.touches[0]; this._paper.translate(s.origin.tx+(t.clientX-s.x),s.origin.ty+(t.clientY-s.y));
-      } else if (s.type==='pinch'&&e.touches.length===2) {
+      } else if(s.type==='pinch'&&e.touches.length===2){
         const [t1,t2]=[e.touches[0],e.touches[1]];
         const ns=Math.max(0.1,Math.min(10,s.scale*this._touchDist(t1,t2)/s.dist));
-        const mid=this._touchMid(t1,t2), rect=this._paper.el.getBoundingClientRect();
-        const x=mid.x-rect.left, y=mid.y-rect.top;
-        const ox=(x-s.origin.tx)/s.scale, oy=(y-s.origin.ty)/s.scale;
+        const mid=this._touchMid(t1,t2),rect=this._paper.el.getBoundingClientRect();
+        const x=mid.x-rect.left,y=mid.y-rect.top;
+        const ox=(x-s.origin.tx)/s.scale,oy=(y-s.origin.ty)/s.scale;
         this._paper.scale(ns,ns); this._paper.translate(x-ox*ns,y-oy*ns);
       }
-    },{ passive:false });
-    this._paper.el.addEventListener('touchend', e => {
-      if (!this._isMobile()) return;
-      if (this._touchState?.type==='pinch'&&e.touches.length===1) {
-        const t=e.touches[0]; this._touchState={ type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
+    },{passive:false});
+    this._paper.el.addEventListener('touchend',e=>{
+      if(!this._isMobile())return;
+      if(this._touchState?.type==='pinch'&&e.touches.length===1){
+        const t=e.touches[0]; this._touchState={type:'pan',x:t.clientX,y:t.clientY,origin:this._paper.translate()};
       } else this._touchState=null;
-    },{ passive:true });
+    },{passive:true});
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Selection
-  // ═══════════════════════════════════════════
   _selectCell(soc) {
-    this._selected = soc;
-    const isShape = soc instanceof Shape;
-    const cell    = isShape ? soc._cell : soc._link;
-    const cv      = this._paper.findViewByModel(cell);
-    if (cv) { cv.el.classList.add('wf-selected'); joint.highlighters.stroke.add(cv,'root','selection',{ padding:5, attrs:{ stroke:'#3498db','stroke-width':3 } }); }
-    this._rightHeaderActions.style.display = 'flex';
-    this._rightHeaderActions.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
-    if (isShape) { this._showPanel('element'); this._populateElementPanel(soc); }
-    else         { this._showPanel('link');    this._populateLinkPanel(soc); }
-    this.emit('selection:change', soc);
+    this._selected=soc;
+    const isShape=soc instanceof Shape;
+    const cell=isShape?soc._cell:soc._link;
+    const cv=this._paper.findViewByModel(cell);
+    if(cv){cv.el.classList.add('wf-selected');joint.highlighters.stroke.add(cv,'root','selection',{padding:5,attrs:{stroke:'#3498db','stroke-width':3}});}
+    this._rightHeaderActions.style.display='flex';
+    this._rightHeaderActions.querySelector('[data-action="duplicate"]').style.display=isShape?'flex':'none';
+    if(isShape){this._showPanel('element');this._populateElementPanel(soc);}
+    else{this._showPanel('link');this._populateLinkPanel(soc);}
+    this.emit('selection:change',soc);
+    this._updateMobileButtonVisibility();
   }
 
   _deselectAll() {
-    if (this._selected) {
-      const cell = this._selected instanceof Shape ? this._selected._cell : this._selected._link;
+    if(this._selected){
+      const cell=this._selected instanceof Shape?this._selected._cell:this._selected._link;
       this._paper.findViewByModel(cell)?.el.classList.remove('wf-selected');
     }
-    this._paper.removeTools();
-    joint.highlighters.stroke.removeAll(this._paper);
-    this._selected = null;
-    this._rightHeaderActions.style.display = 'none';
-    this._showPanel('none');
-    this.emit('selection:change', null);
-    this._canvasContainer.focus();
+    this._paper.removeTools(); joint.highlighters.stroke.removeAll(this._paper);
+    this._selected=null; this._rightHeaderActions.style.display='none';
+    this._showPanel('none'); this.emit('selection:change',null); this._canvasContainer.focus();
+    this._updateMobileButtonVisibility();
   }
 
   _showPanel(type) {
-    this._propPanelEl.style.display   = type==='element' ? 'flex' : 'none';
-    this._propPanelLink.style.display = type==='link'    ? 'flex' : 'none';
-    this._noSelection.style.display   = type==='none'    ? 'block' : 'none';
+    this._propPanelEl.style.display=type==='element'?'flex':'none';
+    this._propPanelLink.style.display=type==='link'?'flex':'none';
+    this._noSelection.style.display=type==='none'?'block':'none';
   }
 
   _populateElementPanel(shape) {
     const p=this._propPanelEl;
-    const set=(k,v)=>{ const el=p.querySelector(`[data-prop="${k}"]`); if(el) el.value=v??''; };
-    set('label',shape.label); set('labelFontSize',shape.labelFontSize);
-    set('description',shape.description); set('imageUrl',shape.imageUrl);
-    set('imageWidth',shape.imageWidth); set('imageHeight',shape.imageHeight);
+    const set=(k,v)=>{const el=p.querySelector(`[data-prop="${k}"]`);if(el)el.value=v??'';};
+    set('label',shape.label); set('labelFontSize',shape.labelFontSize); set('description',shape.description);
+    set('imageUrl',shape.imageUrl); set('imageWidth',shape.imageWidth); set('imageHeight',shape.imageHeight);
     set('backgroundColor',shape.backgroundColor); set('backgroundColorHex',shape.backgroundColor);
     set('borderColor',shape.borderColor); set('borderColorHex',shape.borderColor);
     set('labelColor',shape.labelColor); set('labelColorHex',shape.labelColor);
     set('descriptionColor',shape.descriptionColor); set('descriptionColorHex',shape.descriptionColor);
     p.querySelector('.wf-custom-props')?.remove();
-    const schema=shape.getSchema?.()??{}; if (!Object.keys(schema).length) return;
+    const schema=shape.getSchema?.()??{}; if(!Object.keys(schema).length)return;
     const section=this._createEl('div','wf-custom-props');
     const div=section.appendChild(this._createEl('div')); div.style.cssText='border-top:1px solid #dee2e6;margin:4px 0;';
-    Object.entries(schema).forEach(([key,def]) => {
-      if (def.visible===false) return;
+    Object.entries(schema).forEach(([key,def])=>{
+      if(def.visible===false)return;
       const group=section.appendChild(this._createEl('div','wf-prop-group'));
       const lbl=group.appendChild(this._createEl('label')); lbl.textContent=def.label??key;
       const val=shape.getCustomProperty(key);
       let input;
-      if (def.type==='choice') {
+      if(def.type==='choice'){
         input=this._createEl('select');
-        Object.entries(def.choices??{}).forEach(([k,v])=>{ const o=input.appendChild(this._createEl('option')); o.value=k; o.textContent=v; });
+        Object.entries(def.choices??{}).forEach(([k,v])=>{const o=input.appendChild(this._createEl('option'));o.value=k;o.textContent=v;});
         input.value=val??def.default;
-      } else if (def.type==='textarea') {
+      } else if(def.type==='textarea'){
         input=this._createEl('textarea'); input.value=val??'';
-      } else if (def.type==='boolean') {
+      } else if(def.type==='boolean'){
         input=this._createEl('input'); input.type='checkbox'; input.checked=val??def.default??false;
         input.style.cssText='width:auto !important;margin:0;cursor:pointer;align-self:flex-start;';
         group.appendChild(input);
-      } else if (def.type==='color') {
+      } else if(def.type==='color'){
         const w=group.appendChild(this._createEl('div','wf-color-row'));
         const picker=this._createEl('input'); picker.type='color'; picker.value=val??def.default??'#000000';
         const hex=this._createEl('input'); hex.type='text'; hex.value=val??def.default??'#000000';
-        picker.addEventListener('input',()=>{ hex.value=picker.value; shape.setCustomProperty(key,picker.value); });
-        hex.addEventListener('input',()=>{ picker.value=hex.value; shape.setCustomProperty(key,hex.value); });
+        picker.addEventListener('input',()=>{hex.value=picker.value;shape.setCustomProperty(key,picker.value);});
+        hex.addEventListener('input',()=>{picker.value=hex.value;shape.setCustomProperty(key,hex.value);});
         w.appendChild(picker); w.appendChild(hex); group.appendChild(w); return;
       } else {
         input=this._createEl('input'); input.type=def.type==='number'?'number':'text'; input.value=val??'';
-        if (def.min!==undefined) input.min=def.min; if (def.max!==undefined) input.max=def.max;
+        if(def.min!==undefined)input.min=def.min; if(def.max!==undefined)input.max=def.max;
       }
-      if (def.readonly) input.disabled=true;
+      if(def.readonly)input.disabled=true;
       group.appendChild(input);
       input.addEventListener(def.type==='boolean'?'change':'input',()=>{
         const v=def.type==='boolean'?input.checked:(def.type==='number'?parseFloat(input.value):input.value);
@@ -1296,7 +890,7 @@ class Canvas extends EventEmitter {
 
   _populateLinkPanel(conn) {
     const p=this._propPanelLink;
-    const set=(k,v)=>{ const el=p.querySelector(`[data-prop="${k}"]`); if(el) el.value=v??''; };
+    const set=(k,v)=>{const el=p.querySelector(`[data-prop="${k}"]`);if(el)el.value=v??'';};
     set('label',conn.label); set('labelFontSize',conn.labelFontSize);
     set('labelColor',conn.labelColor); set('labelColorHex',conn.labelColor);
     set('lineColor',conn.lineColor); set('lineColorHex',conn.lineColor);
@@ -1305,217 +899,184 @@ class Canvas extends EventEmitter {
     set('description',conn.description);
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Sidebar
-  // ═══════════════════════════════════════════
   _toggleSidebar(sb) {
     const isLeft=sb===this._leftSidebar, icon=isLeft?this._leftCollapseIcon:this._rightCollapseIcon;
     const tBefore=this._paper.translate(), collapsed=sb.classList.toggle('wf-collapsed');
     icon.style.transform=collapsed?'rotate(180deg)':'rotate(0deg)';
-    if (this._isMobile()&&!collapsed) {
+    if(this._isMobile()&&!collapsed){
       const other=isLeft?this._rightSidebar:this._leftSidebar, oIcon=isLeft?this._rightCollapseIcon:this._leftCollapseIcon;
-      if (!other.classList.contains('wf-collapsed')) { other.classList.add('wf-collapsed'); oIcon.style.transform='rotate(180deg)'; }
+      if(!other.classList.contains('wf-collapsed')){other.classList.add('wf-collapsed');oIcon.style.transform='rotate(180deg)';}
     }
-    const iv=setInterval(()=>{ const c=this._canvasContainer; this._paper.setDimensions(c.clientWidth,c.clientHeight); this._paper.translate(tBefore.tx,tBefore.ty); },16);
+    const iv=setInterval(()=>{const c=this._canvasContainer;this._paper.setDimensions(c.clientWidth,c.clientHeight);this._paper.translate(tBefore.tx,tBefore.ty);},16);
     setTimeout(()=>clearInterval(iv),350);
+    this._updateMobileButtonVisibility();
   }
-  _setSidebarCollapsed(sb,collapsed) {
+
+  _setSidebarCollapsed(sb, collapsed) {
     const isLeft=sb===this._leftSidebar, icon=isLeft?this._leftCollapseIcon:this._rightCollapseIcon;
     sb.classList.toggle('wf-collapsed',collapsed); icon.style.transform=collapsed?'rotate(180deg)':'rotate(0deg)';
   }
+
   _collapseBothSidebars() {
-    if (!this._isMobile()) return;
+    if(!this._isMobile())return;
     const tBefore=this._paper.translate();
     this._setSidebarCollapsed(this._leftSidebar,true); this._setSidebarCollapsed(this._rightSidebar,true);
-    const iv=setInterval(()=>{ const c=this._canvasContainer; this._paper.setDimensions(c.clientWidth,c.clientHeight); this._paper.translate(tBefore.tx,tBefore.ty); },16);
+    const iv=setInterval(()=>{const c=this._canvasContainer;this._paper.setDimensions(c.clientWidth,c.clientHeight);this._paper.translate(tBefore.tx,tBefore.ty);},16);
     setTimeout(()=>clearInterval(iv),350);
+    this._updateMobileButtonVisibility();
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Actions
-  // ═══════════════════════════════════════════
   _duplicateSelected() {
-    if (!(this._selected instanceof Shape)) return;
+    if(!(this._selected instanceof Shape))return;
     const clone=this._selected._cell.clone(); clone.translate(40,40).addTo(this._graph);
     const cs=new this._selected.constructor(this._selected.label); cs._cell=clone; cs._canvas=this;
     this._shapes.set(clone.id,cs); this._selectCell(cs); this.emit('shape:add',cs);
   }
-  _deleteSelected() { if (!this._selected) return; const s=this._selected; this._deselectAll(); s.remove(); }
+  _deleteSelected() { if(!this._selected)return; const s=this._selected; this._deselectAll(); s.remove(); }
   _focusSelected() {
-    if (!this._selected) return;
+    if(!this._selected)return;
     const c=this._selected instanceof Shape?this._selected._cell:this._selected._link;
-    const center=c.getBBox().center(), s=this._paper.getComputedSize();
-    this._paper.scale(1,1); this._paper.translate(s.width/2-center.x, s.height/2-center.y);
+    const center=c.getBBox().center(),s=this._paper.getComputedSize();
+    this._paper.scale(1,1); this._paper.translate(s.width/2-center.x,s.height/2-center.y);
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Connections
-  // ═══════════════════════════════════════════
   _createConnection(source, target, sourcePort, targetPort) {
-    // Block if the reverse connection already exists
-    const reverseExists = [...this._connections.values()].some(
-      c => c.source === target && c.target === source
-    );
-    if (reverseExists) return null;
-
-    const link = new joint.shapes.standard.Link({ attrs:{ line:{ stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } });
+    const reverseExists=[...this._connections.values()].some(c=>c.source===target&&c.target===source);
+    if(reverseExists)return null;
+    const link=new joint.shapes.standard.Link({attrs:{line:{stroke:'#495057',strokeWidth:2,targetMarker:MARKERS.classic}}});
     const srcPorts=source._cell.getPorts(), tgtPorts=target._cell.getPorts();
-    const srcPortObj = sourcePort !== null ? srcPorts[sourcePort-1] : null;
-    const tgtPortObj = targetPort !== null ? tgtPorts[targetPort-1] : null;
-    const srcPort = srcPortObj ? srcPortObj.id : undefined;
-    const tgtPort = tgtPortObj ? tgtPortObj.id : undefined;
-    link.source(srcPort ? { id:source._cell.id, port:srcPort } : { id:source._cell.id });
-    link.target(tgtPort ? { id:target._cell.id, port:tgtPort } : { id:target._cell.id });
-    if (sourcePort !== null) link.set('sourcePort', sourcePort);
-    if (targetPort !== null) link.set('targetPort', targetPort);
+    const srcPortObj=sourcePort!==null?srcPorts[sourcePort-1]:null;
+    const tgtPortObj=targetPort!==null?tgtPorts[targetPort-1]:null;
+    const srcPort=srcPortObj?srcPortObj.id:undefined;
+    const tgtPort=tgtPortObj?tgtPortObj.id:undefined;
+    link.source(srcPort?{id:source._cell.id,port:srcPort}:{id:source._cell.id});
+    link.target(tgtPort?{id:target._cell.id,port:tgtPort}:{id:target._cell.id});
+    if(sourcePort!==null)link.set('sourcePort',sourcePort);
+    if(targetPort!==null)link.set('targetPort',targetPort);
     this._graph.startBatch('connection');
     link.addTo(this._graph);
     this._graph.stopBatch('connection');
     this._paper.updateViews();
     const conn=new Connection(link,source,target,this);
-    this._connections.set(link.id,conn);
-    this.emit('connection:add',conn);
-    return conn;
+    this._connections.set(link.id,conn); this.emit('connection:add',conn); return conn;
   }
+
   _getConnectionsForShape(shape) { return [...this._connections.values()].filter(c=>c.source===shape||c.target===shape); }
 
   _waitForRender(cell) {
-    return new Promise(resolve => {
-      const view = this._paper.findViewByModel(cell);
-      if (!view) { resolve(); return; }
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve(view)));
+    return new Promise(resolve=>{
+      const view=this._paper.findViewByModel(cell);
+      if(!view){resolve();return;}
+      requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(view)));
     });
   }
 
-  async _autoSizeAsync(cell) {
-    this._autoSize(cell);
-    await this._waitForRender(cell);
-    this._paper.updateViews();
-  }
+  async _autoSizeAsync(cell) { this._autoSize(cell); await this._waitForRender(cell); this._paper.updateViews(); }
 
   _autoSize(cell) {
-    const view=this._paper.findViewByModel(cell); if (!view) return;
-    const ln=view.el.querySelector('.label'), dn=view.el.querySelector('.descriptionLabel');
-    if (!ln||!dn) return;
+    const view=this._paper.findViewByModel(cell); if(!view)return;
+    const ln=view.el.querySelector('.label'),dn=view.el.querySelector('.descriptionLabel'); if(!ln||!dn)return;
     const scale=(cell.get('fontSizePercent')||100)/100;
-    cell.attr({ label:{ fontSize:13*scale }, descriptionLabel:{ fontSize:11*scale } });
-    const imageUrl=cell.get('imageUrl'), type=cell.get('type'), descText=cell.attr('descriptionLabel/text')||'';
-    const imgW=parseInt(cell.get('imageWidth')||32), imgH=parseInt(cell.get('imageHeight')||32);
-    const lb=ln.getBBox(), db=dn.getBBox(), pad=15, imgSpace=imageUrl?10:0;
-    const textW=Math.max(lb.width,db.width), totalW=(imageUrl?imgW:0)+imgSpace+textW;
+    cell.attr({label:{fontSize:13*scale},descriptionLabel:{fontSize:11*scale}});
+    const imageUrl=cell.get('imageUrl'),type=cell.get('type'),descText=cell.attr('descriptionLabel/text')||'';
+    const imgW=parseInt(cell.get('imageWidth')||32),imgH=parseInt(cell.get('imageHeight')||32);
+    const lb=ln.getBBox(),db=dn.getBBox(),pad=15,imgSpace=imageUrl?10:0;
+    const textW=Math.max(lb.width,db.width),totalW=(imageUrl?imgW:0)+imgSpace+textW;
     let w=Math.max(140,pad+totalW+pad);
     const totalTextH=descText?lb.height+db.height:lb.height;
     let h=Math.max(50,pad+Math.max(imageUrl?imgH:0,totalTextH)+pad);
-    if (type==='diamond') { w=h=Math.max(w,h); }
-    else if (['triangle','hexagon','pentagon','octagon'].includes(type)) {
-      if (w/h>1.2) h=w/1.2; else w=h*1.2;
-      if (type==='triangle') { w*=1.25; h*=1.25; }
+    if(type==='diamond'){w=h=Math.max(w,h);}
+    else if(['triangle','hexagon','pentagon','octagon'].includes(type)){
+      if(w/h>1.2)h=w/1.2; else w=h*1.2;
+      if(type==='triangle'){w*=1.25;h*=1.25;}
     }
-    const startX=(w-totalW)/2, tcX=startX+(imageUrl?imgW:0)+imgSpace+textW/2;
-    cell.attr('image',{ refX:0, refX2:startX, refY:0.5, y:-imgH/2, width:imgW, height:imgH });
-    if (descText) {
+    const startX=(w-totalW)/2,tcX=startX+(imageUrl?imgW:0)+imgSpace+textW/2;
+    cell.attr('image',{refX:0,refX2:startX,refY:0.5,y:-imgH/2,width:imgW,height:imgH});
+    if(descText){
       const cY=(h-totalTextH)/2;
-      cell.attr('label',            { refX:0,refX2:tcX,refY:0,refY2:cY+lb.height/2,            textAnchor:'middle',textVerticalAnchor:'middle' });
-      cell.attr('descriptionLabel', { refX:0,refX2:tcX,refY:0,refY2:cY+lb.height+db.height/2,  textAnchor:'middle',textVerticalAnchor:'middle' });
+      cell.attr('label',{refX:0,refX2:tcX,refY:0,refY2:cY+lb.height/2,textAnchor:'middle',textVerticalAnchor:'middle'});
+      cell.attr('descriptionLabel',{refX:0,refX2:tcX,refY:0,refY2:cY+lb.height+db.height/2,textAnchor:'middle',textVerticalAnchor:'middle'});
     } else {
-      cell.attr('label',{ refX:0,refX2:tcX,refY:0.5,refY2:0,textAnchor:'middle',textVerticalAnchor:'middle' });
+      cell.attr('label',{refX:0,refX2:tcX,refY:0.5,refY2:0,textAnchor:'middle',textVerticalAnchor:'middle'});
     }
     cell.resize(w,h);
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Auto-port distribution
-  // ═══════════════════════════════════════════
   _autoPortDistributor(element) {
-    if (!this._autoPortEnabled || this._deserializing) return;
-    this._graph.getConnectedLinks(element).forEach(link => {
-      if (typeof link.get('sourcePort') === 'number') return;
-      if (typeof link.get('targetPort') === 'number') return;
-      const src=link.getSourceElement(), tgt=link.getTargetElement(); if (!src||!tgt) return;
-
-      const centerOf = el => {
-        const pos  = el.position();
-        const size = el.size();
-        return { x: pos.x + size.width/2, y: pos.y + size.height/2 };
-      };
-
+    if(!this._autoPortEnabled||this._deserializing)return;
+    this._graph.getConnectedLinks(element).forEach(link=>{
+      if(typeof link.get('sourcePort')==='number')return;
+      if(typeof link.get('targetPort')==='number')return;
+      const src=link.getSourceElement(),tgt=link.getTargetElement(); if(!src||!tgt)return;
+      const centerOf=el=>{const pos=el.position(),size=el.size();return{x:pos.x+size.width/2,y:pos.y+size.height/2};};
       const getBest=(el,otherCenter)=>{
-        const elCenter   = centerOf(el);
-        const angle      = Math.atan2(otherCenter.y - elCenter.y, otherCenter.x - elCenter.x);
-        const positions  = el.getPortsPositions('all');
-        const size       = el.size();
-        let best=null, min=Infinity;
+        const elCenter=centerOf(el),angle=Math.atan2(otherCenter.y-elCenter.y,otherCenter.x-elCenter.x);
+        const positions=el.getPortsPositions('all'),size=el.size();
+        let best=null,min=Infinity;
         el.getPorts().forEach(p=>{
-          const pos=positions[p.id]; if (!pos) return;
-          const a=Math.atan2(pos.y - size.height/2, pos.x - size.width/2);
-          let d=Math.abs(angle-a); if(d>Math.PI) d=2*Math.PI-d;
+          const pos=positions[p.id]; if(!pos)return;
+          const a=Math.atan2(pos.y-size.height/2,pos.x-size.width/2);
+          let d=Math.abs(angle-a); if(d>Math.PI)d=2*Math.PI-d;
           if(d<min){min=d;best=p.id;}
         });
         return best;
       };
-
-      const srcCenter = centerOf(src), tgtCenter = centerOf(tgt);
-      const bS=getBest(src, tgtCenter), bT=getBest(tgt, srcCenter);
-      if (link.source().port!==bS) { link.source({id:src.id,port:bS}); link.unset('sourcePort'); }
-      if (link.target().port!==bT) { link.target({id:tgt.id,port:bT}); link.unset('targetPort'); }
+      const srcCenter=centerOf(src),tgtCenter=centerOf(tgt);
+      const bS=getBest(src,tgtCenter),bT=getBest(tgt,srcCenter);
+      if(link.source().port!==bS){link.source({id:src.id,port:bS});link.unset('sourcePort');}
+      if(link.target().port!==bT){link.target({id:tgt.id,port:bT});link.unset('targetPort');}
     });
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Helpers
-  // ═══════════════════════════════════════════
-  _isMobile()         { return window.matchMedia('(pointer:coarse) and (max-width:767px)').matches; }
-  _createEl(tag,cls='') { const el=document.createElement(tag); if(cls) el.className=cls; return el; }
+  _isMobile()          { return window.matchMedia('(pointer:coarse) and (max-width:767px)').matches; }
+  _createEl(tag,cls='') { const el=document.createElement(tag); if(cls)el.className=cls; return el; }
   _zoomBtn(parent,title,html) { const b=parent.appendChild(this._createEl('button','wf-ctrl-btn')); b.title=title; b.innerHTML=html; return b; }
   _zoomAtPoint(factor,cx,cy) {
-    const cur=this._paper.scale().sx, next=Math.max(0.1,Math.min(10,cur*factor));
-    const rect=this._paper.el.getBoundingClientRect(), x=cx-rect.left, y=cy-rect.top;
-    const t=this._paper.translate(), ox=(x-t.tx)/cur, oy=(y-t.ty)/cur;
+    const cur=this._paper.scale().sx,next=Math.max(0.1,Math.min(10,cur*factor));
+    const rect=this._paper.el.getBoundingClientRect(),x=cx-rect.left,y=cy-rect.top;
+    const t=this._paper.translate(),ox=(x-t.tx)/cur,oy=(y-t.ty)/cur;
     this._paper.scale(next,next); this._paper.translate(x-ox*next,y-oy*next);
   }
   _zoomCenter(f) { const r=this._paper.el.getBoundingClientRect(); this._zoomAtPoint(f,r.left+r.width/2,r.top+r.height/2); }
   _findClearPosition(x,y,w,h,exclude=null) {
     const cl=this.shapeClearance*this._GRID;
-    let cx=Math.round(x/this._GRID)*this._GRID, cy=Math.round(y/this._GRID)*this._GRID;
-    const isObs=(px,py)=>{ const r=new joint.g.Rect(px,py,w,h).inflate(cl); return this._graph.getElements().some(el=>(exclude&&el.id===exclude.id)?false:r.intersect(el.getBBox().clone().inflate(cl))); };
-    if (!isObs(cx,cy)) return {x:cx,y:cy};
-    for (let s=1;s<30;s++) for (let dx=-s;dx<=s;dx++) for (let dy=-s;dy<=s;dy++) {
-      if (Math.abs(dx)!==s&&Math.abs(dy)!==s) continue;
-      const tx=cx+dx*this._GRID, ty=cy+dy*this._GRID;
-      if (!isObs(tx,ty)) return {x:tx,y:ty};
+    let cx=Math.round(x/this._GRID)*this._GRID,cy=Math.round(y/this._GRID)*this._GRID;
+    const isObs=(px,py)=>{const r=new joint.g.Rect(px,py,w,h).inflate(cl);return this._graph.getElements().some(el=>(exclude&&el.id===exclude.id)?false:r.intersect(el.getBBox().clone().inflate(cl)));};
+    if(!isObs(cx,cy))return{x:cx,y:cy};
+    for(let s=1;s<30;s++)for(let dx=-s;dx<=s;dx++)for(let dy=-s;dy<=s;dy++){
+      if(Math.abs(dx)!==s&&Math.abs(dy)!==s)continue;
+      const tx=cx+dx*this._GRID,ty=cy+dy*this._GRID;
+      if(!isObs(tx,ty))return{x:tx,y:ty};
     }
-    return {x:cx,y:cy};
+    return{x:cx,y:cy};
   }
   _touchDist(t1,t2) { const dx=t1.clientX-t2.clientX,dy=t1.clientY-t2.clientY; return Math.sqrt(dx*dx+dy*dy); }
-  _touchMid(t1,t2)  { return {x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2}; }
+  _touchMid(t1,t2)  { return{x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2}; }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Bootstrap
-// ═══════════════════════════════════════════════════════════════
-const canvas = new Canvas(document.body);
+const canvas=new Canvas(document.body);
 
-const TaskShape = Shape.define(Rectangle,
-  { label:'New Task', backgroundColor:'#f0f8ff' },
+const TaskShape=Shape.define(Rectangle,
+  {label:'New Task',backgroundColor:'#f0f8ff'},
   {
-    assignee: { label:'Assignee', type:'text',     default:'' },
-    effort:   { label:'Effort',   type:'number',   default:1, min:1, max:10 },
-    done:     { label:'Done',     type:'boolean',  default:false },
-    mode:     { label:'Mode',     type:'choice',   default:'auto', choices:{ auto:'Automatic', manual:'Manual' } },
-    note:     { label:'Note',     type:'textarea', default:'' },
-    accent:   { label:'Accent',   type:'color',    default:'#3498db' },
+    assignee:{label:'Assignee',type:'text',default:''},
+    effort:  {label:'Effort',  type:'number',default:1,min:1,max:10},
+    done:    {label:'Done',    type:'boolean',default:false},
+    mode:    {label:'Mode',    type:'choice', default:'auto',choices:{auto:'Automatic',manual:'Manual'}},
+    note:    {label:'Note',    type:'textarea',default:''},
+    accent:  {label:'Accent',  type:'color',  default:'#3498db'},
   },
-  shape => {
-    shape.backgroundColor = shape.getCustomProperty('done') ? '#d4edda' : '#f0f8ff';
-    shape.borderColor     = shape.getCustomProperty('done') ? '#28a745' : '#adb5bd';
+  shape=>{
+    shape.backgroundColor=shape.getCustomProperty('done')?'#d4edda':'#f0f8ff';
+    shape.borderColor=shape.getCustomProperty('done')?'#28a745':'#adb5bd';
   }
 );
-canvas.registerShape('Task', TaskShape);
+canvas.registerShape('Task',TaskShape);
 
-(async () => {
-  const start   = await canvas.addShape(new Ellipse({ label:'START' }));
-  const process = await canvas.addShape(new Rectangle({ label:'PROCESS' }));
-  const task    = await canvas.addShape(new TaskShape({ label:'My Task', assignee:'Alice', effort:3 }));
+(async()=>{
+  const start  =await canvas.addShape(new Ellipse({label:'START'}));
+  const process=await canvas.addShape(new Rectangle({label:'PROCESS'}));
+  const task   =await canvas.addShape(new TaskShape({label:'My Task',assignee:'Alice',effort:3}));
 })();
 </script>
 </body>
