@@ -9,8 +9,6 @@
     *, *::before, *::after { box-sizing: border-box; }
     body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; touch-action: none; }
 
-    .wf-wrapper { display: flex; height: 100%; overflow: hidden; }
-
     .wf-canvas-container {
       flex-grow: 1; background: #fdfdfd;
       position: relative; overflow: hidden; cursor: grab;
@@ -18,7 +16,6 @@
     .wf-canvas-container:active { cursor: grabbing; }
     .wf-paper { width: 100%; height: 100%; }
 
-    /* ── Sidebars ── */
     .wf-sidebar {
       width: 260px; background: #f8f9fa;
       display: flex; flex-direction: column;
@@ -56,7 +53,6 @@
     .wf-collapse-btn:hover { background: #f1f3f5; color: #3498db; }
     .wf-collapse-icon { transition: transform 0.3s; }
 
-    /* ── Library ── */
     .wf-library {
       padding: 15px; display: flex; flex-direction: column;
       gap: 10px; overflow-y: auto; flex: 1 1 0; min-height: 0;
@@ -68,7 +64,6 @@
     }
     .wf-node-template:hover { border-color: #3498db; background: #f1f9ff; }
 
-    /* ── Properties ── */
     .wf-properties {
       padding: 15px; display: flex; flex-direction: column;
       gap: 12px; overflow-y: auto; flex: 1 1 0; min-height: 0;
@@ -94,7 +89,6 @@
     }
     .wf-upload-btn:hover { background: #f1f3f5; border-color: #3498db; color: #3498db; }
 
-    /* ── Canvas controls ── */
     .wf-bottom-left {
       position: absolute; bottom: 20px; left: 20px;
       z-index: 100; display: flex; flex-direction: column; gap: 10px;
@@ -110,7 +104,6 @@
     .wf-ctrl-btn:hover { background: #f1f3f5; color: #3498db; }
     .wf-ctrl-btn.active { background: #3498db; color: white; border-color: #2980b9; }
 
-    /* ── Context menu ── */
     .wf-context-menu {
       position: absolute; display: none;
       background: white; border: 1px solid #ccc;
@@ -124,10 +117,13 @@
     .wf-menu-item:hover { background: #f1f1f1; }
     .wf-menu-item.danger:hover { color: #e74c3c; }
 
-    /* ── JointJS overrides ── */
     .joint-port { display: none !important; }
     .joint-cell.wf-selected .joint-port { display: block !important; }
     .joint-paper.wf-dragging-link .joint-port { display: block !important; }
+
+    /* Ensure port circles are always on top of cell bodies in SVG z-order */
+    .joint-ports { pointer-events: none; }
+    .joint-port-body { pointer-events: all !important; }
   </style>
 </head>
 <body>
@@ -211,22 +207,17 @@ class Connection extends EventEmitter {
   get source() { return this._source; }
   get target() { return this._target; }
 
-  get label()      { return this._link.label(0)?.attrs?.text?.text || ''; }
-  set label(v)     { this._applyLabel(v); this.emit('change', this); }
-
-  get labelColor() { return this._link.label(0)?.attrs?.text?.fill || '#333333'; }
-  set labelColor(v){ this._link.prop('labelColor', v); this._applyLabel(this.label); this.emit('change', this); }
-
+  get label()         { return this._link.label(0)?.attrs?.text?.text || ''; }
+  set label(v)        { this._applyLabel(v); this.emit('change', this); }
+  get labelColor()    { return this._link.label(0)?.attrs?.text?.fill || '#333333'; }
+  set labelColor(v)   { this._link.prop('labelColor', v); this._applyLabel(this.label); this.emit('change', this); }
   get labelFontSize() { return this._link.get('fontSizePercent') || 100; }
   set labelFontSize(v){ this._link.set('fontSizePercent', v); this._applyLabel(this.label); this.emit('change', this); }
-
-  get lineColor()  { return this._link.attr('line/stroke') || '#495057'; }
-  set lineColor(v) { this._link.attr('line/stroke', v); this.emit('change', this); }
-
-  get lineWidth()  { return this._link.attr('line/strokeWidth') || 2; }
-  set lineWidth(v) { this._link.attr('line/strokeWidth', v); this.emit('change', this); }
-
-  get lineStyle()  {
+  get lineColor()     { return this._link.attr('line/stroke') || '#495057'; }
+  set lineColor(v)    { this._link.attr('line/stroke', v); this.emit('change', this); }
+  get lineWidth()     { return this._link.attr('line/strokeWidth') || 2; }
+  set lineWidth(v)    { this._link.attr('line/strokeWidth', v); this.emit('change', this); }
+  get lineStyle() {
     const d = this._link.attr('line/strokeDasharray') || '';
     return d === '5,5' ? 'dashed' : d === '1,5' ? 'dotted' : 'solid';
   }
@@ -234,34 +225,27 @@ class Connection extends EventEmitter {
     this._link.attr('line/strokeDasharray', v === 'dashed' ? '5,5' : v === 'dotted' ? '1,5' : '');
     this.emit('change', this);
   }
-
-  get sourceArrow() { return this._markerType(this._link.attr('line/sourceMarker')); }
-  set sourceArrow(v){ this._link.attr('line/sourceMarker', MARKERS[v] || null); this.emit('change', this); }
-
-  get targetArrow() { return this._markerType(this._link.attr('line/targetMarker')); }
-  set targetArrow(v){ this._link.attr('line/targetMarker', MARKERS[v] || null); this.emit('change', this); }
-
+  get sourceArrow()   { return this._markerType(this._link.attr('line/sourceMarker')); }
+  set sourceArrow(v)  { this._link.attr('line/sourceMarker', MARKERS[v] || null); this.emit('change', this); }
+  get targetArrow()   { return this._markerType(this._link.attr('line/targetMarker')); }
+  set targetArrow(v)  { this._link.attr('line/targetMarker', MARKERS[v] || null); this.emit('change', this); }
   get connectorType() {
-    const c = this._link.connector()?.name;
-    const r = this._link.router()?.name;
+    const c = this._link.connector()?.name, r = this._link.router()?.name;
     return c === 'smooth' ? 'curved' : r === 'normal' ? 'straight' : 'elbow';
   }
   set connectorType(v) {
-    const GRID = this._canvas._GRID;
-    if (v === 'elbow')         { this._link.router('manhattan', { step: GRID, padding: 20 }); this._link.connector('rounded'); }
+    const G = this._canvas._GRID;
+    if (v === 'elbow')         { this._link.router('manhattan', { step:G, padding:20 }); this._link.connector('rounded'); }
     else if (v === 'straight') { this._link.router('normal'); this._link.connector('normal'); }
     else                       { this._link.router('normal'); this._link.connector('smooth'); }
     this.emit('change', this);
   }
-
-  get sourcePort() { return this._link.get('sourcePort') ?? null; }
-  set sourcePort(v){ this._setPort('source', v); }
-
-  get targetPort() { return this._link.get('targetPort') ?? null; }
-  set targetPort(v){ this._setPort('target', v); }
-
-  get description()  { return this._link.get('description') || ''; }
-  set description(v) { this._link.set('description', v); this.emit('change', this); }
+  get sourcePort()    { return this._link.get('sourcePort') ?? null; }
+  set sourcePort(v)   { this._setPort('source', v); }
+  get targetPort()    { return this._link.get('targetPort') ?? null; }
+  set targetPort(v)   { this._setPort('target', v); }
+  get description()   { return this._link.get('description') || ''; }
+  set description(v)  { this._link.set('description', v); this.emit('change', this); }
 
   getVertices() { return [...this._vertices]; }
   addVertex(x, y) {
@@ -271,7 +255,6 @@ class Connection extends EventEmitter {
     this._vertices.push(v);
     return v;
   }
-
   select()   { this._canvas._selectCell(this); return this; }
   deselect() { this._canvas._deselectAll(); return this; }
   remove()   { this._link.remove(); this.emit('remove', this); }
@@ -293,8 +276,7 @@ class Connection extends EventEmitter {
     if (portIndex === null) {
       this._link[side]({ id: shape._cell.id });
     } else {
-      const ports = shape._cell.getPorts();
-      const port  = ports[portIndex - 1];
+      const port = shape._cell.getPorts()[portIndex - 1];
       if (port) this._link[side]({ id: shape._cell.id, port: port.id });
     }
     this.emit('change', this);
@@ -307,13 +289,13 @@ class Connection extends EventEmitter {
 class Shape extends EventEmitter {
   constructor(opts = {}) {
     super();
-    this._label  = typeof opts === 'string' ? opts : (opts.label ?? '');
-    this._initOpts = typeof opts === 'string' ? {} : opts;
-    this._cell   = null;
-    this._canvas = null;
-    this._schema = {};
+    this._label     = typeof opts === 'string' ? opts : (opts.label ?? '');
+    this._initOpts  = typeof opts === 'string' ? {} : opts;
+    this._cell      = null;
+    this._canvas    = null;
+    this._schema    = {};
     this._customProps = {};
-    this._renderFn = null;
+    this._renderFn  = null;
   }
 
   getCustomProperty(key)      { return this._customProps[key]; }
@@ -326,67 +308,47 @@ class Shape extends EventEmitter {
   getSchema() { return this._schema; }
 
   get id()     { return this._cell?.id ?? null; }
-
   get x()      { return this._cell?.position().x ?? 0; }
   set x(v)     { this._cell?.position(v, this.y); this.emit('change', this); }
-
   get y()      { return this._cell?.position().y ?? 0; }
   set y(v)     { this._cell?.position(this.x, v); this.emit('change', this); }
-
   get width()  { return this._cell?.size().width ?? 0; }
   get height() { return this._cell?.size().height ?? 0; }
   get portCount() { return 4; }
 
-  get label()  { return this._cell?.attr('label/text') ?? this._label; }
-  set label(v) { this._cell?.attr('label/text', v); this._label = v; this._autoSize(); this.emit('change', this); }
-
-  get labelColor()  { return this._cell?.attr('label/fill') ?? '#212529'; }
-  set labelColor(v) { this._cell?.attr('label/fill', v); this.emit('change', this); }
-
+  get label()          { return this._cell?.attr('label/text') ?? this._label; }
+  set label(v)         { this._cell?.attr('label/text', v); this._label = v; this._autoSize(); this.emit('change', this); }
+  get labelColor()     { return this._cell?.attr('label/fill') ?? '#212529'; }
+  set labelColor(v)    { this._cell?.attr('label/fill', v); this.emit('change', this); }
   get labelFontSize()  { return this._cell?.get('fontSizePercent') ?? 100; }
   set labelFontSize(v) { this._cell?.set('fontSizePercent', v); this._autoSize(); this.emit('change', this); }
-
-  get description()  { return this._cell?.get('description') ?? ''; }
-  set description(v) { this._cell?.set('description', v); this._cell?.attr('descriptionLabel/text', v); this._autoSize(); this.emit('change', this); }
-
+  get description()    { return this._cell?.get('description') ?? ''; }
+  set description(v)   { this._cell?.set('description', v); this._cell?.attr('descriptionLabel/text', v); this._autoSize(); this.emit('change', this); }
   get descriptionColor()  { return this._cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
   set descriptionColor(v) { this._cell?.attr('descriptionLabel/fill', v); this.emit('change', this); }
+  get backgroundColor()   { return this._cell?.attr('body/fill') ?? '#ffffff'; }
+  set backgroundColor(v)  { this._cell?.attr('body/fill', v); this.emit('change', this); }
+  get borderColor()    { return this._cell?.attr('body/stroke') ?? '#adb5bd'; }
+  set borderColor(v)   { this._cell?.attr('body/stroke', v); this.emit('change', this); }
+  get borderWidth()    { return this._cell?.attr('body/strokeWidth') ?? 2; }
+  set borderWidth(v)   { this._cell?.attr('body/strokeWidth', v); this.emit('change', this); }
+  get imageUrl()       { return this._cell?.get('imageUrl') ?? ''; }
+  set imageUrl(v)      { this._cell?.set('imageUrl', v); this._cell?.attr('image/xlink:href', v); this._cell?.attr('image/display', v ? 'block' : 'none'); this._autoSize(); this.emit('change', this); }
+  get imageWidth()     { return this._cell?.get('imageWidth') ?? 32; }
+  set imageWidth(v)    { this._cell?.set('imageWidth', v); this._autoSize(); this.emit('change', this); }
+  get imageHeight()    { return this._cell?.get('imageHeight') ?? 32; }
+  set imageHeight(v)   { this._cell?.set('imageHeight', v); this._autoSize(); this.emit('change', this); }
+  get status()         { return this._cell?.get('status') ?? 'pending'; }
+  set status(v)        { this._cell?.set('status', v); this.emit('change', this); }
+  get priority()       { return this._cell?.get('priority') ?? 1; }
+  set priority(v)      { this._cell?.set('priority', v); this.emit('change', this); }
 
-  get backgroundColor()  { return this._cell?.attr('body/fill') ?? '#ffffff'; }
-  set backgroundColor(v) { this._cell?.attr('body/fill', v); this.emit('change', this); }
-
-  get borderColor()  { return this._cell?.attr('body/stroke') ?? '#adb5bd'; }
-  set borderColor(v) { this._cell?.attr('body/stroke', v); this.emit('change', this); }
-
-  get borderWidth()  { return this._cell?.attr('body/strokeWidth') ?? 2; }
-  set borderWidth(v) { this._cell?.attr('body/strokeWidth', v); this.emit('change', this); }
-
-  get imageUrl()  { return this._cell?.get('imageUrl') ?? ''; }
-  set imageUrl(v) {
-    this._cell?.set('imageUrl', v);
-    this._cell?.attr('image/xlink:href', v);
-    this._cell?.attr('image/display', v ? 'block' : 'none');
-    this._autoSize(); this.emit('change', this);
-  }
-
-  get imageWidth()  { return this._cell?.get('imageWidth') ?? 32; }
-  set imageWidth(v) { this._cell?.set('imageWidth', v); this._autoSize(); this.emit('change', this); }
-
-  get imageHeight()  { return this._cell?.get('imageHeight') ?? 32; }
-  set imageHeight(v) { this._cell?.set('imageHeight', v); this._autoSize(); this.emit('change', this); }
-
-  get status()  { return this._cell?.get('status') ?? 'pending'; }
-  set status(v) { this._cell?.set('status', v); this.emit('change', this); }
-
-  get priority()  { return this._cell?.get('priority') ?? 1; }
-  set priority(v) { this._cell?.set('priority', v); this.emit('change', this); }
-
-  moveTo(x, y) { this._cell?.position(x, y); this.emit('move', this); return this; }
-  moveBy(dx, dy) { return this.moveTo(this.x + dx, this.y + dy); }
-  toFront() { this._cell?.toFront(); return this; }
-  toBack()  { this._cell?.toBack(); return this; }
-  select()   { this._canvas?._selectCell(this); return this; }
-  deselect() { this._canvas?._deselectAll(); return this; }
+  moveTo(x, y)  { this._cell?.position(x, y); this.emit('move', this); return this; }
+  moveBy(dx,dy) { return this.moveTo(this.x+dx, this.y+dy); }
+  toFront()     { this._cell?.toFront(); return this; }
+  toBack()      { this._cell?.toBack();  return this; }
+  select()      { this._canvas?._selectCell(this); return this; }
+  deselect()    { this._canvas?._deselectAll(); return this; }
 
   getConnections()         { return this._canvas?._getConnectionsForShape(this) ?? []; }
   getIncomingConnections() { return this.getConnections().filter(c => c.target === this); }
@@ -400,8 +362,8 @@ class Shape extends EventEmitter {
   remove() { this._cell?.remove(); this.emit('remove', this); }
 
   _buildCell(pos, ns) { throw new Error('_buildCell must be implemented by subclass'); }
-  _autoSize() { if (!this._canvas || !this._cell) return; this._canvas._autoSize(this._cell); }
-  _getShapeType() { return 'rect'; }
+  _autoSize()         { if (!this._canvas || !this._cell) return; this._canvas._autoSize(this._cell); }
+  _getShapeType()     { return 'rect'; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -411,23 +373,19 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
   class CustomShape extends BaseClass {
     constructor(opts = {}) {
       super();
-      this._customProps  = {};
-      this._schema       = schema;
-      this._renderFn     = renderFn;
-      this._defaultOpts  = defaults;
-
+      this._customProps = {};
+      this._schema      = schema;
+      this._renderFn    = renderFn;
+      this._defaultOpts = defaults;
       const merged = { ...defaults, ...opts };
       const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
-        'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight',
-        'status','priority'];
+        'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
       builtIn.forEach(k => { if (merged[k] !== undefined) this[`_init_${k}`] = merged[k]; });
       this._label = merged.label ?? defaults.label ?? '';
-
       Object.entries(schema).forEach(([key, def]) => {
         this._customProps[key] = opts[key] !== undefined ? opts[key] : def.default;
       });
     }
-
     getCustomProperty(key)      { return this._customProps[key]; }
     setCustomProperty(key, val) {
       if (!(key in this._schema)) throw new Error(`Unknown custom property: ${key}`);
@@ -437,14 +395,11 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
       this.emit('change', this);
     }
     getSchema() { return this._schema; }
-
     _buildCell(pos, ns) { return super._buildCell(pos, ns); }
   }
-
   CustomShape.prototype._getShapeType = BaseClass.prototype._getShapeType;
   Object.defineProperty(CustomShape.prototype, 'portCount',
     Object.getOwnPropertyDescriptor(BaseClass.prototype, 'portCount') || { get() { return 4; } });
-
   return CustomShape;
 };
 
@@ -452,107 +407,97 @@ Shape.define = function(BaseClass, defaults = {}, schema = {}, renderFn = null) 
 // Shape subclasses
 // ═══════════════════════════════════════════════════════════════
 class Rectangle extends Shape {
-  get portCount() { return 4; }
-  _getShapeType() { return 'rect'; }
+  get portCount() { return 4; } _getShapeType() { return 'rect'; }
   _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'rect', 140, 50); }
 }
 class Square extends Shape {
-  get portCount() { return 4; }
-  _getShapeType() { return 'square'; }
+  get portCount() { return 4; } _getShapeType() { return 'square'; }
   _buildCell(pos, ns) { return _buildStandardRect(pos, ns, 'square', 80, 80); }
 }
 class Ellipse extends Shape {
-  get portCount() { return 4; }
-  _getShapeType() { return 'ellipse'; }
+  get portCount() { return 4; } _getShapeType() { return 'ellipse'; }
   _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
 }
 class Circle extends Shape {
-  get portCount() { return 4; }
-  _getShapeType() { return 'circle'; }
+  get portCount() { return 4; } _getShapeType() { return 'circle'; }
   _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
 }
 class Diamond extends Shape {
-  get portCount() { return 4; }
-  _getShapeType() { return 'diamond'; }
+  get portCount() { return 4; } _getShapeType() { return 'diamond'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
 }
 class Triangle extends Shape {
-  get portCount() { return 3; }
-  _getShapeType() { return 'triangle'; }
+  get portCount() { return 3; } _getShapeType() { return 'triangle'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
 }
 class Hexagon extends Shape {
-  get portCount() { return 6; }
-  _getShapeType() { return 'hexagon'; }
+  get portCount() { return 6; } _getShapeType() { return 'hexagon'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
 }
 class Pentagon extends Shape {
-  get portCount() { return 5; }
-  _getShapeType() { return 'pentagon'; }
+  get portCount() { return 5; } _getShapeType() { return 'pentagon'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
 }
 class Octagon extends Shape {
-  get portCount() { return 8; }
-  _getShapeType() { return 'octagon'; }
+  get portCount() { return 8; } _getShapeType() { return 'octagon'; }
   _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
 }
 
-// ── Cell builder helpers ──
 const _sharedMarkup = [
-  { tagName: 'image',  selector: 'image',            className: 'image' },
-  { tagName: 'text',   selector: 'label',            className: 'label' },
-  { tagName: 'text',   selector: 'descriptionLabel', className: 'descriptionLabel' }
+  { tagName:'image', selector:'image',            className:'image' },
+  { tagName:'text',  selector:'label',            className:'label' },
+  { tagName:'text',  selector:'descriptionLabel', className:'descriptionLabel' }
 ];
 const _sharedAttrs = {
-  image:            { display: 'none' },
-  label:            { fill: '#212529', fontSize: 13, fontWeight: 'bold', pointerEvents: 'none' },
-  descriptionLabel: { text: '', fill: '#6c757d', fontSize: 11, pointerEvents: 'none' }
+  image:            { display:'none' },
+  label:            { fill:'#212529', fontSize:13, fontWeight:'bold', pointerEvents:'none' },
+  descriptionLabel: { text:'', fill:'#6c757d', fontSize:11, pointerEvents:'none' }
 };
-const _sharedProps = { description: '', status: 'pending', priority: 1, imageUrl: '', imageWidth: 32, imageHeight: 32, fontSizePercent: 100 };
+const _sharedProps = { description:'', status:'pending', priority:1, imageUrl:'', imageWidth:32, imageHeight:32, fontSizePercent:100 };
 
 function _attachPorts(cell, points) {
   cell.prop('ports/groups', {
     all: {
-      position: points.length > 0 ? 'absolute' : 'ellipseSpread',
-      attrs: { circle: { r: 6, fill: '#3498db', magnet: true, stroke: '#fff', strokeWidth: 2 } }
+      position: 'absolute',
+      attrs: {
+        circle: { r:6, fill:'#3498db', magnet:true, stroke:'#fff', strokeWidth:2, pointerEvents:'all' },
+        text:   { display:'none' }
+      }
     }
   });
   const portData = points.length === 0
-    ? [{ group:'all', args:{x:'50%',y:'0%'} }, { group:'all', args:{x:'100%',y:'50%'} }, { group:'all', args:{x:'50%',y:'100%'} }, { group:'all', args:{x:'0%',y:'50%'} }]
-    : points.map((p, i) => {
+    ? [
+        { group:'all', args:{ x:'50%', y:'0%', dy:-1 } },  // top — 1px outside for router clearance
+        { group:'all', args:{ x:'100%', y:'50%' } },
+        { group:'all', args:{ x:'50%', y:'100%', dy:1 } }, // bottom — 1px outside
+        { group:'all', args:{ x:'0%',  y:'50%'  } }
+      ]
+    : points.map((p,i) => {
         const next = points[(i+1) % points.length];
-        const mx = ((p[0]+next[0])/2 / 20)*100, my = ((p[1]+next[1])/2 / 20)*100;
-        return { group:'all', args:{ x:`${mx}%`, y:`${my}%` } };
+        return { group:'all', args:{ x:`${((p[0]+next[0])/2/20)*100}%`, y:`${((p[1]+next[1])/2/20)*100}%` } };
       });
   cell.addPorts(portData);
 }
-
 function _buildStandardRect(pos, ns, type, w, h) {
   const cell = new ns.standard.Rectangle();
   cell.markup = [{ tagName:'rect', selector:'body', className:'body' }, ..._sharedMarkup];
   cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body: { fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2, rx:5, ry:5 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps });
-  _attachPorts(cell, []);
-  return cell;
+  cell.attr({ body:{ fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2, rx:5, ry:5 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps }); _attachPorts(cell, []); return cell;
 }
 function _buildEllipseCell(pos, ns, type, w, h) {
   const cell = new ns.standard.Ellipse();
   cell.markup = [{ tagName:'ellipse', selector:'body', className:'body' }, ..._sharedMarkup];
   cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body: { fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps });
-  _attachPorts(cell, []);
-  return cell;
+  cell.attr({ body:{ fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps }); _attachPorts(cell, []); return cell;
 }
 function _buildPolygonCell(pos, ns, type, w, h, points) {
   const cell = new ns.standard.Polygon();
   cell.markup = [{ tagName:'polygon', selector:'body', className:'body' }, ..._sharedMarkup];
   cell.position(pos.x, pos.y).resize(w, h);
-  cell.attr({ body: { refPoints: points.map(p=>p.join(',')).join(' '), fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
-  cell.set({ type, ..._sharedProps });
-  _attachPorts(cell, points);
-  return cell;
+  cell.attr({ body:{ refPoints:points.map(p=>p.join(',')).join(' '), fill:'#ffffff', stroke:'#adb5bd', strokeWidth:2 }, ..._sharedAttrs });
+  cell.set({ type, ..._sharedProps }); _attachPorts(cell, points); return cell;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -588,9 +533,7 @@ class Canvas extends EventEmitter {
   // ── Public: register shape in library ──
   registerShape(label, ShapeClass) {
     const el = this._library.appendChild(this._createEl('div', 'wf-node-template'));
-    el.textContent = label;
-    el.draggable   = true;
-    el.dataset.shapeLabel = label;
+    el.textContent = label; el.draggable = true; el.dataset.shapeLabel = label;
     el.addEventListener('click', () => {
       if (!this._isMobile()) return;
       this.addShape(new ShapeClass());
@@ -601,68 +544,62 @@ class Canvas extends EventEmitter {
     this._registeredShapes[label] = ShapeClass;
   }
 
+  // ── Public: addShape — returns a Promise that resolves to the shape
+  //    once the cell is fully rendered and ports are laid out ──
   addShape(shape, x, y) {
-    const ns  = joint.shapes;
-    const container = this._canvasContainer;
-    const cx  = x ?? (container.clientWidth  / 2);
-    const cy  = y ?? (container.clientHeight / 2);
+    const ns = joint.shapes, container = this._canvasContainer;
+    const cx = x ?? container.clientWidth  / 2;
+    const cy = y ?? container.clientHeight / 2;
     const local = this._paper.clientToLocalPoint({ x: cx + container.getBoundingClientRect().left, y: cy + container.getBoundingClientRect().top });
-    const iW  = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 140;
-    const iH  = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 50;
-    const pos = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
+    const iW = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 140;
+    const iH = (shape instanceof Square || shape instanceof Circle || shape instanceof Diamond) ? 80 : 50;
+    const pos  = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
     const cell = shape._buildCell(pos, ns);
     cell.attr('label/text', shape._label);
     shape._cell   = cell;
     shape._canvas = this;
 
     const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
-      'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight',
-      'status','priority'];
+      'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
     const opts = shape._initOpts || {};
-    builtIn.forEach(k => {
-      const v = opts[k] ?? shape[`_init_${k}`];
-      if (v !== undefined) shape[k] = v;
-    });
-
-    Object.entries(shape._customProps).forEach(([key, val]) => {
-      cell.set(`custom_${key}`, val);
-    });
+    builtIn.forEach(k => { const v = opts[k] ?? shape[`_init_${k}`]; if (v !== undefined) shape[k] = v; });
+    Object.entries(shape._customProps).forEach(([k, v]) => cell.set(`custom_${k}`, v));
 
     cell.addTo(this._graph);
     this._shapes.set(cell.id, shape);
     this._deselectAll();
 
-    setTimeout(() => {
-      this._autoSize(cell);
+    const ready = (async () => {
+      await this._waitForRender(cell);      // wait for initial render
+      await this._autoSizeAsync(cell);      // resize + wait for DOM flush
       if (shape._renderFn) shape._renderFn(shape);
-    }, 50);
+      await this._waitForRender(cell);      // wait for renderFn changes to flush
+      return shape;
+    })();
+
     this.emit('shape:add', shape);
-    return shape;
+    return ready; // callers can await this or ignore it
   }
 
   removeShape(shape) { shape.remove(); this._shapes.delete(shape.id); this.emit('shape:remove', shape); }
+  getShapes()        { return [...this._shapes.values()]; }
+  getConnections()   { return [...this._connections.values()]; }
 
-  getShapes()      { return [...this._shapes.values()]; }
-  getConnections() { return [...this._connections.values()]; }
-
-  moveTo(x, y) { this._paper.translate(x, y); return this; }
-
-  moveToCenter() {
+  moveTo(x, y)    { this._paper.translate(x, y); return this; }
+  moveToCenter()  {
     const bbox = this._graph.getBBox(); if (!bbox) return this;
     const s = this._paper.getComputedSize();
     this._paper.scale(1,1);
-    this._paper.translate(s.width/2 - (bbox.x + bbox.width/2), s.height/2 - (bbox.y + bbox.height/2));
+    this._paper.translate(s.width/2-(bbox.x+bbox.width/2), s.height/2-(bbox.y+bbox.height/2));
     return this;
   }
-
-  zoomIn(factor = 1.25)  { this._zoomCenter(factor); return this; }
-  zoomOut(factor = 0.8)  { this._zoomCenter(factor); return this; }
-  zoomReset()            { this._zoomCenter(1 / this._paper.scale().sx); return this; }
-  zoomToFit()            { this._paper.scaleContentToFit({ padding:50, minScale:0.2, maxScale:2 }); return this; }
-  getZoom()              { return this._paper.scale().sx; }
-
-  getSelection()   { return this._selected; }
-  clearSelection() { this._deselectAll(); return this; }
+  zoomIn(f=1.25)  { this._zoomCenter(f); return this; }
+  zoomOut(f=0.8)  { this._zoomCenter(f); return this; }
+  zoomReset()     { this._zoomCenter(1/this._paper.scale().sx); return this; }
+  zoomToFit()     { this._paper.scaleContentToFit({ padding:50, minScale:0.2, maxScale:2 }); return this; }
+  getZoom()       { return this._paper.scale().sx; }
+  getSelection()  { return this._selected; }
+  clearSelection(){ this._deselectAll(); return this; }
 
   setAutoPortSwitching(enabled) {
     this._autoPortEnabled = enabled;
@@ -671,138 +608,109 @@ class Canvas extends EventEmitter {
     return this;
   }
 
-  setLibraryOpen(open) {
-    if (open !== this._leftSidebar.classList.contains('wf-collapsed')) return this;
-    this._toggleSidebar(this._leftSidebar);
-    return this;
-  }
-
-  setPropertiesOpen(open) {
-    if (open !== this._rightSidebar.classList.contains('wf-collapsed')) return this;
-    this._toggleSidebar(this._rightSidebar);
-    return this;
-  }
-
-  // ── Public: persistence ──
+  // ── Public: serialize / deserialize ──
   serialize() {
     const shapes = [...this._shapes.values()].map(s => ({
-      id:         s._cell.id,
-      shapeClass: s.constructor.name,
-      x: s.x, y: s.y,
+      id: s._cell.id, shapeClass: s.constructor.name, x: s.x, y: s.y,
       props: {
-        label:            s.label,
-        labelColor:       s.labelColor,
-        labelFontSize:    s.labelFontSize,
-        description:      s.description,
-        descriptionColor: s.descriptionColor,
-        backgroundColor:  s.backgroundColor,
-        borderColor:      s.borderColor,
-        borderWidth:      s.borderWidth,
-        imageUrl:         s.imageUrl,
-        imageWidth:       s.imageWidth,
-        imageHeight:      s.imageHeight,
+        label: s.label, labelColor: s.labelColor, labelFontSize: s.labelFontSize,
+        description: s.description, descriptionColor: s.descriptionColor,
+        backgroundColor: s.backgroundColor, borderColor: s.borderColor, borderWidth: s.borderWidth,
+        imageUrl: s.imageUrl, imageWidth: s.imageWidth, imageHeight: s.imageHeight,
       },
       customProps: { ...s._customProps },
     }));
-
     const connections = [...this._connections.values()].map(c => {
-      const portIndex = (cell, portId) => {
-        if (!portId) return null;
-        const ports = cell.getPorts();
-        const idx   = ports.findIndex(p => p.id === portId);
-        return idx >= 0 ? idx + 1 : null;
-      };
       return {
-        sourceId:      c.source._cell.id,
-        targetId:      c.target._cell.id,
-        sourcePort:    portIndex(c.source._cell, c._link.get('source')?.port),
-        targetPort:    portIndex(c.target._cell, c._link.get('target')?.port),
-        label:         c.label,
-        labelColor:    c.labelColor,
-        labelFontSize: c.labelFontSize,
-        lineColor:     c.lineColor,
-        lineWidth:     c.lineWidth,
-        lineStyle:     c.lineStyle,
-        sourceArrow:   c.sourceArrow,
-        targetArrow:   c.targetArrow,
-        connectorType: c.connectorType,
-        description:   c.description,
-        vertices:      c._link.vertices(),
+        sourceId: c.source._cell.id, targetId: c.target._cell.id,
+        // Never save port indices — auto-port distributor re-routes on import
+        sourcePort: null,
+        targetPort: null,
+        label: c.label, labelColor: c.labelColor, labelFontSize: c.labelFontSize,
+        lineColor: c.lineColor, lineWidth: c.lineWidth, lineStyle: c.lineStyle,
+        sourceArrow: c.sourceArrow, targetArrow: c.targetArrow,
+        connectorType: c.connectorType, description: c.description,
+        vertices: c._link.vertices(),
       };
     });
-
     return JSON.stringify({ shapes, connections });
   }
 
-  deserialize(data) {
-    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-    const { shapes, connections } = parsed;
+  async deserialize(data) {
+    const { shapes, connections } = typeof data === 'string' ? JSON.parse(data) : data;
     if (!Array.isArray(shapes)) throw new Error('Invalid diagram file format.');
 
-    // ── 1. Clear canvas ──
     this._deselectAll();
     this._shapes.clear();
     this._connections.clear();
     this._graph.clear();
 
-    // ── 2. Build class lookup ──
     const classMap = {
-      Rectangle, Square, Ellipse, Circle, Diamond,
-      Triangle, Hexagon, Pentagon, Octagon,
-      ...Object.fromEntries(
-        Object.entries(this._registeredShapes || {}).map(([, cls]) => [cls.name, cls])
-      )
+      Rectangle, Square, Ellipse, Circle, Diamond, Triangle, Hexagon, Pentagon, Octagon,
+      ...Object.fromEntries(Object.entries(this._registeredShapes || {}).map(([,cls]) => [cls.name, cls]))
     };
 
-    // ── 3. Restore shapes ──
-    // We use addShape() so all normal initialisation runs, then immediately
-    // overwrite the position with the saved one (bypassing _findClearPosition).
-    const idMap = {}; // saved id → Shape instance
+    // Disable auto-port so the distributor doesn't fire while we're placing shapes
+    const prevAutoPort = this._autoPortEnabled;
+    this._autoPortEnabled = false;
 
-    shapes.forEach(s => {
+    this._deserializing = true;
+    const idMap = {};
+    for (const s of shapes) {
       const Cls = classMap[s.shapeClass];
-      if (!Cls) { console.warn(`Unknown shape class: ${s.shapeClass}`); return; }
-
-      // Build the shape with all its props so addShape applies them correctly
+      if (!Cls) { console.warn(`Unknown shape class: ${s.shapeClass}`); continue; }
+      // Build the shape and pass saved position directly into _buildCell
+      // so the cell is never at the wrong position — no correction needed after
       const shape = new Cls({ ...s.props, ...s.customProps });
-
-      // addShape centres on screen and finds a clear position — we correct
-      // the position right after so layout is exactly as saved.
-      this.addShape(shape);
-
-      // Force position to the saved coordinates, bypassing collision avoidance
-      shape._cell.position(s.x, s.y);
-
+      const cell = shape._buildCell({ x: s.x, y: s.y }, joint.shapes);
+      cell.attr('label/text', shape._label);
+      shape._cell   = cell;
+      shape._canvas = this;
+      const builtIn = ['label','labelColor','labelFontSize','description','descriptionColor',
+        'backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+      const opts = shape._initOpts || {};
+      builtIn.forEach(k => { const v = opts[k] ?? shape[`_init_${k}`]; if (v !== undefined) shape[k] = v; });
+      Object.entries(shape._customProps).forEach(([k, v]) => cell.set(`custom_${k}`, v));
+      cell.addTo(this._graph);
+      this._shapes.set(cell.id, shape);
+      // Wait for full render cycle before moving to next shape
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      this._autoSize(cell);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      this._paper.updateViews();
+      if (shape._renderFn) shape._renderFn(shape);
       idMap[s.id] = shape;
-    });
+    }
 
-    // ── 4. Wait for autoSize to settle, then wire connections ──
-    // autoSize runs inside a setTimeout(fn, 50) in addShape, so we wait for
-    // all of those to complete before connecting.
-    setTimeout(() => {
-      connections.forEach(c => {
-        const source = idMap[c.sourceId];
-        const target = idMap[c.targetId];
-        if (!source || !target) return;
+    // All shapes fully rendered — wire connections synchronously
+    for (const c of connections) {
+      const source = idMap[c.sourceId], target = idMap[c.targetId];
+      if (!source || !target) continue;
 
-        // connect() goes through the public API and registers the Connection
-        const conn = source.connect(target, c.sourcePort ?? null, c.targetPort ?? null);
-        if (!conn) return;
+      const conn = source.connect(target, null, null);
+      if (!conn) continue;
 
-        // Restore connection appearance / metadata via public setters
-        if (c.label)         conn.label         = c.label;
-        if (c.labelColor)    conn.labelColor     = c.labelColor;
-        if (c.labelFontSize) conn.labelFontSize  = c.labelFontSize;
-        conn.lineColor     = c.lineColor;
-        conn.lineWidth     = c.lineWidth;
-        conn.lineStyle     = c.lineStyle;
-        conn.sourceArrow   = c.sourceArrow;
-        conn.targetArrow   = c.targetArrow;
-        conn.connectorType = c.connectorType;
-        if (c.description)  conn.description    = c.description;
-        if (c.vertices?.length) conn._link.vertices(c.vertices);
-      });
-    }, 100); // slightly longer than the 50 ms autoSize delay
+      if (c.label)         conn.label        = c.label;
+      if (c.labelColor)    conn.labelColor   = c.labelColor;
+      if (c.labelFontSize) conn.labelFontSize = c.labelFontSize;
+      conn.lineColor     = c.lineColor;
+      conn.lineWidth     = c.lineWidth;
+      conn.lineStyle     = c.lineStyle;
+      conn.sourceArrow   = c.sourceArrow;
+      conn.targetArrow   = c.targetArrow;
+      conn.connectorType = c.connectorType;
+      if (c.description)      conn.description = c.description;
+      if (c.vertices?.length) conn._link.vertices(c.vertices);
+    }
+
+    this._deserializing = false;
+
+    // Full re-render: reset all cells so the paper rebuilds every view
+    // from scratch with correct positions, then route links cleanly.
+    const cells = this._graph.getCells();
+    this._graph.resetCells(cells);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    this._graph.getElements().forEach(el => this._autoPortDistributor(el));
 
     return this;
   }
@@ -815,107 +723,78 @@ class Canvas extends EventEmitter {
     this._el.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
     this._leftSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-left'));
-    const leftHeader = this._leftSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
-    leftHeader.innerHTML = `
-      <span class="wf-sidebar-title">Library</span>
-      <button class="wf-collapse-btn" title="Toggle Library">
-        <svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>`;
-    this._leftCollapseBtn  = leftHeader.querySelector('.wf-collapse-btn');
-    this._leftCollapseIcon = leftHeader.querySelector('.wf-collapse-icon');
+    const lh = this._leftSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
+    lh.innerHTML = `<span class="wf-sidebar-title">Library</span><button class="wf-collapse-btn" title="Toggle Library"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+    this._leftCollapseBtn  = lh.querySelector('.wf-collapse-btn');
+    this._leftCollapseIcon = lh.querySelector('.wf-collapse-icon');
     this._library = this._leftSidebar.appendChild(this._createEl('div', 'wf-library wf-sidebar-body'));
     this._buildLibrary();
 
     this._canvasContainer = this._el.appendChild(this._createEl('div', 'wf-canvas-container'));
     this._paperEl = this._canvasContainer.appendChild(this._createEl('div', 'wf-paper'));
 
-    const topRight = this._canvasContainer.appendChild(this._createEl('div', 'wf-top-right'));
-    topRight.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
-
-    this._exportBtn = topRight.appendChild(this._createEl('button', 'wf-ctrl-btn'));
+    const tr = this._canvasContainer.appendChild(this._createEl('div'));
+    tr.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
+    this._exportBtn = tr.appendChild(this._createEl('button', 'wf-ctrl-btn'));
     this._exportBtn.style.cssText = 'width:auto;padding:0 12px;font-size:13px;';
-    this._exportBtn.title = 'Export JSON';
     this._exportBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export`;
-
-    this._importBtn = topRight.appendChild(this._createEl('button', 'wf-ctrl-btn'));
+    this._importBtn = tr.appendChild(this._createEl('button', 'wf-ctrl-btn'));
     this._importBtn.style.cssText = 'width:auto;padding:0 12px;font-size:13px;';
-    this._importBtn.title = 'Import JSON';
     this._importBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import`;
-
     this._importFileInput = this._canvasContainer.appendChild(this._createEl('input'));
-    this._importFileInput.type = 'file';
-    this._importFileInput.accept = '.json';
-    this._importFileInput.style.display = 'none';
+    this._importFileInput.type = 'file'; this._importFileInput.accept = '.json'; this._importFileInput.style.display = 'none';
 
-    const bottomLeft = this._canvasContainer.appendChild(this._createEl('div', 'wf-bottom-left'));
-    this._autoPortBtn = bottomLeft.appendChild(this._createEl('button', 'wf-ctrl-btn active'));
+    const bl = this._canvasContainer.appendChild(this._createEl('div', 'wf-bottom-left'));
+    this._autoPortBtn = bl.appendChild(this._createEl('button', 'wf-ctrl-btn active'));
     this._autoPortBtn.title = 'Toggle Auto Port Switching';
     this._autoPortBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
-    const zoomGroup = bottomLeft.appendChild(this._createEl('div', 'wf-zoom-group'));
-    this._zoomFitBtn    = this._zoomBtn(zoomGroup, 'Fit', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
-    this._zoomResetBtn  = this._zoomBtn(zoomGroup, 'Reset Zoom', '1:1');
-    this._zoomInBtn     = this._zoomBtn(zoomGroup, 'Zoom In', '+');
-    this._zoomOutBtn    = this._zoomBtn(zoomGroup, 'Zoom Out', '−');
-    this._zoomCenterBtn = this._zoomBtn(zoomGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
+    const zg = bl.appendChild(this._createEl('div', 'wf-zoom-group'));
+    this._zoomFitBtn    = this._zoomBtn(zg,'Fit',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
+    this._zoomResetBtn  = this._zoomBtn(zg,'Reset Zoom','1:1');
+    this._zoomInBtn     = this._zoomBtn(zg,'Zoom In','+');
+    this._zoomOutBtn    = this._zoomBtn(zg,'Zoom Out','−');
+    this._zoomCenterBtn = this._zoomBtn(zg,'Center',`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
     this._contextMenu = this._canvasContainer.appendChild(this._createEl('div', 'wf-context-menu'));
     this._contextMenu.innerHTML = `
-      <div class="wf-menu-item" data-action="duplicate">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Duplicate
-      </div>
-      <div class="wf-menu-item danger" data-action="delete">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        Delete
-      </div>`;
+      <div class="wf-menu-item" data-action="duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate</div>
+      <div class="wf-menu-item danger" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>`;
 
     this._rightSidebar = this._el.appendChild(this._createEl('div', 'wf-sidebar wf-sidebar-right'));
-    const rightHeader = this._rightSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
-    rightHeader.innerHTML = `
-      <button class="wf-collapse-btn" title="Toggle Properties">
-        <svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
+    const rh = this._rightSidebar.appendChild(this._createEl('div', 'wf-sidebar-header'));
+    rh.innerHTML = `
+      <button class="wf-collapse-btn" title="Toggle Properties"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
       <span class="wf-sidebar-title">Properties</span>
       <div class="wf-header-actions wf-sidebar-body" style="display:none;">
-        <button class="wf-header-btn" data-action="focus" title="Center on Element">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-        <button class="wf-header-btn" data-action="duplicate" title="Duplicate">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-        <button class="wf-header-btn danger" data-action="delete" title="Delete">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
+        <button class="wf-header-btn" data-action="focus" title="Center on Element"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="wf-header-btn" data-action="duplicate" title="Duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <button class="wf-header-btn danger" data-action="delete" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       </div>`;
-    this._rightCollapseBtn  = rightHeader.querySelector('.wf-collapse-btn');
-    this._rightCollapseIcon = rightHeader.querySelector('.wf-collapse-icon');
-    this._rightHeaderActions = rightHeader.querySelector('.wf-header-actions');
+    this._rightCollapseBtn   = rh.querySelector('.wf-collapse-btn');
+    this._rightCollapseIcon  = rh.querySelector('.wf-collapse-icon');
+    this._rightHeaderActions = rh.querySelector('.wf-header-actions');
 
     this._propPanelEl   = this._buildElementPropsPanel();
     this._propPanelLink = this._buildLinkPropsPanel();
     this._noSelection   = this._rightSidebar.appendChild(this._createEl('div', 'wf-no-selection wf-sidebar-body'));
     this._noSelection.textContent = 'Select an item to view properties';
-
     this._showPanel('none');
   }
 
   _buildLibrary() {
-    const shapes = [
-      { label:'Rectangle', type:'rect',     cls: Rectangle },
-      { label:'Square',    type:'square',   cls: Square    },
-      { label:'Ellipse',   type:'ellipse',  cls: Ellipse   },
-      { label:'Circle',    type:'circle',   cls: Circle    },
-      { label:'Diamond',   type:'diamond',  cls: Diamond   },
-      { label:'Triangle',  type:'triangle', cls: Triangle  },
-      { label:'Hexagon',   type:'hexagon',  cls: Hexagon   },
-      { label:'Pentagon',  type:'pentagon', cls: Pentagon  },
-      { label:'Octagon',   type:'octagon',  cls: Octagon   },
-    ];
-    shapes.forEach(({ label, type, cls }) => {
+    [
+      { label:'Rectangle', type:'rect',     cls:Rectangle },
+      { label:'Square',    type:'square',   cls:Square    },
+      { label:'Ellipse',   type:'ellipse',  cls:Ellipse   },
+      { label:'Circle',    type:'circle',   cls:Circle    },
+      { label:'Diamond',   type:'diamond',  cls:Diamond   },
+      { label:'Triangle',  type:'triangle', cls:Triangle  },
+      { label:'Hexagon',   type:'hexagon',  cls:Hexagon   },
+      { label:'Pentagon',  type:'pentagon', cls:Pentagon  },
+      { label:'Octagon',   type:'octagon',  cls:Octagon   },
+    ].forEach(({ label, type, cls }) => {
       const el = this._library.appendChild(this._createEl('div', 'wf-node-template'));
-      el.textContent = label;
-      el.draggable = true;
-      el.dataset.type = type;
+      el.textContent = label; el.draggable = true; el.dataset.type = type;
       el.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
       el.addEventListener('click', () => {
         if (!this._isMobile()) return;
@@ -931,27 +810,13 @@ class Canvas extends EventEmitter {
     panel.innerHTML = `
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
       <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
-      <div class="wf-prop-group"><label>Background Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="backgroundColor" data-pair="backgroundColorHex"><input type="text" data-prop="backgroundColorHex" data-pair-picker="backgroundColor" placeholder="#FFFFFF"></div></div>
-      <div class="wf-prop-group"><label>Border Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="borderColor" data-pair="borderColorHex"><input type="text" data-prop="borderColorHex" data-pair-picker="borderColor" placeholder="#ADB5BD"></div></div>
-      <div class="wf-prop-group"><label>Label Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#212529"></div></div>
-      <div class="wf-prop-group"><label>Description Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="descriptionColor" data-pair="descriptionColorHex"><input type="text" data-prop="descriptionColorHex" data-pair-picker="descriptionColor" placeholder="#6C757D"></div></div>
+      <div class="wf-prop-group"><label>Background Color</label><div class="wf-color-row"><input type="color" data-prop="backgroundColor" data-pair="backgroundColorHex"><input type="text" data-prop="backgroundColorHex" data-pair-picker="backgroundColor" placeholder="#FFFFFF"></div></div>
+      <div class="wf-prop-group"><label>Border Color</label><div class="wf-color-row"><input type="color" data-prop="borderColor" data-pair="borderColorHex"><input type="text" data-prop="borderColorHex" data-pair-picker="borderColor" placeholder="#ADB5BD"></div></div>
+      <div class="wf-prop-group"><label>Label Color</label><div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#212529"></div></div>
+      <div class="wf-prop-group"><label>Description Color</label><div class="wf-color-row"><input type="color" data-prop="descriptionColor" data-pair="descriptionColorHex"><input type="text" data-prop="descriptionColorHex" data-pair-picker="descriptionColor" placeholder="#6C757D"></div></div>
       <div class="wf-prop-group"><label>Description</label><textarea data-prop="description"></textarea></div>
-      <div class="wf-prop-group"><label>Image URL</label>
-        <div class="wf-image-row">
-          <input type="text" data-prop="imageUrl" placeholder="https://...">
-          <button class="wf-upload-btn" data-action="upload-image" title="Upload Image">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          </button>
-          <input type="file" data-action="image-file" style="display:none;" accept="image/*">
-        </div></div>
-      <div class="wf-prop-row">
-        <div class="wf-prop-group"><label>Image Width</label><input type="number" data-prop="imageWidth" min="0"></div>
-        <div class="wf-prop-group"><label>Image Height</label><input type="number" data-prop="imageHeight" min="0"></div>
-      </div>`;
+      <div class="wf-prop-group"><label>Image URL</label><div class="wf-image-row"><input type="text" data-prop="imageUrl" placeholder="https://..."><button class="wf-upload-btn" data-action="upload-image" title="Upload Image"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button><input type="file" data-action="image-file" style="display:none;" accept="image/*"></div></div>
+      <div class="wf-prop-row"><div class="wf-prop-group"><label>Image Width</label><input type="number" data-prop="imageWidth" min="0"></div><div class="wf-prop-group"><label>Image Height</label><input type="number" data-prop="imageHeight" min="0"></div></div>`;
     return panel;
   }
 
@@ -960,19 +825,13 @@ class Canvas extends EventEmitter {
     panel.style.display = 'none';
     panel.innerHTML = `
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
-      <div class="wf-prop-group"><label>Label Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#333333"></div></div>
+      <div class="wf-prop-group"><label>Label Color</label><div class="wf-color-row"><input type="color" data-prop="labelColor" data-pair="labelColorHex"><input type="text" data-prop="labelColorHex" data-pair-picker="labelColor" placeholder="#333333"></div></div>
       <div class="wf-prop-group"><label>Font Size (%)</label><input type="number" data-prop="labelFontSize" min="10" max="500"></div>
-      <div class="wf-prop-group"><label>Connector Type</label>
-        <select data-prop="connectorType"><option value="elbow">Elbow (Default)</option><option value="straight">Straight</option><option value="curved">Curved</option></select></div>
-      <div class="wf-prop-group"><label>Line Color</label>
-        <div class="wf-color-row"><input type="color" data-prop="lineColor" data-pair="lineColorHex"><input type="text" data-prop="lineColorHex" data-pair-picker="lineColor" placeholder="#495057"></div></div>
-      <div class="wf-prop-group"><label>Line Style</label>
-        <select data-prop="lineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
-      <div class="wf-prop-group"><label>Source Arrow</label>
-        <select data-prop="sourceArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
-      <div class="wf-prop-group"><label>Target Arrow</label>
-        <select data-prop="targetArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
+      <div class="wf-prop-group"><label>Connector Type</label><select data-prop="connectorType"><option value="elbow">Elbow (Default)</option><option value="straight">Straight</option><option value="curved">Curved</option></select></div>
+      <div class="wf-prop-group"><label>Line Color</label><div class="wf-color-row"><input type="color" data-prop="lineColor" data-pair="lineColorHex"><input type="text" data-prop="lineColorHex" data-pair-picker="lineColor" placeholder="#495057"></div></div>
+      <div class="wf-prop-group"><label>Line Style</label><select data-prop="lineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
+      <div class="wf-prop-group"><label>Source Arrow</label><select data-prop="sourceArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
+      <div class="wf-prop-group"><label>Target Arrow</label><select data-prop="targetArrow"><option value="none">None</option><option value="classic">Classic</option><option value="block">Block</option></select></div>
       <div class="wf-prop-group"><label>Description</label><textarea data-prop="description"></textarea></div>`;
     return panel;
   }
@@ -983,23 +842,16 @@ class Canvas extends EventEmitter {
   _initPaper() {
     this._graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
     this._paper = new joint.dia.Paper({
-      el: this._paperEl,
-      model: this._graph,
+      el: this._paperEl, model: this._graph,
       width: '100%', height: '100%',
-      gridSize: this._GRID,
-      drawGrid: { name:'dot', color:'#e9ecef' },
-      background: { color:'#ffffff' },
-      cellNamespace: joint.shapes,
+      gridSize: this._GRID, drawGrid: { name:'dot', color:'#e9ecef' },
+      background: { color:'#ffffff' }, cellNamespace: joint.shapes,
       defaultConnector: { name:'rounded' },
-      defaultRouter: { name:'manhattan', args:{ step:this._GRID, padding:20, maxIter:200 } },
+      defaultRouter: { name:'manhattan', args:{ step:this._GRID, padding:30, maxIter:200 } },
       interactive: { linkMove:true, vertexAdd:true, vertexMove:true, elementMove:true },
-      preventDefaultBlankAction: false,
-      linkPinning: false,
-      snapLinks: { radius:25 },
-      markAvailable: true,
-      defaultLink: () => new joint.shapes.standard.Link({
-        attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker: MARKERS.classic } }
-      }),
+      preventDefaultBlankAction: false, linkPinning: false,
+      snapLinks: { radius:25 }, markAvailable: true,
+      defaultLink: () => new joint.shapes.standard.Link({ attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } }),
       validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt
     });
   }
@@ -1010,25 +862,19 @@ class Canvas extends EventEmitter {
   _bindUI() {
     this._exportBtn.addEventListener('click', () => {
       try {
-        const json = this.serialize();
-        const blob = new Blob([json], { type: 'application/json' });
+        const blob = new Blob([this.serialize()], { type:'application/json' });
         const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href = url; a.download = 'diagram.json';
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a);
+        const a    = Object.assign(document.createElement('a'), { href:url, download:'diagram.json' });
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch(err) { console.error('Export error:', err); alert('Export failed: ' + err.message); }
+      } catch(e) { alert('Export failed: ' + e.message); }
     });
 
     this._importBtn.addEventListener('click', () => this._importFileInput.click());
     this._importFileInput.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
-      reader.onload = ev => {
-        try { this.deserialize(ev.target.result); }
-        catch(err) { console.error('Import error:', err); alert('Failed to import: ' + err.message); }
-      };
+      reader.onload = ev => this.deserialize(ev.target.result).catch(err => alert('Import failed: ' + err.message));
       reader.readAsText(file);
       e.target.value = '';
     });
@@ -1036,39 +882,35 @@ class Canvas extends EventEmitter {
     this._leftCollapseBtn.addEventListener('click',  () => this._toggleSidebar(this._leftSidebar));
     this._rightCollapseBtn.addEventListener('click', () => this._toggleSidebar(this._rightSidebar));
     this._autoPortBtn.addEventListener('click', () => this.setAutoPortSwitching(!this._autoPortEnabled));
-
     this._zoomFitBtn.addEventListener('click',    () => this.zoomToFit());
     this._zoomResetBtn.addEventListener('click',  () => this.zoomReset());
     this._zoomInBtn.addEventListener('click',     () => this.zoomIn());
     this._zoomOutBtn.addEventListener('click',    () => this.zoomOut());
     this._zoomCenterBtn.addEventListener('click', () => this.moveToCenter());
 
-    this._paper.el.addEventListener('wheel', (e) => {
+    this._paper.el.addEventListener('wheel', e => {
       e.preventDefault();
-      if (e.ctrlKey) { this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }
-      else { const t = this._paper.translate(); this._paper.translate(t.tx - e.deltaX, t.ty - e.deltaY); }
-    }, { passive: false });
+      if (e.ctrlKey) this._zoomAtPoint(Math.exp(-e.deltaY*0.0015), e.clientX, e.clientY);
+      else { const t = this._paper.translate(); this._paper.translate(t.tx-e.deltaX, t.ty-e.deltaY); }
+    }, { passive:false });
 
     this._contextMenu.addEventListener('click', e => {
-      const action = e.target.closest('[data-action]')?.dataset.action;
-      if (action === 'duplicate') this._duplicateSelected();
-      if (action === 'delete')    this._deleteSelected();
+      const a = e.target.closest('[data-action]')?.dataset.action;
+      if (a === 'duplicate') this._duplicateSelected();
+      if (a === 'delete')    this._deleteSelected();
       this._contextMenu.style.display = 'none';
     });
-    window.addEventListener('click', e => {
-      if (!e.target.closest('.wf-context-menu')) this._contextMenu.style.display = 'none';
-    });
+    window.addEventListener('click', e => { if (!e.target.closest('.wf-context-menu')) this._contextMenu.style.display = 'none'; });
 
     this._rightHeaderActions.addEventListener('click', e => {
-      const action = e.target.closest('[data-action]')?.dataset.action;
-      if (!action) return;
-      if (action === 'focus')     this._focusSelected();
-      if (action === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
-      if (action === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
+      const a = e.target.closest('[data-action]')?.dataset.action; if (!a) return;
+      if (a === 'focus')     this._focusSelected();
+      if (a === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
+      if (a === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this._rightSidebar); }
     });
 
-    this._propPanelEl.addEventListener('input',  e => this._handlePropInput(e));
-    this._propPanelEl.addEventListener('change', e => this._handlePropInput(e));
+    this._propPanelEl.addEventListener('input',    e => this._handlePropInput(e));
+    this._propPanelEl.addEventListener('change',   e => this._handlePropInput(e));
     this._propPanelLink.addEventListener('input',  e => this._handleLinkInput(e));
     this._propPanelLink.addEventListener('change', e => this._handleLinkInput(e));
 
@@ -1077,49 +919,47 @@ class Canvas extends EventEmitter {
       e.preventDefault();
       const customLabel = e.dataTransfer.getData('customShape');
       if (customLabel && this._registeredShapes?.[customLabel]) {
-        const local = this._paper.clientToLocalPoint({ x: e.clientX, y: e.clientY });
+        const local = this._paper.clientToLocalPoint({ x:e.clientX, y:e.clientY });
         const ShapeClass = this._registeredShapes[customLabel];
         const shape = new ShapeClass();
-        const iW = 140, iH = 50;
-        const pos = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
-        const cell = shape._buildCell(pos, joint.shapes);
+        const pos   = this._findClearPosition(local.x-70, local.y-25, 140, 50);
+        const cell  = shape._buildCell(pos, joint.shapes);
         cell.attr('label/text', shape._label);
-        shape._cell   = cell;
-        shape._canvas = this;
-        Object.entries(shape._customProps).forEach(([key, val]) => cell.set(`custom_${key}`, val));
-        cell.addTo(this._graph);
-        this._shapes.set(cell.id, shape);
-        this._deselectAll();
-        setTimeout(() => { this._autoSize(cell); if (shape._renderFn) shape._renderFn(shape); this._selectCell(shape); }, 50);
-        this.emit('shape:add', shape);
-        return;
+        shape._cell = cell; shape._canvas = this;
+        Object.entries(shape._customProps).forEach(([k,v]) => cell.set(`custom_${k}`,v));
+        cell.addTo(this._graph); this._shapes.set(cell.id, shape); this._deselectAll();
+        (async () => {
+          await this._waitForRender(cell);
+          await this._autoSizeAsync(cell);
+          if (shape._renderFn) shape._renderFn(shape);
+          await this._waitForRender(cell);
+          this._selectCell(shape);
+        })();
+        this.emit('shape:add', shape); return;
       }
       const type  = e.dataTransfer.getData('type');
       const entry = [
-        { type:'rect',     label:'Rectangle', cls: Rectangle },
-        { type:'square',   label:'Square',    cls: Square    },
-        { type:'ellipse',  label:'Ellipse',   cls: Ellipse   },
-        { type:'circle',   label:'Circle',    cls: Circle    },
-        { type:'diamond',  label:'Diamond',   cls: Diamond   },
-        { type:'triangle', label:'Triangle',  cls: Triangle  },
-        { type:'hexagon',  label:'Hexagon',   cls: Hexagon   },
-        { type:'pentagon', label:'Pentagon',  cls: Pentagon  },
-        { type:'octagon',  label:'Octagon',   cls: Octagon   },
+        { type:'rect',cls:Rectangle },{ type:'square',cls:Square },{ type:'ellipse',cls:Ellipse },
+        { type:'circle',cls:Circle },{ type:'diamond',cls:Diamond },{ type:'triangle',cls:Triangle },
+        { type:'hexagon',cls:Hexagon },{ type:'pentagon',cls:Pentagon },{ type:'octagon',cls:Octagon },
       ].find(s => s.type === type);
       if (!entry) return;
-      const local = this._paper.clientToLocalPoint({ x: e.clientX, y: e.clientY });
-      const shape = new entry.cls(entry.label.toUpperCase());
-      const iW = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 140;
-      const iH = (type === 'square' || type === 'circle' || type === 'diamond') ? 80 : 50;
-      const pos = this._findClearPosition(local.x - iW/2, local.y - iH/2, iW, iH);
+      const label = type.charAt(0).toUpperCase()+type.slice(1);
+      const local = this._paper.clientToLocalPoint({ x:e.clientX, y:e.clientY });
+      const shape = new entry.cls(label.toUpperCase());
+      const iW = (type==='square'||type==='circle'||type==='diamond') ? 80 : 140;
+      const iH = (type==='square'||type==='circle'||type==='diamond') ? 80 : 50;
+      const pos  = this._findClearPosition(local.x-iW/2, local.y-iH/2, iW, iH);
       const cell = shape._buildCell(pos, joint.shapes);
       cell.attr('label/text', shape._label);
-      shape._cell   = cell;
-      shape._canvas = this;
-      cell.addTo(this._graph);
-      this._shapes.set(cell.id, shape);
-      this._deselectAll();
-      setTimeout(() => { this._autoSize(cell); this._selectCell(shape); }, 50);
+      shape._cell = cell; shape._canvas = this;
+      cell.addTo(this._graph); this._shapes.set(cell.id, shape); this._deselectAll();
+      (async () => {
+        await this._waitForRender(cell);
+        await this._autoSizeAsync(cell);
+        await this._waitForRender(cell);
+        this._selectCell(shape);
+      })();
       this.emit('shape:add', shape);
     });
 
@@ -1139,24 +979,22 @@ class Canvas extends EventEmitter {
 
   _handlePropInput(e) {
     if (!(this._selected instanceof Shape)) return;
-    const el   = e.target.closest('[data-prop]'); if (!el) return;
-    const prop = el.dataset.prop;
-    const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
-    if (el.dataset.pair) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
+    const el = e.target.closest('[data-prop]'); if (!el) return;
+    const prop = el.dataset.prop, val = el.type==='number' ? parseFloat(el.value) : el.value;
+    if (el.dataset.pair)       this._propPanelEl.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
     if (el.dataset.pairPicker) this._propPanelEl.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-    const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (realProp in this._selected) this._selected[realProp] = val;
+    const rp = prop.endsWith('Hex') ? prop.slice(0,-3) : prop;
+    if (rp in this._selected) this._selected[rp] = val;
   }
 
   _handleLinkInput(e) {
     if (!(this._selected instanceof Connection)) return;
-    const el   = e.target.closest('[data-prop]'); if (!el) return;
-    const prop = el.dataset.prop;
-    const val  = el.type === 'number' ? parseFloat(el.value) : el.value;
-    if (el.dataset.pair) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
+    const el = e.target.closest('[data-prop]'); if (!el) return;
+    const prop = el.dataset.prop, val = el.type==='number' ? parseFloat(el.value) : el.value;
+    if (el.dataset.pair)       this._propPanelLink.querySelector(`[data-prop="${el.dataset.pair}"]`).value = val;
     if (el.dataset.pairPicker) this._propPanelLink.querySelector(`[data-prop="${el.dataset.pairPicker}"]`).value = val;
-    const realProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (realProp in this._selected) this._selected[realProp] = val;
+    const rp = prop.endsWith('Hex') ? prop.slice(0,-3) : prop;
+    if (rp in this._selected) this._selected[rp] = val;
   }
 
   // ═══════════════════════════════════════════
@@ -1164,263 +1002,197 @@ class Canvas extends EventEmitter {
   // ═══════════════════════════════════════════
   _bindPaperEvents() {
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
-      tagName: 'circle',
-      attributes: { r:6, fill:'#3498db', stroke:'#fff', 'stroke-width':2, cursor:'move' }
+      tagName:'circle', attributes:{ r:6, fill:'#3498db', stroke:'#fff', 'stroke-width':2, cursor:'move' }
     });
 
-    this._paper.on('element:pointerdown', (cellView, evt) => {
-      const shape = this._shapes.get(cellView.model.id);
-      if (!shape) return;
-      this._pointerDownPos     = { x: evt.clientX, y: evt.clientY };
+    this._paper.on('element:pointerdown', (cv, evt) => {
+      const shape = this._shapes.get(cv.model.id); if (!shape) return;
+      this._pointerDownPos = { x:evt.clientX, y:evt.clientY };
       this._wasAlreadySelected = this._selected === shape;
-      this._deselectAll();
-      shape._cell.toFront();
-      this._selectCell(shape);
+      this._deselectAll(); shape._cell.toFront(); this._selectCell(shape);
     });
 
-    this._paper.on('element:pointerup', (cellView, evt) => {
-      const dx = Math.abs(evt.clientX - (this._pointerDownPos?.x ?? evt.clientX));
-      const dy = Math.abs(evt.clientY - (this._pointerDownPos?.y ?? evt.clientY));
-      if (dx < 5 && dy < 5 && this._wasAlreadySelected) {
-        if (this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
-      }
-      this._pointerDownPos     = null;
-      this._wasAlreadySelected = false;
-      const shape = this._shapes.get(cellView.model.id);
-      if (shape) {
-        const bbox = shape._cell.getBBox();
-        const pos  = this._findClearPosition(bbox.x, bbox.y, bbox.width, bbox.height, shape._cell);
-        shape._cell.position(pos.x, pos.y);
-      }
+    this._paper.on('element:pointerup', (cv, evt) => {
+      const dx = Math.abs(evt.clientX-(this._pointerDownPos?.x??evt.clientX));
+      const dy = Math.abs(evt.clientY-(this._pointerDownPos?.y??evt.clientY));
+      if (dx<5 && dy<5 && this._wasAlreadySelected && this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
+      this._pointerDownPos = null; this._wasAlreadySelected = false;
+      const shape = this._shapes.get(cv.model.id);
+      if (shape) { const bb=shape._cell.getBBox(); const p=this._findClearPosition(bb.x,bb.y,bb.width,bb.height,shape._cell); shape._cell.position(p.x,p.y); }
     });
 
-    this._paper.on('link:pointerdown', (linkView) => {
-      const conn = this._connections.get(linkView.model.id);
-      if (!conn) return;
-      this._deselectAll();
-      linkView.model.toFront();
-      this._selectCell(conn);
-      linkView.addTools(new joint.dia.ToolsView({
-        tools: [
-          new joint.linkTools.Vertices(),
-          new CustomSourceArrowhead(),
-          new joint.linkTools.TargetArrowhead({ offset:-1 }),
-          new joint.linkTools.Remove({ distance:20 })
-        ]
-      }));
+    this._paper.on('link:pointerdown', lv => {
+      const conn = this._connections.get(lv.model.id); if (!conn) return;
+      this._deselectAll(); lv.model.toFront(); this._selectCell(conn);
+      lv.addTools(new joint.dia.ToolsView({ tools:[
+        new joint.linkTools.Vertices(),
+        new CustomSourceArrowhead(),
+        new joint.linkTools.TargetArrowhead({ offset:-1 }),
+        new joint.linkTools.Remove({ distance:20 })
+      ]}));
     });
 
-    this._paper.on('cell:pointerdown tool:pointerdown', (v, evt) => {
-      if (evt?.target?.closest?.('.joint-port')) this._paper.el.classList.add('wf-dragging-link');
-    });
-    this._paper.on('cell:pointerup link:pointerup tool:pointerup', () => {
-      this._paper.el.classList.remove('wf-dragging-link');
-    });
+    this._paper.on('cell:pointerdown tool:pointerdown', (v,evt) => { if (evt?.target?.closest?.('.joint-port')) this._paper.el.classList.add('wf-dragging-link'); });
+    this._paper.on('cell:pointerup link:pointerup tool:pointerup', () => this._paper.el.classList.remove('wf-dragging-link'));
 
-    this._paper.on('cell:contextmenu', (cellView, evt) => {
+    this._paper.on('cell:contextmenu', (cv, evt) => {
       evt.preventDefault();
-      const isShape = this._shapes.has(cellView.model.id);
-      const rect    = this._canvasContainer.getBoundingClientRect();
+      const rect = this._canvasContainer.getBoundingClientRect();
       this._contextMenu.style.display = 'block';
-      this._contextMenu.style.left    = (evt.clientX - rect.left) + 'px';
-      this._contextMenu.style.top     = (evt.clientY - rect.top)  + 'px';
-      this._contextMenu.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
+      this._contextMenu.style.left = (evt.clientX-rect.left)+'px';
+      this._contextMenu.style.top  = (evt.clientY-rect.top)+'px';
+      this._contextMenu.querySelector('[data-action="duplicate"]').style.display = this._shapes.has(cv.model.id) ? 'flex' : 'none';
     });
 
-    this._paper.on('blank:pointerdown', (evt) => {
-      this._collapseBothSidebars();
-      this._deselectAll();
+    this._paper.on('blank:pointerdown', evt => {
+      this._collapseBothSidebars(); this._deselectAll();
       if (this._isMobile()) return;
-      const startX = evt.clientX, startY = evt.clientY, origin = this._paper.translate();
-      const onMove = e => this._paper.translate(origin.tx + (e.clientX - startX), origin.ty + (e.clientY - startY));
-      const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup',   onUp);
+      const sx=evt.clientX, sy=evt.clientY, o=this._paper.translate();
+      const onMove = e => this._paper.translate(o.tx+(e.clientX-sx), o.ty+(e.clientY-sy));
+      const onUp   = () => { document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); };
+      document.addEventListener('mousemove',onMove); document.addEventListener('mouseup',onUp);
     });
 
-    this._paper.on('link:connect', (linkView) => {
-      const link  = linkView.model;
-      const srcEl = link.getSourceElement();
-      const tgtEl = link.getTargetElement();
-      if (!srcEl || !tgtEl) return;
-      const source = this._shapes.get(srcEl.id);
-      const target = this._shapes.get(tgtEl.id);
-      if (!source || !target) return;
-      if (this._connections.has(link.id)) return;
+    this._paper.on('link:connect', lv => {
+      const link=lv.model, srcEl=link.getSourceElement(), tgtEl=link.getTargetElement();
+      if (!srcEl||!tgtEl) return;
+      const source=this._shapes.get(srcEl.id), target=this._shapes.get(tgtEl.id);
+      if (!source||!target||this._connections.has(link.id)) return;
       const conn = new Connection(link, source, target, this);
       this._connections.set(link.id, conn);
       this.emit('connection:add', conn);
     });
 
     this._graph.on('remove', cell => {
-      if (cell.isLink()) {
-        const conn = this._connections.get(cell.id);
-        if (conn) { this._connections.delete(cell.id); this.emit('connection:remove', conn); }
-      } else {
-        const shape = this._shapes.get(cell.id);
-        if (shape) { this._shapes.delete(cell.id); this.emit('shape:remove', shape); }
-      }
+      if (cell.isLink()) { const c=this._connections.get(cell.id); if(c){this._connections.delete(cell.id);this.emit('connection:remove',c);} }
+      else               { const s=this._shapes.get(cell.id);      if(s){this._shapes.delete(cell.id);     this.emit('shape:remove',s);} }
     });
 
     this._graph.on('change:position', cell => {
       const shape = this._shapes.get(cell.id);
-      if (shape) { this._autoPortDistributor(cell); shape.emit('move', shape); }
+      if (shape) { this._autoPortDistributor(cell); shape.emit('move',shape); }
     });
   }
 
   // ═══════════════════════════════════════════
-  // Internal: Keyboard shortcuts
+  // Internal: Keyboard
   // ═══════════════════════════════════════════
   _bindKeyboard() {
-    const MOVE_STEP = this._GRID;
     this._clipboard = null;
-
     this._canvasContainer.tabIndex = 0;
     this._canvasContainer.style.outline = 'none';
     this._canvasContainer.focus();
-
     this._canvasContainer.addEventListener('mousedown', () => {
-      if (document.activeElement?.tagName !== 'INPUT' &&
-          document.activeElement?.tagName !== 'TEXTAREA') {
-        this._canvasContainer.focus();
-      }
+      if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') this._canvasContainer.focus();
     });
-
-    this._canvasContainer.addEventListener('keydown', (e) => {
+    this._canvasContainer.addEventListener('keydown', async e => {
       const tag = document.activeElement?.tagName;
-      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-
-      if (e.key === 'F2' || (!isTyping && e.key === 'Enter')) {
-        if (this._selected instanceof Shape || this._selected instanceof Connection) {
+      const isTyping = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+      if (e.key==='F2'||(!isTyping&&e.key==='Enter')) {
+        if (this._selected instanceof Shape||this._selected instanceof Connection) {
           e.preventDefault();
           if (this._rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this._rightSidebar);
-          setTimeout(() => {
-            const panel = this._selected instanceof Shape ? this._propPanelEl : this._propPanelLink;
-            const input = panel.querySelector('[data-prop="label"]');
-            if (input) { input.focus(); input.select(); }
-          }, 50);
+          await this._waitForRender(this._selected._cell ?? this._selected._link);
+          const panel = this._selected instanceof Shape ? this._propPanelEl : this._propPanelLink;
+          const input = panel.querySelector('[data-prop="label"]');
+          if (input) { input.focus(); input.select(); }
         }
         return;
       }
-
       if (isTyping) return;
-
-      if (e.key === 'Escape') { e.preventDefault(); this._deselectAll(); return; }
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this._deleteSelected(); return; }
-      if (e.key === '-' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomOut(); return; }
-      if ((e.key === '=' || e.key === '+') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (this._selected instanceof Shape) { e.preventDefault(); this._clipboard = this._selected; }
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      if (e.key==='Escape')                          { e.preventDefault(); this._deselectAll(); return; }
+      if (e.key==='Delete'||e.key==='Backspace')     { e.preventDefault(); this._deleteSelected(); return; }
+      if (e.key==='-'&&!e.ctrlKey&&!e.metaKey)       { e.preventDefault(); this.zoomOut(); return; }
+      if ((e.key==='='||e.key==='+')&&!e.ctrlKey&&!e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
+      if ((e.ctrlKey||e.metaKey)&&e.key==='c') { if(this._selected instanceof Shape){e.preventDefault();this._clipboard=this._selected;} return; }
+      if ((e.ctrlKey||e.metaKey)&&e.key==='v') {
         if (this._clipboard) {
           e.preventDefault();
-          const bbox  = this._clipboard._cell.getBBox();
-          const pos   = this._findClearPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
-          const clone = this._clipboard._cell.clone();
-          clone.position(pos.x, pos.y);
-          clone.addTo(this._graph);
+          const bb=this._clipboard._cell.getBBox(), pos=this._findClearPosition(bb.x+40,bb.y+40,bb.width,bb.height);
+          const clone=this._clipboard._cell.clone(); clone.position(pos.x,pos.y); clone.addTo(this._graph);
           this._deselectAll();
-          const cloneShape  = new this._clipboard.constructor(this._clipboard.label);
-          cloneShape._cell   = clone;
-          cloneShape._canvas = this;
-          this._shapes.set(clone.id, cloneShape);
-          setTimeout(() => { this._autoSize(clone); this._selectCell(cloneShape); }, 50);
-          this.emit('shape:add', cloneShape);
+          const cs=new this._clipboard.constructor(this._clipboard.label); cs._cell=clone; cs._canvas=this;
+          this._shapes.set(clone.id,cs);
+          (async () => {
+            await this._waitForRender(clone);
+            await this._autoSizeAsync(clone);
+            await this._waitForRender(clone);
+            this._selectCell(cs);
+          })();
+          this.emit('shape:add',cs);
         }
         return;
       }
-
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
         e.preventDefault();
-        const dx = e.key === 'ArrowLeft' ? -MOVE_STEP : e.key === 'ArrowRight' ? MOVE_STEP : 0;
-        const dy = e.key === 'ArrowUp'   ? -MOVE_STEP : e.key === 'ArrowDown'  ? MOVE_STEP : 0;
-        if (this._selected instanceof Shape) {
-          this._selected.moveBy(dx, dy);
-        } else if (!this._selected) {
-          const t = this._paper.translate();
-          this._paper.translate(t.tx - dx, t.ty - dy);
-        }
+        const dx=e.key==='ArrowLeft'?-this._GRID:e.key==='ArrowRight'?this._GRID:0;
+        const dy=e.key==='ArrowUp'?-this._GRID:e.key==='ArrowDown'?this._GRID:0;
+        if (this._selected instanceof Shape) this._selected.moveBy(dx,dy);
+        else if (!this._selected) { const t=this._paper.translate(); this._paper.translate(t.tx-dx,t.ty-dy); }
       }
     });
   }
 
   // ═══════════════════════════════════════════
-  // Internal: Touch events
+  // Internal: Touch
   // ═══════════════════════════════════════════
   _bindTouchEvents() {
-    this._paper.el.addEventListener('touchstart', (e) => {
+    this._paper.el.addEventListener('touchstart', e => {
       if (!this._isMobile()) return;
-      if (e.touches.length === 1) {
-        const t  = e.touches[0];
-        const el = document.elementFromPoint(t.clientX, t.clientY);
-        if (el?.closest('.joint-cell')) return;
+      if (e.touches.length===1) {
+        const t=e.touches[0];
+        if (document.elementFromPoint(t.clientX,t.clientY)?.closest('.joint-cell')) return;
         e.stopPropagation();
-        this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin: this._paper.translate() };
-      } else if (e.touches.length === 2) {
+        this._touchState={ type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
+      } else if (e.touches.length===2) {
         e.stopPropagation();
-        const [t1, t2] = [e.touches[0], e.touches[1]];
-        this._touchState = { type:'pinch', dist:this._touchDist(t1,t2), mid:this._touchMid(t1,t2), scale:this._paper.scale().sx, origin:this._paper.translate() };
+        const [t1,t2]=[e.touches[0],e.touches[1]];
+        this._touchState={ type:'pinch', dist:this._touchDist(t1,t2), mid:this._touchMid(t1,t2), scale:this._paper.scale().sx, origin:this._paper.translate() };
       }
-    }, { passive: true });
-
-    this._paper.el.addEventListener('touchmove', (e) => {
-      if (!this._isMobile() || !this._touchState) return;
+    },{ passive:true });
+    this._paper.el.addEventListener('touchmove', e => {
+      if (!this._isMobile()||!this._touchState) return;
       e.preventDefault();
-      const s = this._touchState;
-      if (s.type === 'pan' && e.touches.length === 1) {
-        const t = e.touches[0];
-        this._paper.translate(s.origin.tx + (t.clientX - s.x), s.origin.ty + (t.clientY - s.y));
-      } else if (s.type === 'pinch' && e.touches.length === 2) {
-        const [t1,t2] = [e.touches[0], e.touches[1]];
-        const factor   = this._touchDist(t1,t2) / s.dist;
-        const newScale = Math.max(0.1, Math.min(10, s.scale * factor));
-        const mid      = this._touchMid(t1,t2);
-        const rect     = this._paper.el.getBoundingClientRect();
-        const x = mid.x - rect.left, y = mid.y - rect.top;
-        const ox = (x - s.origin.tx) / s.scale, oy = (y - s.origin.ty) / s.scale;
-        this._paper.scale(newScale, newScale);
-        this._paper.translate(x - ox * newScale, y - oy * newScale);
+      const s=this._touchState;
+      if (s.type==='pan'&&e.touches.length===1) {
+        const t=e.touches[0]; this._paper.translate(s.origin.tx+(t.clientX-s.x),s.origin.ty+(t.clientY-s.y));
+      } else if (s.type==='pinch'&&e.touches.length===2) {
+        const [t1,t2]=[e.touches[0],e.touches[1]];
+        const ns=Math.max(0.1,Math.min(10,s.scale*this._touchDist(t1,t2)/s.dist));
+        const mid=this._touchMid(t1,t2), rect=this._paper.el.getBoundingClientRect();
+        const x=mid.x-rect.left, y=mid.y-rect.top;
+        const ox=(x-s.origin.tx)/s.scale, oy=(y-s.origin.ty)/s.scale;
+        this._paper.scale(ns,ns); this._paper.translate(x-ox*ns,y-oy*ns);
       }
-    }, { passive: false });
-
-    this._paper.el.addEventListener('touchend', (e) => {
+    },{ passive:false });
+    this._paper.el.addEventListener('touchend', e => {
       if (!this._isMobile()) return;
-      if (this._touchState?.type === 'pinch' && e.touches.length === 1) {
-        const t = e.touches[0];
-        this._touchState = { type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
-      } else { this._touchState = null; }
-    }, { passive: true });
+      if (this._touchState?.type==='pinch'&&e.touches.length===1) {
+        const t=e.touches[0]; this._touchState={ type:'pan', x:t.clientX, y:t.clientY, origin:this._paper.translate() };
+      } else this._touchState=null;
+    },{ passive:true });
   }
 
   // ═══════════════════════════════════════════
   // Internal: Selection
   // ═══════════════════════════════════════════
-  _selectCell(shapeOrConn) {
-    this._selected = shapeOrConn;
-    const isShape  = shapeOrConn instanceof Shape;
-    const cell     = isShape ? shapeOrConn._cell : shapeOrConn._link;
-    const cellView = this._paper.findViewByModel(cell);
-    if (cellView) {
-      cellView.el.classList.add('wf-selected');
-      joint.highlighters.stroke.add(cellView, 'root', 'selection', { padding:5, attrs:{ stroke:'#3498db', 'stroke-width':3 } });
-    }
+  _selectCell(soc) {
+    this._selected = soc;
+    const isShape = soc instanceof Shape;
+    const cell    = isShape ? soc._cell : soc._link;
+    const cv      = this._paper.findViewByModel(cell);
+    if (cv) { cv.el.classList.add('wf-selected'); joint.highlighters.stroke.add(cv,'root','selection',{ padding:5, attrs:{ stroke:'#3498db','stroke-width':3 } }); }
     this._rightHeaderActions.style.display = 'flex';
     this._rightHeaderActions.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
-
-    if (isShape) { this._showPanel('element'); this._populateElementPanel(shapeOrConn); }
-    else         { this._showPanel('link');    this._populateLinkPanel(shapeOrConn); }
-
-    this.emit('selection:change', shapeOrConn);
+    if (isShape) { this._showPanel('element'); this._populateElementPanel(soc); }
+    else         { this._showPanel('link');    this._populateLinkPanel(soc); }
+    this.emit('selection:change', soc);
   }
 
   _deselectAll() {
     if (this._selected) {
       const cell = this._selected instanceof Shape ? this._selected._cell : this._selected._link;
-      const view = this._paper.findViewByModel(cell);
-      if (view) view.el.classList.remove('wf-selected');
+      this._paper.findViewByModel(cell)?.el.classList.remove('wf-selected');
     }
     this._paper.removeTools();
     joint.highlighters.stroke.removeAll(this._paper);
@@ -1432,150 +1204,97 @@ class Canvas extends EventEmitter {
   }
 
   _showPanel(type) {
-    this._propPanelEl.style.display   = type === 'element' ? 'flex' : 'none';
-    this._propPanelLink.style.display = type === 'link'    ? 'flex' : 'none';
-    this._noSelection.style.display   = type === 'none'    ? 'block' : 'none';
+    this._propPanelEl.style.display   = type==='element' ? 'flex' : 'none';
+    this._propPanelLink.style.display = type==='link'    ? 'flex' : 'none';
+    this._noSelection.style.display   = type==='none'    ? 'block' : 'none';
   }
 
   _populateElementPanel(shape) {
-    const p = this._propPanelEl;
-    const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
-    set('label',              shape.label);
-    set('labelFontSize',      shape.labelFontSize);
-    set('description',        shape.description);
-    set('imageUrl',           shape.imageUrl);
-    set('imageWidth',         shape.imageWidth);
-    set('imageHeight',        shape.imageHeight);
-    set('backgroundColor',    shape.backgroundColor);
-    set('backgroundColorHex', shape.backgroundColor);
-    set('borderColor',        shape.borderColor);
-    set('borderColorHex',     shape.borderColor);
-    set('labelColor',         shape.labelColor);
-    set('labelColorHex',      shape.labelColor);
-    set('descriptionColor',   shape.descriptionColor);
-    set('descriptionColorHex',shape.descriptionColor);
-
+    const p=this._propPanelEl;
+    const set=(k,v)=>{ const el=p.querySelector(`[data-prop="${k}"]`); if(el) el.value=v??''; };
+    set('label',shape.label); set('labelFontSize',shape.labelFontSize);
+    set('description',shape.description); set('imageUrl',shape.imageUrl);
+    set('imageWidth',shape.imageWidth); set('imageHeight',shape.imageHeight);
+    set('backgroundColor',shape.backgroundColor); set('backgroundColorHex',shape.backgroundColor);
+    set('borderColor',shape.borderColor); set('borderColorHex',shape.borderColor);
+    set('labelColor',shape.labelColor); set('labelColorHex',shape.labelColor);
+    set('descriptionColor',shape.descriptionColor); set('descriptionColorHex',shape.descriptionColor);
     p.querySelector('.wf-custom-props')?.remove();
-    const schema = shape.getSchema?.() ?? {};
-    if (Object.keys(schema).length === 0) return;
-
-    const section = this._createEl('div', 'wf-custom-props');
-    const divider = section.appendChild(this._createEl('div'));
-    divider.style.cssText = 'border-top:1px solid #dee2e6;margin:4px 0;';
-
-    Object.entries(schema).forEach(([key, def]) => {
-      if (def.visible === false) return;
-      const group = section.appendChild(this._createEl('div', 'wf-prop-group'));
-      const lbl   = group.appendChild(this._createEl('label'));
-      lbl.textContent = def.label ?? key;
-      const val = shape.getCustomProperty(key);
-
+    const schema=shape.getSchema?.()??{}; if (!Object.keys(schema).length) return;
+    const section=this._createEl('div','wf-custom-props');
+    const div=section.appendChild(this._createEl('div')); div.style.cssText='border-top:1px solid #dee2e6;margin:4px 0;';
+    Object.entries(schema).forEach(([key,def]) => {
+      if (def.visible===false) return;
+      const group=section.appendChild(this._createEl('div','wf-prop-group'));
+      const lbl=group.appendChild(this._createEl('label')); lbl.textContent=def.label??key;
+      const val=shape.getCustomProperty(key);
       let input;
-      if (def.type === 'choice') {
-        input = this._createEl('select');
-        Object.entries(def.choices ?? {}).forEach(([k, v]) => {
-          const opt = input.appendChild(this._createEl('option'));
-          opt.value = k; opt.textContent = v;
-        });
-        input.value = val ?? def.default;
-      } else if (def.type === 'textarea') {
-        input = this._createEl('textarea');
-        input.value = val ?? '';
-      } else if (def.type === 'boolean') {
-        input = this._createEl('input');
-        input.type = 'checkbox';
-        input.checked = val ?? def.default ?? false;
-        input.style.cssText = 'width:auto !important;margin:0;cursor:pointer;align-self:flex-start;';
+      if (def.type==='choice') {
+        input=this._createEl('select');
+        Object.entries(def.choices??{}).forEach(([k,v])=>{ const o=input.appendChild(this._createEl('option')); o.value=k; o.textContent=v; });
+        input.value=val??def.default;
+      } else if (def.type==='textarea') {
+        input=this._createEl('textarea'); input.value=val??'';
+      } else if (def.type==='boolean') {
+        input=this._createEl('input'); input.type='checkbox'; input.checked=val??def.default??false;
+        input.style.cssText='width:auto !important;margin:0;cursor:pointer;align-self:flex-start;';
         group.appendChild(input);
-      } else if (def.type === 'color') {
-        const wrapper = group.appendChild(this._createEl('div', 'wf-color-row'));
-        const picker  = this._createEl('input'); picker.type = 'color'; picker.value = val ?? def.default ?? '#000000';
-        const hex     = this._createEl('input'); hex.type = 'text';    hex.value = val ?? def.default ?? '#000000';
-        picker.addEventListener('input', () => { hex.value = picker.value; shape.setCustomProperty(key, picker.value); });
-        hex.addEventListener('input',    () => { picker.value = hex.value; shape.setCustomProperty(key, hex.value); });
-        wrapper.appendChild(picker); wrapper.appendChild(hex);
-        group.appendChild(wrapper);
-        return;
+      } else if (def.type==='color') {
+        const w=group.appendChild(this._createEl('div','wf-color-row'));
+        const picker=this._createEl('input'); picker.type='color'; picker.value=val??def.default??'#000000';
+        const hex=this._createEl('input'); hex.type='text'; hex.value=val??def.default??'#000000';
+        picker.addEventListener('input',()=>{ hex.value=picker.value; shape.setCustomProperty(key,picker.value); });
+        hex.addEventListener('input',()=>{ picker.value=hex.value; shape.setCustomProperty(key,hex.value); });
+        w.appendChild(picker); w.appendChild(hex); group.appendChild(w); return;
       } else {
-        input = this._createEl('input');
-        input.type  = def.type === 'number' ? 'number' : 'text';
-        input.value = val ?? '';
-        if (def.min !== undefined) input.min = def.min;
-        if (def.max !== undefined) input.max = def.max;
+        input=this._createEl('input'); input.type=def.type==='number'?'number':'text'; input.value=val??'';
+        if (def.min!==undefined) input.min=def.min; if (def.max!==undefined) input.max=def.max;
       }
-
-      if (def.readonly) input.disabled = true;
+      if (def.readonly) input.disabled=true;
       group.appendChild(input);
-      input.addEventListener(def.type === 'boolean' ? 'change' : 'input', () => {
-        const v = def.type === 'boolean' ? input.checked : (def.type === 'number' ? parseFloat(input.value) : input.value);
-        shape.setCustomProperty(key, v);
+      input.addEventListener(def.type==='boolean'?'change':'input',()=>{
+        const v=def.type==='boolean'?input.checked:(def.type==='number'?parseFloat(input.value):input.value);
+        shape.setCustomProperty(key,v);
       });
     });
-
     p.appendChild(section);
   }
 
   _populateLinkPanel(conn) {
-    const p = this._propPanelLink;
-    const set = (prop, val) => { const el = p.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
-    set('label',         conn.label);
-    set('labelFontSize', conn.labelFontSize);
-    set('labelColor',    conn.labelColor);
-    set('labelColorHex', conn.labelColor);
-    set('lineColor',     conn.lineColor);
-    set('lineColorHex',  conn.lineColor);
-    set('lineStyle',     conn.lineStyle);
-    set('connectorType', conn.connectorType);
-    set('sourceArrow',   conn.sourceArrow);
-    set('targetArrow',   conn.targetArrow);
-    set('description',   conn.description);
+    const p=this._propPanelLink;
+    const set=(k,v)=>{ const el=p.querySelector(`[data-prop="${k}"]`); if(el) el.value=v??''; };
+    set('label',conn.label); set('labelFontSize',conn.labelFontSize);
+    set('labelColor',conn.labelColor); set('labelColorHex',conn.labelColor);
+    set('lineColor',conn.lineColor); set('lineColorHex',conn.lineColor);
+    set('lineStyle',conn.lineStyle); set('connectorType',conn.connectorType);
+    set('sourceArrow',conn.sourceArrow); set('targetArrow',conn.targetArrow);
+    set('description',conn.description);
   }
 
   // ═══════════════════════════════════════════
   // Internal: Sidebar
   // ═══════════════════════════════════════════
-  _toggleSidebar(sidebar) {
-    const isLeft  = sidebar === this._leftSidebar;
-    const icon    = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
-    const tBefore = this._paper.translate();
-    const isCollapsed = sidebar.classList.toggle('wf-collapsed');
-    icon.style.transform = isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-
-    if (this._isMobile() && !isCollapsed) {
-      const other     = isLeft ? this._rightSidebar : this._leftSidebar;
-      const otherIcon = isLeft ? this._rightCollapseIcon : this._leftCollapseIcon;
-      if (!other.classList.contains('wf-collapsed')) {
-        other.classList.add('wf-collapsed');
-        otherIcon.style.transform = 'rotate(180deg)';
-      }
+  _toggleSidebar(sb) {
+    const isLeft=sb===this._leftSidebar, icon=isLeft?this._leftCollapseIcon:this._rightCollapseIcon;
+    const tBefore=this._paper.translate(), collapsed=sb.classList.toggle('wf-collapsed');
+    icon.style.transform=collapsed?'rotate(180deg)':'rotate(0deg)';
+    if (this._isMobile()&&!collapsed) {
+      const other=isLeft?this._rightSidebar:this._leftSidebar, oIcon=isLeft?this._rightCollapseIcon:this._leftCollapseIcon;
+      if (!other.classList.contains('wf-collapsed')) { other.classList.add('wf-collapsed'); oIcon.style.transform='rotate(180deg)'; }
     }
-
-    const interval = setInterval(() => {
-      const c = this._canvasContainer;
-      this._paper.setDimensions(c.clientWidth, c.clientHeight);
-      this._paper.translate(tBefore.tx, tBefore.ty);
-    }, 16);
-    setTimeout(() => clearInterval(interval), 350);
+    const iv=setInterval(()=>{ const c=this._canvasContainer; this._paper.setDimensions(c.clientWidth,c.clientHeight); this._paper.translate(tBefore.tx,tBefore.ty); },16);
+    setTimeout(()=>clearInterval(iv),350);
   }
-
-  _setSidebarCollapsed(sidebar, collapsed) {
-    const isLeft = sidebar === this._leftSidebar;
-    const icon   = isLeft ? this._leftCollapseIcon : this._rightCollapseIcon;
-    sidebar.classList.toggle('wf-collapsed', collapsed);
-    icon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+  _setSidebarCollapsed(sb,collapsed) {
+    const isLeft=sb===this._leftSidebar, icon=isLeft?this._leftCollapseIcon:this._rightCollapseIcon;
+    sb.classList.toggle('wf-collapsed',collapsed); icon.style.transform=collapsed?'rotate(180deg)':'rotate(0deg)';
   }
-
   _collapseBothSidebars() {
     if (!this._isMobile()) return;
-    const tBefore = this._paper.translate();
-    this._setSidebarCollapsed(this._leftSidebar,  true);
-    this._setSidebarCollapsed(this._rightSidebar, true);
-    const interval = setInterval(() => {
-      const c = this._canvasContainer;
-      this._paper.setDimensions(c.clientWidth, c.clientHeight);
-      this._paper.translate(tBefore.tx, tBefore.ty);
-    }, 16);
-    setTimeout(() => clearInterval(interval), 350);
+    const tBefore=this._paper.translate();
+    this._setSidebarCollapsed(this._leftSidebar,true); this._setSidebarCollapsed(this._rightSidebar,true);
+    const iv=setInterval(()=>{ const c=this._canvasContainer; this._paper.setDimensions(c.clientWidth,c.clientHeight); this._paper.translate(tBefore.tx,tBefore.ty); },16);
+    setTimeout(()=>clearInterval(iv),350);
   }
 
   // ═══════════════════════════════════════════
@@ -1583,186 +1302,158 @@ class Canvas extends EventEmitter {
   // ═══════════════════════════════════════════
   _duplicateSelected() {
     if (!(this._selected instanceof Shape)) return;
-    const clone = this._selected._cell.clone();
-    clone.translate(40, 40).addTo(this._graph);
-    const shapeClass = this._selected.constructor;
-    const cloneShape = new shapeClass(this._selected.label);
-    cloneShape._cell   = clone;
-    cloneShape._canvas = this;
-    this._shapes.set(clone.id, cloneShape);
-    this._selectCell(cloneShape);
-    this.emit('shape:add', cloneShape);
+    const clone=this._selected._cell.clone(); clone.translate(40,40).addTo(this._graph);
+    const cs=new this._selected.constructor(this._selected.label); cs._cell=clone; cs._canvas=this;
+    this._shapes.set(clone.id,cs); this._selectCell(cs); this.emit('shape:add',cs);
   }
-
-  _deleteSelected() {
-    if (!this._selected) return;
-    const sel = this._selected;
-    this._deselectAll();
-    sel.remove();
-  }
-
+  _deleteSelected() { if (!this._selected) return; const s=this._selected; this._deselectAll(); s.remove(); }
   _focusSelected() {
     if (!this._selected) return;
-    const cell   = this._selected instanceof Shape ? this._selected._cell : this._selected._link;
-    const center = cell.getBBox().center();
-    const s      = this._paper.getComputedSize();
-    this._paper.scale(1,1);
-    this._paper.translate(s.width/2 - center.x, s.height/2 - center.y);
+    const c=this._selected instanceof Shape?this._selected._cell:this._selected._link;
+    const center=c.getBBox().center(), s=this._paper.getComputedSize();
+    this._paper.scale(1,1); this._paper.translate(s.width/2-center.x, s.height/2-center.y);
   }
 
   // ═══════════════════════════════════════════
-  // Internal: Connection creation
+  // Internal: Connections
   // ═══════════════════════════════════════════
   _createConnection(source, target, sourcePort, targetPort) {
-    const link = new joint.shapes.standard.Link({
-      attrs: { line: { stroke:'#495057', strokeWidth:2, targetMarker: MARKERS.classic } }
-    });
-    const srcPorts = source._cell.getPorts();
-    const tgtPorts = target._cell.getPorts();
-    const srcPort  = sourcePort !== null && srcPorts[sourcePort-1] ? srcPorts[sourcePort-1].id : srcPorts[0]?.id;
-    const tgtPort  = targetPort !== null && tgtPorts[targetPort-1] ? tgtPorts[targetPort-1].id : tgtPorts[0]?.id;
-    link.source({ id: source._cell.id, port: srcPort });
-    link.target({ id: target._cell.id, port: tgtPort });
+    const link = new joint.shapes.standard.Link({ attrs:{ line:{ stroke:'#495057', strokeWidth:2, targetMarker:MARKERS.classic } } });
+    const srcPorts=source._cell.getPorts(), tgtPorts=target._cell.getPorts();
+    // Connect cell-to-cell initially (no port) — distributor assigns correct ports after
+    const srcPort=sourcePort!==null&&srcPorts[sourcePort-1] ? srcPorts[sourcePort-1].id : undefined;
+    const tgtPort=targetPort!==null&&tgtPorts[targetPort-1] ? tgtPorts[targetPort-1].id : undefined;
+    link.source(srcPort ? { id:source._cell.id, port:srcPort } : { id:source._cell.id });
+    link.target(tgtPort ? { id:target._cell.id, port:tgtPort } : { id:target._cell.id });
+    // Only store explicit port assignments (non-null) so the distributor
+    // knows to leave them alone. undefined = auto-route freely.
+    if (sourcePort !== null) link.set('sourcePort', sourcePort);
+    if (targetPort !== null) link.set('targetPort', targetPort);
     link.addTo(this._graph);
-    const conn = new Connection(link, source, target, this);
-    this._connections.set(link.id, conn);
-    this.emit('connection:add', conn);
+    const conn=new Connection(link,source,target,this);
+    this._connections.set(link.id,conn);
+    this.emit('connection:add',conn);
     return conn;
   }
+  _getConnectionsForShape(shape) { return [...this._connections.values()].filter(c=>c.source===shape||c.target===shape); }
 
-  _getConnectionsForShape(shape) {
-    return [...this._connections.values()].filter(c => c.source === shape || c.target === shape);
+  // Waits for JointJS to finish rendering a cell view by listening
+  // to the paper's render queue via requestAnimationFrame chains.
+  // Returns a promise that resolves once the view's ports are updated.
+  _waitForRender(cell) {
+    return new Promise(resolve => {
+      const view = this._paper.findViewByModel(cell);
+      if (!view) { resolve(); return; }
+      // JointJS processes model changes synchronously but SVG attribute
+      // updates are batched. Two rAFs guarantee both the resize and the
+      // subsequent SVG transform updates have been flushed to the DOM.
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve(view)));
+    });
   }
 
-  // ═══════════════════════════════════════════
-  // Internal: Auto-sizing
-  // ═══════════════════════════════════════════
+  async _autoSizeAsync(cell) {
+    this._autoSize(cell);
+    await this._waitForRender(cell);
+    // Rebuild JointJS spatial index so pointer events hit the resized cell correctly
+    this._paper.updateViews();
+  }
+
+
   _autoSize(cell) {
-    const view = this._paper.findViewByModel(cell);
-    if (!view) return;
-    const labelNode = view.el.querySelector('.label');
-    const descNode  = view.el.querySelector('.descriptionLabel');
-    if (!labelNode || !descNode) return;
-
-    const scale        = (cell.get('fontSizePercent') || 100) / 100;
-    const baseFontSize = 13, baseDescSize = 11;
-    cell.attr({ label: { fontSize: baseFontSize * scale }, descriptionLabel: { fontSize: baseDescSize * scale } });
-
-    const imageUrl = cell.get('imageUrl');
-    const type     = cell.get('type');
-    const descText = cell.attr('descriptionLabel/text') || '';
-    const imgW     = parseInt(cell.get('imageWidth')  || 32);
-    const imgH     = parseInt(cell.get('imageHeight') || 32);
-    const labelBBox = labelNode.getBBox();
-    const descBBox  = descNode.getBBox();
-    const pad = 15, imgSpace = imageUrl ? 10 : 0;
-    const textW   = Math.max(labelBBox.width, descBBox.width);
-    const totalW  = (imageUrl ? imgW : 0) + imgSpace + textW;
-
-    let width  = Math.max(140, pad + totalW + pad);
-    const totalTextH = descText ? labelBBox.height + descBBox.height : labelBBox.height;
-    let height = Math.max(50, pad + Math.max(imageUrl ? imgH : 0, totalTextH) + pad);
-
-    if (type === 'diamond') { width = height = Math.max(width, height); }
+    const view=this._paper.findViewByModel(cell); if (!view) return;
+    const ln=view.el.querySelector('.label'), dn=view.el.querySelector('.descriptionLabel');
+    if (!ln||!dn) return;
+    const scale=(cell.get('fontSizePercent')||100)/100;
+    cell.attr({ label:{ fontSize:13*scale }, descriptionLabel:{ fontSize:11*scale } });
+    const imageUrl=cell.get('imageUrl'), type=cell.get('type'), descText=cell.attr('descriptionLabel/text')||'';
+    const imgW=parseInt(cell.get('imageWidth')||32), imgH=parseInt(cell.get('imageHeight')||32);
+    const lb=ln.getBBox(), db=dn.getBBox(), pad=15, imgSpace=imageUrl?10:0;
+    const textW=Math.max(lb.width,db.width), totalW=(imageUrl?imgW:0)+imgSpace+textW;
+    let w=Math.max(140,pad+totalW+pad);
+    const totalTextH=descText?lb.height+db.height:lb.height;
+    let h=Math.max(50,pad+Math.max(imageUrl?imgH:0,totalTextH)+pad);
+    if (type==='diamond') { w=h=Math.max(w,h); }
     else if (['triangle','hexagon','pentagon','octagon'].includes(type)) {
-      if (width/height > 1.2) height = width/1.2; else width = height*1.2;
-      if (type === 'triangle') { width *= 1.25; height *= 1.25; }
+      if (w/h>1.2) h=w/1.2; else w=h*1.2;
+      if (type==='triangle') { w*=1.25; h*=1.25; }
     }
-
-    const startX      = (width - totalW) / 2;
-    const textCenterX = startX + (imageUrl ? imgW : 0) + imgSpace + textW/2;
-    cell.attr('image', { refX:0, refX2:startX, refY:0.5, y:-imgH/2, width:imgW, height:imgH });
-
+    const startX=(w-totalW)/2, tcX=startX+(imageUrl?imgW:0)+imgSpace+textW/2;
+    cell.attr('image',{ refX:0, refX2:startX, refY:0.5, y:-imgH/2, width:imgW, height:imgH });
     if (descText) {
-      const cY = (height - totalTextH) / 2;
-      cell.attr('label',            { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height/2,                   textAnchor:'middle', textVerticalAnchor:'middle' });
-      cell.attr('descriptionLabel', { refX:0, refX2:textCenterX, refY:0, refY2:cY + labelBBox.height + descBBox.height/2, textAnchor:'middle', textVerticalAnchor:'middle' });
+      const cY=(h-totalTextH)/2;
+      cell.attr('label',            { refX:0,refX2:tcX,refY:0,refY2:cY+lb.height/2,            textAnchor:'middle',textVerticalAnchor:'middle' });
+      cell.attr('descriptionLabel', { refX:0,refX2:tcX,refY:0,refY2:cY+lb.height+db.height/2,  textAnchor:'middle',textVerticalAnchor:'middle' });
     } else {
-      cell.attr('label', { refX:0, refX2:textCenterX, refY:0.5, refY2:0, textAnchor:'middle', textVerticalAnchor:'middle' });
+      cell.attr('label',{ refX:0,refX2:tcX,refY:0.5,refY2:0,textAnchor:'middle',textVerticalAnchor:'middle' });
     }
-    cell.resize(width, height);
+    cell.resize(w,h);
   }
 
   // ═══════════════════════════════════════════
   // Internal: Auto-port distribution
   // ═══════════════════════════════════════════
   _autoPortDistributor(element) {
-    if (!this._autoPortEnabled) return;
+    if (!this._autoPortEnabled || this._deserializing) return;
     this._graph.getConnectedLinks(element).forEach(link => {
-      const conn = this._connections.get(link.id);
-      if (conn?.sourcePort !== null || conn?.targetPort !== null) return;
-      const src = link.getSourceElement(), tgt = link.getTargetElement();
-      if (!src || !tgt) return;
-      const getBest = (el, other) => {
-        const angle = Math.atan2(other.center().y - el.getBBox().center().y, other.center().x - el.getBBox().center().x);
-        let best = null, min = Infinity;
-        el.getPorts().forEach(p => {
-          const pos = el.getPortsPositions('all')[p.id];
-          const a   = Math.atan2(pos.y - el.getBBox().height/2, pos.x - el.getBBox().width/2);
-          let d = Math.abs(angle - a); if (d > Math.PI) d = 2*Math.PI - d;
-          if (d < min) { min = d; best = p.id; }
+      if (typeof link.get('sourcePort') === 'number') return;
+      if (typeof link.get('targetPort') === 'number') return;
+      const src=link.getSourceElement(), tgt=link.getTargetElement(); if (!src||!tgt) return;
+
+      const centerOf = el => {
+        const pos  = el.position();
+        const size = el.size();
+        return { x: pos.x + size.width/2, y: pos.y + size.height/2 };
+      };
+
+      const getBest=(el,otherCenter)=>{
+        const elCenter   = centerOf(el);
+        const angle      = Math.atan2(otherCenter.y - elCenter.y, otherCenter.x - elCenter.x);
+        const positions  = el.getPortsPositions('all');
+        const size       = el.size();
+        let best=null, min=Infinity;
+        el.getPorts().forEach(p=>{
+          const pos=positions[p.id]; if (!pos) return;
+          const a=Math.atan2(pos.y - size.height/2, pos.x - size.width/2);
+          let d=Math.abs(angle-a); if(d>Math.PI) d=2*Math.PI-d;
+          if(d<min){min=d;best=p.id;}
         });
         return best;
       };
-      const bS = getBest(src, tgt.getBBox()), bT = getBest(tgt, src.getBBox());
-      if (link.get('source').port !== bS) link.source({ id: src.id, port: bS });
-      if (link.get('target').port !== bT) link.target({ id: tgt.id, port: bT });
+
+      const srcCenter = centerOf(src), tgtCenter = centerOf(tgt);
+      const bS=getBest(src, tgtCenter), bT=getBest(tgt, srcCenter);
+      if (link.get('source').port!==bS) link.source({id:src.id,port:bS});
+      if (link.get('target').port!==bT) link.target({id:tgt.id,port:bT});
     });
   }
 
   // ═══════════════════════════════════════════
   // Internal: Helpers
   // ═══════════════════════════════════════════
-  _isMobile() { return window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches; }
-
-  _createEl(tag, className = '') {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    return el;
+  _isMobile()         { return window.matchMedia('(pointer:coarse) and (max-width:767px)').matches; }
+  _createEl(tag,cls='') { const el=document.createElement(tag); if(cls) el.className=cls; return el; }
+  _zoomBtn(parent,title,html) { const b=parent.appendChild(this._createEl('button','wf-ctrl-btn')); b.title=title; b.innerHTML=html; return b; }
+  _zoomAtPoint(factor,cx,cy) {
+    const cur=this._paper.scale().sx, next=Math.max(0.1,Math.min(10,cur*factor));
+    const rect=this._paper.el.getBoundingClientRect(), x=cx-rect.left, y=cy-rect.top;
+    const t=this._paper.translate(), ox=(x-t.tx)/cur, oy=(y-t.ty)/cur;
+    this._paper.scale(next,next); this._paper.translate(x-ox*next,y-oy*next);
   }
-
-  _zoomBtn(parent, title, html) {
-    const btn = parent.appendChild(this._createEl('button', 'wf-ctrl-btn'));
-    btn.title = title; btn.innerHTML = html;
-    return btn;
-  }
-
-  _zoomAtPoint(factor, clientX, clientY) {
-    const cur  = this._paper.scale().sx;
-    const next = Math.max(0.1, Math.min(10, cur * factor));
-    const rect = this._paper.el.getBoundingClientRect();
-    const x = clientX - rect.left, y = clientY - rect.top;
-    const t = this._paper.translate();
-    const ox = (x - t.tx) / cur, oy = (y - t.ty) / cur;
-    this._paper.scale(next, next);
-    this._paper.translate(x - ox*next, y - oy*next);
-  }
-
-  _zoomCenter(factor) {
-    const rect = this._paper.el.getBoundingClientRect();
-    this._zoomAtPoint(factor, rect.left + rect.width/2, rect.top + rect.height/2);
-  }
-
-  _findClearPosition(x, y, w, h, exclude = null) {
-    const cl = this.shapeClearance * this._GRID;
-    let cx = Math.round(x/this._GRID)*this._GRID, cy = Math.round(y/this._GRID)*this._GRID;
-    const isObs = (px, py) => {
-      const r = new joint.g.Rect(px, py, w, h).inflate(cl);
-      return this._graph.getElements().some(el => (exclude && el.id === exclude.id) ? false : r.intersect(el.getBBox().clone().inflate(cl)));
-    };
-    if (!isObs(cx,cy)) return { x:cx, y:cy };
-    for (let s=1; s<30; s++) {
-      for (let dx=-s; dx<=s; dx++) for (let dy=-s; dy<=s; dy++) {
-        if (Math.abs(dx)!==s && Math.abs(dy)!==s) continue;
-        const tx=cx+dx*this._GRID, ty=cy+dy*this._GRID;
-        if (!isObs(tx,ty)) return { x:tx, y:ty };
-      }
+  _zoomCenter(f) { const r=this._paper.el.getBoundingClientRect(); this._zoomAtPoint(f,r.left+r.width/2,r.top+r.height/2); }
+  _findClearPosition(x,y,w,h,exclude=null) {
+    const cl=this.shapeClearance*this._GRID;
+    let cx=Math.round(x/this._GRID)*this._GRID, cy=Math.round(y/this._GRID)*this._GRID;
+    const isObs=(px,py)=>{ const r=new joint.g.Rect(px,py,w,h).inflate(cl); return this._graph.getElements().some(el=>(exclude&&el.id===exclude.id)?false:r.intersect(el.getBBox().clone().inflate(cl))); };
+    if (!isObs(cx,cy)) return {x:cx,y:cy};
+    for (let s=1;s<30;s++) for (let dx=-s;dx<=s;dx++) for (let dy=-s;dy<=s;dy++) {
+      if (Math.abs(dx)!==s&&Math.abs(dy)!==s) continue;
+      const tx=cx+dx*this._GRID, ty=cy+dy*this._GRID;
+      if (!isObs(tx,ty)) return {x:tx,y:ty};
     }
-    return { x:cx, y:cy };
+    return {x:cx,y:cy};
   }
-
-  _touchDist(t1,t2) { const dx=t1.clientX-t2.clientX, dy=t1.clientY-t2.clientY; return Math.sqrt(dx*dx+dy*dy); }
-  _touchMid(t1,t2)  { return { x:(t1.clientX+t2.clientX)/2, y:(t1.clientY+t2.clientY)/2 }; }
+  _touchDist(t1,t2) { const dx=t1.clientX-t2.clientX,dy=t1.clientY-t2.clientY; return Math.sqrt(dx*dx+dy*dy); }
+  _touchMid(t1,t2)  { return {x:(t1.clientX+t2.clientX)/2,y:(t1.clientY+t2.clientY)/2}; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1771,26 +1462,27 @@ class Canvas extends EventEmitter {
 const canvas = new Canvas(document.body);
 
 const TaskShape = Shape.define(Rectangle,
-  { label: 'New Task', backgroundColor: '#f0f8ff' },
+  { label:'New Task', backgroundColor:'#f0f8ff' },
   {
-    assignee: { label: 'Assignee', type: 'text',     default: '' },
-    effort:   { label: 'Effort',   type: 'number',   default: 1, min: 1, max: 10 },
-    done:     { label: 'Done',     type: 'boolean',  default: false },
-    mode:     { label: 'Mode',     type: 'choice',   default: 'auto', choices: { auto: 'Automatic', manual: 'Manual' } },
-    note:     { label: 'Note',     type: 'textarea', default: '' },
-    accent:   { label: 'Accent',   type: 'color',    default: '#3498db' },
+    assignee: { label:'Assignee', type:'text',     default:'' },
+    effort:   { label:'Effort',   type:'number',   default:1, min:1, max:10 },
+    done:     { label:'Done',     type:'boolean',  default:false },
+    mode:     { label:'Mode',     type:'choice',   default:'auto', choices:{ auto:'Automatic', manual:'Manual' } },
+    note:     { label:'Note',     type:'textarea', default:'' },
+    accent:   { label:'Accent',   type:'color',    default:'#3498db' },
   },
-  (shape) => {
+  shape => {
     shape.backgroundColor = shape.getCustomProperty('done') ? '#d4edda' : '#f0f8ff';
     shape.borderColor     = shape.getCustomProperty('done') ? '#28a745' : '#adb5bd';
   }
 );
-
 canvas.registerShape('Task', TaskShape);
 
-const start   = canvas.addShape(new Ellipse({ label: 'START' }));
-const process = canvas.addShape(new Rectangle({ label: 'PROCESS' }));
-const task    = canvas.addShape(new TaskShape({ label: 'My Task', assignee: 'Alice', effort: 3 }));
+(async () => {
+  const start   = await canvas.addShape(new Ellipse({ label:'START' }));
+  const process = await canvas.addShape(new Rectangle({ label:'PROCESS' }));
+  const task    = await canvas.addShape(new TaskShape({ label:'My Task', assignee:'Alice', effort:3 }));
+})();
 </script>
 </body>
 </html>
