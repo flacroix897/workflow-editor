@@ -986,6 +986,7 @@ class Canvas extends EventEmitter {
     const totalTextH=descText?lb.height+db.height:lb.height;
     let h=Math.max(50,pad+Math.max(imageUrl?imgH:0,totalTextH)+pad);
     if(type==='diamond'){w=h=Math.max(w,h);}
+    else if(type==='circle'){w=h=Math.max(w,h);}
     else if(['triangle','hexagon','pentagon','octagon'].includes(type)){
       if(w/h>1.2)h=w/1.2; else w=h*1.2;
       if(type==='triangle'){w*=1.25;h*=1.25;}
