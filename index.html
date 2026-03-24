@@ -703,8 +703,12 @@ class Canvas extends EventEmitter {
     });
     this._paper.on('blank:pointerdown',evt=>{
       this._collapseBothSidebars();
-      if(this._isMobile())return;
       const sx=evt.clientX,sy=evt.clientY,o=this._paper.translate();
+      if(this._isMobile()){
+        // On mobile, deselect immediately — panning is handled by touch events
+        this._deselectAll();
+        return;
+      }
       const onMove=e=>this._paper.translate(o.tx+(e.clientX-sx),o.ty+(e.clientY-sy));
       const onUp=e=>{
         document.removeEventListener('mousemove',onMove);
