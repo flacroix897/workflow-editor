@@ -390,7 +390,10 @@ class Canvas extends EventEmitter {
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       this._autoSize(cell);
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      this._paper.updateViews(); if(shape._renderFn)shape._renderFn(shape); idMap[s.id]=shape;
+      this._paper.updateViews(); if(shape._renderFn)shape._renderFn(shape);
+      shape.on('change', s => this.emit('shape:change', s));
+      shape.on('move',   s => this.emit('shape:move',   s));
+      idMap[s.id]=shape;
     }
     for (const c of connections) {
       const source=idMap[c.sourceId],target=idMap[c.targetId]; if(!source||!target)continue;
@@ -729,7 +732,9 @@ class Canvas extends EventEmitter {
       const reverseExists=[...this._connections.values()].some(c=>c.source===target&&c.target===source);
       if(reverseExists){link.remove();return;}
       const conn=new Connection(link,source,target,this);
-      this._connections.set(link.id,conn); this.emit('connection:add',conn);
+      this._connections.set(link.id,conn);
+      conn.on('change', c => this.emit('connection:change', c));
+      this.emit('connection:add',conn);
     });
     this._graph.on('remove',cell=>{
       if(cell.isLink()){const c=this._connections.get(cell.id);if(c){this._connections.delete(cell.id);this.emit('connection:remove',c);}}
@@ -978,7 +983,9 @@ class Canvas extends EventEmitter {
     this._graph.stopBatch('connection');
     this._paper.updateViews();
     const conn=new Connection(link,source,target,this);
-    this._connections.set(link.id,conn); this.emit('connection:add',conn); return conn;
+    this._connections.set(link.id,conn);
+    conn.on('change', c => this.emit('connection:change', c));
+    this.emit('connection:add',conn); return conn;
   }
 
   _getConnectionsForShape(shape) { return [...this._connections.values()].filter(c=>c.source===shape||c.target===shape); }
