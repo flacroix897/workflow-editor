@@ -1,0 +1,379 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: sans-serif;
+    touch-action: none;
+}
+
+.wf-canvas-container {
+    flex-grow: 1;
+    background: #fdfdfd;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.wf-canvas-container:active {
+    cursor: grabbing;
+}
+
+.wf-paper {
+    width: 100%;
+    height: 100%;
+}
+
+.wf-paper svg {
+    will-change: transform;
+}
+
+.wf-sidebar {
+    width: 260px;
+    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wf-sidebar.wf-collapsed {
+    width: 44px;
+}
+
+.wf-sidebar-left {
+    border-right: 1px solid #dee2e6;
+}
+
+.wf-sidebar-right {
+    border-left: 1px solid #dee2e6;
+}
+
+.wf-sidebar-header {
+    padding: 0 15px;
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.wf-sidebar.wf-collapsed .wf-sidebar-header {
+    justify-content: center;
+    padding: 0;
+    border-bottom: none;
+    flex-direction: column;
+    gap: 8px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 12px 0;
+}
+
+.wf-sidebar.wf-collapsed .wf-sidebar-header .wf-sidebar-title,
+.wf-sidebar.wf-collapsed .wf-sidebar-body,
+.wf-sidebar.wf-collapsed .wf-header-actions {
+    display: none !important;
+}
+
+.wf-sidebar.wf-collapsed .wf-collapsed-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+}
+
+.wf-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.wf-header-btn {
+    background: none;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+}
+
+.wf-header-btn:hover {
+    background: #f1f3f5;
+    color: #3498db;
+}
+
+.wf-header-btn.danger:hover {
+    color: #e74c3c;
+    border-color: #fadbd8;
+    background: #fdf2f2;
+}
+
+.wf-collapse-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+
+.wf-collapse-btn:hover {
+    background: #f1f3f5;
+    color: #3498db;
+}
+
+.wf-collapse-icon {
+    transition: transform 0.3s;
+}
+
+.wf-library {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.wf-node-template {
+    padding: 12px;
+    background: white;
+    border: 1px solid #ced4da;
+    cursor: grab;
+    text-align: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-size: 13px;
+    color: #495057;
+}
+
+.wf-node-template:hover {
+    border-color: #3498db;
+    background: #f1f9ff;
+}
+
+.wf-properties {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.wf-custom-props {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.wf-no-selection {
+    padding: 20px;
+    color: #adb5bd;
+    font-size: 13px;
+    text-align: center;
+}
+
+.wf-prop-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wf-prop-group label {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.wf-prop-group input,
+.wf-prop-group textarea,
+.wf-prop-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.wf-prop-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.wf-color-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.wf-color-row input[type="color"] {
+    width: 40px;
+    padding: 2px;
+    height: 32px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.wf-prop-row {
+    display: flex;
+    gap: 10px;
+}
+
+.wf-prop-row>.wf-prop-group {
+    flex: 1;
+}
+
+.wf-image-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.wf-upload-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.wf-upload-btn:hover {
+    background: #f1f3f5;
+    border-color: #3498db;
+    color: #3498db;
+}
+
+.wf-bottom-left {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.wf-zoom-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.wf-ctrl-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    cursor: pointer;
+    background: #fff;
+    color: #2c3e50;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wf-ctrl-btn:hover {
+    background: #f1f3f5;
+    color: #3498db;
+}
+
+.wf-ctrl-btn.active {
+    background: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.wf-context-menu {
+    position: absolute;
+    display: none;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    border-radius: 4px;
+    padding: 5px 0;
+    min-width: 160px;
+}
+
+.wf-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    color: #333;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wf-menu-item:hover {
+    background: #f1f1f1;
+}
+
+.wf-menu-item.danger:hover {
+    color: #e74c3c;
+}
+
+.joint-port {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.joint-cell.wf-selected .joint-port {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.joint-paper.wf-dragging-link .joint-port {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.joint-ports {
+    pointer-events: none;
+}
+
+.joint-port-body {
+    pointer-events: all !important;
+}
