@@ -80,13 +80,17 @@ class EventBus {
   }
 
   on(eventName, callback) {
-    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    if (!this.listeners[eventName]) {
+      this.listeners[eventName] = [];
+    }
     this.listeners[eventName].push(callback);
     return this;
   }
 
   off(eventName, callback) {
-    if (!this.listeners[eventName]) return this;
+    if (!this.listeners[eventName]) {
+      return this;
+    }
     this.listeners[eventName] = this.listeners[eventName].filter(fn => fn !== callback);
     return this;
   }
@@ -103,13 +107,18 @@ class EventBus {
 class PathPoint extends EventBus {
   constructor(parentEdge, pointIndex) {
     super();
-    this.id = `pathpoint-${Math.random().toString(36).slice(2)}`;
+    this.id         = `pathpoint-${Math.random().toString(36).slice(2)}`;
     this.edge       = parentEdge;
     this.pointIndex = pointIndex;
   }
 
-  get x() { return this.edge.vertices()[this.pointIndex]?.x ?? 0; }
-  get y() { return this.edge.vertices()[this.pointIndex]?.y ?? 0; }
+  get x() {
+    return this.edge.vertices()[this.pointIndex]?.x ?? 0;
+  }
+
+  get y() {
+    return this.edge.vertices()[this.pointIndex]?.y ?? 0;
+  }
 
   moveTo(x, y) {
     const points = [...this.edge.vertices()];
@@ -153,63 +162,160 @@ class Edge extends EventBus {
     this.pathPoints = [];
   }
 
-  get id()     { return this.link.id; }
-  get source() { return this.sourceNode; }
-  get target() { return this.targetNode; }
-
-  get label() { return this.link.label(0)?.attrs?.text?.text || ''; }
-  set label(value) { this._applyLabel(value); this.emit('change', this); }
-
-  get labelColor() { return this.link.label(0)?.attrs?.text?.fill || '#333333'; }
-  set labelColor(value) { this.link.prop('labelColor', value); this._applyLabel(this.label); this.emit('change', this); }
-
-  get labelFontSize() { return this.link.get('fontSizePercent') || 100; }
-  set labelFontSize(value) { this.link.set('fontSizePercent', value); this._applyLabel(this.label); this.emit('change', this); }
-
-  get lineColor() { return this.link.attr('line/stroke') || '#495057'; }
-  set lineColor(value) { this.link.attr('line/stroke', value); this.emit('change', this); }
-
-  get lineWidth() { return this.link.attr('line/strokeWidth') || 2; }
-  set lineWidth(value) { this.link.attr('line/strokeWidth', value); this.emit('change', this); }
-
-  get lineStyle() {
-    const dash = this.link.attr('line/strokeDasharray') || '';
-    return dash === '5,5' ? 'dashed' : dash === '1,5' ? 'dotted' : 'solid';
+  get id() {
+    return this.link.id;
   }
-  set lineStyle(value) {
-    this.link.attr('line/strokeDasharray', value === 'dashed' ? '5,5' : value === 'dotted' ? '1,5' : '');
+
+  get source() {
+    return this.sourceNode;
+  }
+
+  get target() {
+    return this.targetNode;
+  }
+
+  get label() {
+    return this.link.label(0)?.attrs?.text?.text || '';
+  }
+
+  set label(value) {
+    this._applyLabel(value);
     this.emit('change', this);
   }
 
-  get sourceArrow() { return this._arrowNameFromDefinition(this.link.attr('line/sourceMarker')); }
-  set sourceArrow(value) { this.link.attr('line/sourceMarker', ARROW_MARKERS[value] || null); this.emit('change', this); }
+  get labelColor() {
+    return this.link.label(0)?.attrs?.text?.fill || '#333333';
+  }
 
-  get targetArrow() { return this._arrowNameFromDefinition(this.link.attr('line/targetMarker')); }
-  set targetArrow(value) { this.link.attr('line/targetMarker', ARROW_MARKERS[value] || null); this.emit('change', this); }
+  set labelColor(value) {
+    this.link.prop('labelColor', value);
+    this._applyLabel(this.label);
+    this.emit('change', this);
+  }
+
+  get labelFontSize() {
+    return this.link.get('fontSizePercent') || 100;
+  }
+
+  set labelFontSize(value) {
+    this.link.set('fontSizePercent', value);
+    this._applyLabel(this.label);
+    this.emit('change', this);
+  }
+
+  get lineColor() {
+    return this.link.attr('line/stroke') || '#495057';
+  }
+
+  set lineColor(value) {
+    this.link.attr('line/stroke', value);
+    this.emit('change', this);
+  }
+
+  get lineWidth() {
+    return this.link.attr('line/strokeWidth') || 2;
+  }
+
+  set lineWidth(value) {
+    this.link.attr('line/strokeWidth', value);
+    this.emit('change', this);
+  }
+
+  get lineStyle() {
+    const dash = this.link.attr('line/strokeDasharray') || '';
+    if (dash === '5,5') {
+      return 'dashed';
+    }
+    if (dash === '1,5') {
+      return 'dotted';
+    }
+    return 'solid';
+  }
+
+  set lineStyle(value) {
+    if (value === 'dashed') {
+      this.link.attr('line/strokeDasharray', '5,5');
+    } else if (value === 'dotted') {
+      this.link.attr('line/strokeDasharray', '1,5');
+    } else {
+      this.link.attr('line/strokeDasharray', '');
+    }
+    this.emit('change', this);
+  }
+
+  get sourceArrow() {
+    return this._arrowNameFromDefinition(this.link.attr('line/sourceMarker'));
+  }
+
+  set sourceArrow(value) {
+    this.link.attr('line/sourceMarker', ARROW_MARKERS[value] || null);
+    this.emit('change', this);
+  }
+
+  get targetArrow() {
+    return this._arrowNameFromDefinition(this.link.attr('line/targetMarker'));
+  }
+
+  set targetArrow(value) {
+    this.link.attr('line/targetMarker', ARROW_MARKERS[value] || null);
+    this.emit('change', this);
+  }
 
   get connectorType() {
     const connector = this.link.connector()?.name;
     const router    = this.link.router()?.name;
-    return connector === 'smooth' ? 'curved' : router === 'normal' ? 'straight' : 'elbow';
+    if (connector === 'smooth') {
+      return 'curved';
+    }
+    if (router === 'normal') {
+      return 'straight';
+    }
+    return 'elbow';
   }
+
   set connectorType(value) {
     const gridSize = this.editor.gridSize;
-    if (value === 'elbow')         { this.link.router('manhattan', { step: gridSize, padding: 20 }); this.link.connector('rounded'); }
-    else if (value === 'straight') { this.link.router('normal'); this.link.connector('normal'); }
-    else                           { this.link.router('normal'); this.link.connector('smooth'); }
+    if (value === 'elbow') {
+      this.link.router('manhattan', { step: gridSize, padding: 20 });
+      this.link.connector('rounded');
+    } else if (value === 'straight') {
+      this.link.router('normal');
+      this.link.connector('normal');
+    } else {
+      this.link.router('normal');
+      this.link.connector('smooth');
+    }
     this.emit('change', this);
   }
 
-  get sourcePort() { return this.link.get('sourcePort') ?? null; }
-  set sourcePort(value) { this._setPort('source', value); }
+  get sourcePort() {
+    return this.link.get('sourcePort') ?? null;
+  }
 
-  get targetPort() { return this.link.get('targetPort') ?? null; }
-  set targetPort(value) { this._setPort('target', value); }
+  set sourcePort(value) {
+    this._setPort('source', value);
+  }
 
-  get description() { return this.link.get('description') || ''; }
-  set description(value) { this.link.set('description', value); this.emit('change', this); }
+  get targetPort() {
+    return this.link.get('targetPort') ?? null;
+  }
 
-  getPathPoints() { return [...this.pathPoints]; }
+  set targetPort(value) {
+    this._setPort('target', value);
+  }
+
+  get description() {
+    return this.link.get('description') || '';
+  }
+
+  set description(value) {
+    this.link.set('description', value);
+    this.emit('change', this);
+  }
+
+  getPathPoints() {
+    return [...this.pathPoints];
+  }
 
   addPathPoint(x, y) {
     const points = [...this.link.vertices(), { x, y }];
@@ -219,23 +325,47 @@ class Edge extends EventBus {
     return point;
   }
 
-  select()   { this.editor._selectItem(this); return this; }
-  deselect() { this.editor.clearSelection(); return this; }
-  remove()   { this.link.remove(); this.emit('remove', this); }
+  select() {
+    this.editor._selectItem(this);
+    return this;
+  }
+
+  deselect() {
+    this.editor.clearSelection();
+    return this;
+  }
+
+  remove() {
+    this.link.remove();
+    this.emit('remove', this);
+  }
 
   _applyLabel(text) {
     const fontSize = 12 * ((this.link.get('fontSizePercent') || 100) / 100);
     const color    = this.link.get('labelColor') || '#333333';
-    this.link.labels(text
-      ? [{ attrs: { text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }]
-      : []
-    );
+    if (text) {
+      this.link.labels([{
+        attrs: {
+          text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' },
+          rect: { fill: 'white', opacity: 0.9 }
+        },
+        position: { distance: 0.5 }
+      }]);
+    } else {
+      this.link.labels([]);
+    }
   }
 
   _arrowNameFromDefinition(definition) {
-    if (!definition) return 'none';
-    if (definition.d === ARROW_MARKERS.classic.d) return 'classic';
-    if (definition.d === ARROW_MARKERS.block.d)   return 'block';
+    if (!definition) {
+      return 'none';
+    }
+    if (definition.d === ARROW_MARKERS.classic.d) {
+      return 'classic';
+    }
+    if (definition.d === ARROW_MARKERS.block.d) {
+      return 'block';
+    }
     return 'none';
   }
 
@@ -246,7 +376,9 @@ class Edge extends EventBus {
       this.link[side]({ id: node.cell.id });
     } else {
       const port = node.cell.getPorts()[portIndex - 1];
-      if (port) this.link[side]({ id: node.cell.id, port: port.id });
+      if (port) {
+        this.link[side]({ id: node.cell.id, port: port.id });
+      }
     }
     this.emit('change', this);
   }
@@ -267,86 +399,252 @@ class Node extends EventBus {
     this.renderFn     = null;
   }
 
-  getCustomProperty(key) { return this.customProps[key]; }
+  getCustomProperty(key) {
+    return this.customProps[key];
+  }
 
   setCustomProperty(key, value) {
     this.customProps[key] = value;
     this.cell?.set(`custom_${key}`, value);
-    if (this.renderFn) this.renderFn(this);
+    if (this.renderFn) {
+      this.renderFn(this);
+    }
     this.emit('change', this);
   }
 
-  getSchema() { return this.schema; }
+  getSchema() {
+    return this.schema;
+  }
 
-  get id()     { return this.cell?.id ?? null; }
-  get x()      { return this.cell?.position().x ?? 0; }
-  set x(value) { this.cell?.position(value, this.y); this.emit('change', this); }
-  get y()      { return this.cell?.position().y ?? 0; }
-  set y(value) { this.cell?.position(this.x, value); this.emit('change', this); }
-  get width()  { return this.cell?.size().width ?? 0; }
-  get height() { return this.cell?.size().height ?? 0; }
-  get portCount() { return 4; }
+  get id() {
+    return this.cell?.id ?? null;
+  }
 
-  get label()           { return this.cell?.attr('label/text') ?? this._label; }
-  set label(value)      { this.cell?.attr('label/text', value); this._label = value; this._resizeToFitContent(); this.emit('change', this); }
+  get x() {
+    return this.cell?.position().x ?? 0;
+  }
 
-  get labelColor()      { return this.cell?.attr('label/fill') ?? '#212529'; }
-  set labelColor(value) { this.cell?.attr('label/fill', value); this.emit('change', this); }
+  set x(value) {
+    this.cell?.position(value, this.y);
+    this.emit('change', this);
+  }
 
-  get labelFontSize()   { return this.cell?.get('fontSizePercent') ?? 100; }
-  set labelFontSize(value) { this.cell?.set('fontSizePercent', value); this._resizeToFitContent(); this.emit('change', this); }
+  get y() {
+    return this.cell?.position().y ?? 0;
+  }
 
-  get description()     { return this.cell?.get('description') ?? ''; }
-  set description(value) { this.cell?.set('description', value); this.cell?.attr('descriptionLabel/text', value); this._resizeToFitContent(); this.emit('change', this); }
+  set y(value) {
+    this.cell?.position(this.x, value);
+    this.emit('change', this);
+  }
 
-  get descriptionColor()      { return this.cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
-  set descriptionColor(value) { this.cell?.attr('descriptionLabel/fill', value); this.emit('change', this); }
+  get width() {
+    return this.cell?.size().width ?? 0;
+  }
 
-  get backgroundColor()       { return this.cell?.attr('body/fill') ?? '#ffffff'; }
-  set backgroundColor(value)  { this.cell?.attr('body/fill', value); this.emit('change', this); }
+  get height() {
+    return this.cell?.size().height ?? 0;
+  }
 
-  get borderColor()     { return this.cell?.attr('body/stroke') ?? '#adb5bd'; }
-  set borderColor(value) { this.cell?.attr('body/stroke', value); this.emit('change', this); }
+  get portCount() {
+    return 4;
+  }
 
-  get borderWidth()     { return this.cell?.attr('body/strokeWidth') ?? 2; }
-  set borderWidth(value) { this.cell?.attr('body/strokeWidth', value); this.emit('change', this); }
+  get label() {
+    return this.cell?.attr('label/text') ?? this._label;
+  }
 
-  get imageUrl()        { return this.cell?.get('imageUrl') ?? ''; }
-  set imageUrl(value)   { this.cell?.set('imageUrl', value); this.cell?.attr('image/xlink:href', value); this.cell?.attr('image/display', value ? 'block' : 'none'); this._resizeToFitContent(); this.emit('change', this); }
+  set label(value) {
+    this.cell?.attr('label/text', value);
+    this._label = value;
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
 
-  get imageWidth()      { return this.cell?.get('imageWidth') ?? 32; }
-  set imageWidth(value) { this.cell?.set('imageWidth', value); this._resizeToFitContent(); this.emit('change', this); }
+  get labelColor() {
+    return this.cell?.attr('label/fill') ?? '#212529';
+  }
 
-  get imageHeight()     { return this.cell?.get('imageHeight') ?? 32; }
-  set imageHeight(value) { this.cell?.set('imageHeight', value); this._resizeToFitContent(); this.emit('change', this); }
+  set labelColor(value) {
+    this.cell?.attr('label/fill', value);
+    this.emit('change', this);
+  }
 
-  get status()          { return this.cell?.get('status') ?? 'pending'; }
-  set status(value)     { this.cell?.set('status', value); this.emit('change', this); }
+  get labelFontSize() {
+    return this.cell?.get('fontSizePercent') ?? 100;
+  }
 
-  get priority()        { return this.cell?.get('priority') ?? 1; }
-  set priority(value)   { this.cell?.set('priority', value); this.emit('change', this); }
+  set labelFontSize(value) {
+    this.cell?.set('fontSizePercent', value);
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
 
-  moveTo(x, y)       { this.cell?.position(x, y); this.emit('move', this); return this; }
-  moveBy(dx, dy)     { return this.moveTo(this.x + dx, this.y + dy); }
-  toFront()          { this.cell?.toFront(); return this; }
-  toBack()           { this.cell?.toBack(); return this; }
-  select()           { this.editor?._selectItem(this); return this; }
-  deselect()         { this.editor?.clearSelection(); return this; }
+  get description() {
+    return this.cell?.get('description') ?? '';
+  }
 
-  getEdges()         { return this.editor?._getEdgesForNode(this) ?? []; }
-  getIncomingEdges() { return this.getEdges().filter(e => e.target === this); }
-  getOutgoingEdges() { return this.getEdges().filter(e => e.source === this); }
+  set description(value) {
+    this.cell?.set('description', value);
+    this.cell?.attr('descriptionLabel/text', value);
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
+
+  get descriptionColor() {
+    return this.cell?.attr('descriptionLabel/fill') ?? '#6c757d';
+  }
+
+  set descriptionColor(value) {
+    this.cell?.attr('descriptionLabel/fill', value);
+    this.emit('change', this);
+  }
+
+  get backgroundColor() {
+    return this.cell?.attr('body/fill') ?? '#ffffff';
+  }
+
+  set backgroundColor(value) {
+    this.cell?.attr('body/fill', value);
+    this.emit('change', this);
+  }
+
+  get borderColor() {
+    return this.cell?.attr('body/stroke') ?? '#adb5bd';
+  }
+
+  set borderColor(value) {
+    this.cell?.attr('body/stroke', value);
+    this.emit('change', this);
+  }
+
+  get borderWidth() {
+    return this.cell?.attr('body/strokeWidth') ?? 2;
+  }
+
+  set borderWidth(value) {
+    this.cell?.attr('body/strokeWidth', value);
+    this.emit('change', this);
+  }
+
+  get imageUrl() {
+    return this.cell?.get('imageUrl') ?? '';
+  }
+
+  set imageUrl(value) {
+    this.cell?.set('imageUrl', value);
+    this.cell?.attr('image/xlink:href', value);
+    this.cell?.attr('image/display', value ? 'block' : 'none');
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
+
+  get imageWidth() {
+    return this.cell?.get('imageWidth') ?? 32;
+  }
+
+  set imageWidth(value) {
+    this.cell?.set('imageWidth', value);
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
+
+  get imageHeight() {
+    return this.cell?.get('imageHeight') ?? 32;
+  }
+
+  set imageHeight(value) {
+    this.cell?.set('imageHeight', value);
+    this._resizeToFitContent();
+    this.emit('change', this);
+  }
+
+  get status() {
+    return this.cell?.get('status') ?? 'pending';
+  }
+
+  set status(value) {
+    this.cell?.set('status', value);
+    this.emit('change', this);
+  }
+
+  get priority() {
+    return this.cell?.get('priority') ?? 1;
+  }
+
+  set priority(value) {
+    this.cell?.set('priority', value);
+    this.emit('change', this);
+  }
+
+  moveTo(x, y) {
+    this.cell?.position(x, y);
+    this.emit('move', this);
+    return this;
+  }
+
+  moveBy(dx, dy) {
+    return this.moveTo(this.x + dx, this.y + dy);
+  }
+
+  toFront() {
+    this.cell?.toFront();
+    return this;
+  }
+
+  toBack() {
+    this.cell?.toBack();
+    return this;
+  }
+
+  select() {
+    this.editor?._selectItem(this);
+    return this;
+  }
+
+  deselect() {
+    this.editor?.clearSelection();
+    return this;
+  }
+
+  getEdges() {
+    return this.editor?._getEdgesForNode(this) ?? [];
+  }
+
+  getIncomingEdges() {
+    return this.getEdges().filter(e => e.target === this);
+  }
+
+  getOutgoingEdges() {
+    return this.getEdges().filter(e => e.source === this);
+  }
 
   connect(targetNode, sourcePortIndex = null, targetPortIndex = null) {
-    if (targetNode === this) throw new Error('A node cannot connect to itself.');
+    if (targetNode === this) {
+      throw new Error('A node cannot connect to itself.');
+    }
     return this.editor?._createEdge(this, targetNode, sourcePortIndex, targetPortIndex);
   }
 
-  remove() { this.cell?.remove(); this.emit('remove', this); }
+  remove() {
+    this.cell?.remove();
+    this.emit('remove', this);
+  }
 
-  _buildCell(position, jointNamespace) { throw new Error('_buildCell must be implemented by subclass'); }
-  _resizeToFitContent() { if (!this.editor || !this.cell) return; this.editor._fitNodeToContent(this.cell); }
-  _getShapeType() { return 'rect'; }
+  _buildCell(position, jointNamespace) {
+    throw new Error('_buildCell must be implemented by subclass');
+  }
+
+  _resizeToFitContent() {
+    if (!this.editor || !this.cell) {
+      return;
+    }
+    this.editor._fitNodeToContent(this.cell);
+  }
+
+  _getShapeType() {
+    return 'rect';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -356,14 +654,18 @@ Node.define = function(BaseNodeClass, defaultOptions = {}, schema = {}, renderFn
   class CustomNode extends BaseNodeClass {
     constructor(options = {}) {
       super();
-      this.customProps    = {};
-      this.schema         = schema;
-      this.renderFn       = renderFn;
+      this.customProps     = {};
+      this.schema          = schema;
+      this.renderFn        = renderFn;
       this._defaultOptions = defaultOptions;
 
-      const merged = { ...defaultOptions, ...options };
+      const merged  = { ...defaultOptions, ...options };
       const builtIns = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-      builtIns.forEach(key => { if (merged[key] !== undefined) this[`_init_${key}`] = merged[key]; });
+      builtIns.forEach(key => {
+        if (merged[key] !== undefined) {
+          this[`_init_${key}`] = merged[key];
+        }
+      });
       this._label = merged.label ?? defaultOptions.label ?? '';
 
       Object.entries(schema).forEach(([key, def]) => {
@@ -371,22 +673,35 @@ Node.define = function(BaseNodeClass, defaultOptions = {}, schema = {}, renderFn
       });
     }
 
-    getCustomProperty(key) { return this.customProps[key]; }
+    getCustomProperty(key) {
+      return this.customProps[key];
+    }
 
     setCustomProperty(key, value) {
-      if (!(key in this.schema)) throw new Error(`Unknown custom property: ${key}`);
+      if (!(key in this.schema)) {
+        throw new Error(`Unknown custom property: ${key}`);
+      }
       this.customProps[key] = value;
       this.cell?.set(`custom_${key}`, value);
-      if (this.renderFn) this.renderFn(this);
+      if (this.renderFn) {
+        this.renderFn(this);
+      }
       this.emit('change', this);
     }
 
-    getSchema() { return this.schema; }
-    _buildCell(position, jointNamespace) { return super._buildCell(position, jointNamespace); }
+    getSchema() {
+      return this.schema;
+    }
+
+    _buildCell(position, jointNamespace) {
+      return super._buildCell(position, jointNamespace);
+    }
   }
 
   CustomNode.prototype._getShapeType = BaseNodeClass.prototype._getShapeType;
-  Object.defineProperty(CustomNode.prototype, 'portCount',
+  Object.defineProperty(
+    CustomNode.prototype,
+    'portCount',
     Object.getOwnPropertyDescriptor(BaseNodeClass.prototype, 'portCount') || { get() { return 4; } }
   );
   return CustomNode;
@@ -396,40 +711,129 @@ Node.define = function(BaseNodeClass, defaultOptions = {}, schema = {}, renderFn
 // Concrete node shape subclasses
 // ═══════════════════════════════════════════════════════════════
 class Rectangle extends Node {
-  get portCount() { return 4; } _getShapeType() { return 'rect'; }
-  _buildCell(pos, ns) { return _buildRectangleCell(pos, ns, 'rect', 140, 50); }
+  get portCount() {
+    return 4;
+  }
+
+  _getShapeType() {
+    return 'rect';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildRectangleCell(pos, ns, 'rect', 140, 50);
+  }
 }
+
 class Square extends Node {
-  get portCount() { return 4; } _getShapeType() { return 'square'; }
-  _buildCell(pos, ns) { return _buildRectangleCell(pos, ns, 'square', 80, 80); }
+  get portCount() {
+    return 4;
+  }
+
+  _getShapeType() {
+    return 'square';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildRectangleCell(pos, ns, 'square', 80, 80);
+  }
 }
+
 class Ellipse extends Node {
-  get portCount() { return 4; } _getShapeType() { return 'ellipse'; }
-  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
+  get portCount() {
+    return 4;
+  }
+
+  _getShapeType() {
+    return 'ellipse';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildEllipseCell(pos, ns, 'ellipse', 140, 50);
+  }
 }
+
 class Circle extends Node {
-  get portCount() { return 4; } _getShapeType() { return 'circle'; }
-  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
+  get portCount() {
+    return 4;
+  }
+
+  _getShapeType() {
+    return 'circle';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildEllipseCell(pos, ns, 'circle', 80, 80);
+  }
 }
+
 class Diamond extends Node {
-  get portCount() { return 4; } _getShapeType() { return 'diamond'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
+  get portCount() {
+    return 4;
+  }
+
+  _getShapeType() {
+    return 'diamond';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]);
+  }
 }
+
 class Triangle extends Node {
-  get portCount() { return 3; } _getShapeType() { return 'triangle'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
+  get portCount() {
+    return 3;
+  }
+
+  _getShapeType() {
+    return 'triangle';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]);
+  }
 }
+
 class Hexagon extends Node {
-  get portCount() { return 6; } _getShapeType() { return 'hexagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
+  get portCount() {
+    return 6;
+  }
+
+  _getShapeType() {
+    return 'hexagon';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]);
+  }
 }
+
 class Pentagon extends Node {
-  get portCount() { return 5; } _getShapeType() { return 'pentagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
+  get portCount() {
+    return 5;
+  }
+
+  _getShapeType() {
+    return 'pentagon';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]);
+  }
 }
+
 class Octagon extends Node {
-  get portCount() { return 8; } _getShapeType() { return 'octagon'; }
-  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
+  get portCount() {
+    return 8;
+  }
+
+  _getShapeType() {
+    return 'octagon';
+  }
+
+  _buildCell(pos, ns) {
+    return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -463,20 +867,26 @@ function _attachPortsToCell(cell, polygonPoints) {
     }
   });
 
-  const ports = polygonPoints.length === 0
-    ? [
-        { group: 'all', args: { x: '50%', y: '0%',   dy: -1 } },
-        { group: 'all', args: { x: '100%', y: '50%' } },
-        { group: 'all', args: { x: '50%', y: '100%', dy: 1  } },
-        { group: 'all', args: { x: '0%',  y: '50%'  } }
-      ]
-    : polygonPoints.map((point, i) => {
-        const next = polygonPoints[(i + 1) % polygonPoints.length];
-        return { group: 'all', args: {
+  let ports;
+  if (polygonPoints.length === 0) {
+    ports = [
+      { group: 'all', args: { x: '50%',  y: '0%',   dy: -1 } },
+      { group: 'all', args: { x: '100%', y: '50%'          } },
+      { group: 'all', args: { x: '50%',  y: '100%', dy: 1  } },
+      { group: 'all', args: { x: '0%',   y: '50%'          } }
+    ];
+  } else {
+    ports = polygonPoints.map((point, i) => {
+      const next = polygonPoints[(i + 1) % polygonPoints.length];
+      return {
+        group: 'all',
+        args: {
           x: `${((point[0] + next[0]) / 2 / 20) * 100}%`,
           y: `${((point[1] + next[1]) / 2 / 20) * 100}%`
-        }};
-      });
+        }
+      };
+    });
+  }
 
   cell.addPorts(ports);
 }
@@ -517,16 +927,16 @@ function _buildPolygonCell(position, ns, shapeType, w, h, points) {
 class DiagramEditor extends EventBus {
   constructor(container) {
     super();
-    this.container       = container;
-    this.gridSize        = 10;
-    this.clearanceUnits  = 4;
-    this.nodeMap         = new Map();
-    this.edgeMap         = new Map();
-    this.selection       = null;
-    this.autoPortsOn     = true;
-    this.isLoading       = false;
-    this.touchState      = null;
-    this.pointerDownAt   = null;
+    this.container                 = container;
+    this.gridSize                  = 10;
+    this.clearanceUnits            = 4;
+    this.nodeMap                   = new Map();
+    this.edgeMap                   = new Map();
+    this.selection                 = null;
+    this.autoPortsOn               = true;
+    this.isLoading                 = false;
+    this.touchState                = null;
+    this.pointerDownAt             = null;
     this.selectionWasAlreadyActive = false;
     this.registeredNodeTypes       = {};
 
@@ -538,7 +948,13 @@ class DiagramEditor extends EventBus {
     this._attachKeyboardShortcuts();
 
     ['node:add','node:remove','node:change','node:move','edge:add','edge:remove','edge:change']
-      .forEach(event => this.on(event, () => { if (!this.isLoading) this.emit('change'); }));
+      .forEach(event => {
+        this.on(event, () => {
+          if (!this.isLoading) {
+            this.emit('change');
+          }
+        });
+      });
 
     if (this._isMobile()) {
       this._setSidebarCollapsed(this.leftSidebar, true);
@@ -549,17 +965,21 @@ class DiagramEditor extends EventBus {
   // ── Public: register a node type in the shape library ──
   registerNodeType(label, NodeClass) {
     const item = this.shapeLibrary.appendChild(this._makeElement('div', 'wf-node-template'));
-    item.textContent = label;
-    item.draggable   = true;
+    item.textContent       = label;
+    item.draggable         = true;
     item.dataset.nodeTypeLabel = label;
 
     item.addEventListener('click', () => {
-      if (!this._isMobile()) return;
+      if (!this._isMobile()) {
+        return;
+      }
       this.addNode(new NodeClass());
-      if (!this.leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.leftSidebar);
+      if (!this.leftSidebar.classList.contains('wf-collapsed')) {
+        this._toggleSidebar(this.leftSidebar);
+      }
     });
-    item.addEventListener('dragstart', e => e.dataTransfer.setData('customNode', label));
 
+    item.addEventListener('dragstart', e => e.dataTransfer.setData('customNode', label));
     this.registeredNodeTypes[label] = NodeClass;
   }
 
@@ -590,7 +1010,9 @@ class DiagramEditor extends EventBus {
     const initOpts = node._initOptions || {};
     builtIns.forEach(key => {
       const value = initOpts[key] ?? node[`_init_${key}`];
-      if (value !== undefined) node[key] = value;
+      if (value !== undefined) {
+        node[key] = value;
+      }
     });
     Object.entries(node.customProps).forEach(([key, value]) => cell.set(`custom_${key}`, value));
 
@@ -601,7 +1023,9 @@ class DiagramEditor extends EventBus {
     const ready = (async () => {
       await this._waitForRender(cell);
       await this._resizeNodeAsync(cell);
-      if (node.renderFn) node.renderFn(node);
+      if (node.renderFn) {
+        node.renderFn(node);
+      }
       await this._waitForRender(cell);
       node.on('change', n => this.emit('node:change', n));
       node.on('move',   n => this.emit('node:move',   n));
@@ -612,31 +1036,79 @@ class DiagramEditor extends EventBus {
     return ready;
   }
 
-  removeNode(node) { node.remove(); this.nodeMap.delete(node.id); this.emit('node:remove', node); }
-  getNodes()       { return [...this.nodeMap.values()]; }
-  getEdges()       { return [...this.edgeMap.values()]; }
+  removeNode(node) {
+    node.remove();
+    this.nodeMap.delete(node.id);
+    this.emit('node:remove', node);
+  }
+
+  getNodes() {
+    return [...this.nodeMap.values()];
+  }
+
+  getEdges() {
+    return [...this.edgeMap.values()];
+  }
 
   // ── Viewport controls ──
-  panTo(x, y)      { this.renderer.translate(x, y); return this; }
-  centerContent()  {
-    const bbox = this.graph.getBBox(); if (!bbox) return this;
-    const size = this.renderer.getComputedSize();
-    this.renderer.scale(1, 1);
-    this.renderer.translate(size.width / 2 - (bbox.x + bbox.width / 2), size.height / 2 - (bbox.y + bbox.height / 2));
+  panTo(x, y) {
+    this.renderer.translate(x, y);
     return this;
   }
-  zoomIn(factor = 1.25)  { this._zoomAtCenter(factor); return this; }
-  zoomOut(factor = 0.8)  { this._zoomAtCenter(factor); return this; }
-  zoomReset()            { this._zoomAtCenter(1 / this.renderer.scale().sx); return this; }
-  zoomToFit()            { this.renderer.scaleContentToFit({ padding: 50, minScale: 0.2, maxScale: 2 }); return this; }
-  getZoomLevel()         { return this.renderer.scale().sx; }
-  getSelectedItem()      { return this.selection; }
-  clearSelection()       { this._deselectAll(); return this; }
+
+  centerContent() {
+    const bbox = this.graph.getBBox();
+    if (!bbox) {
+      return this;
+    }
+    const size = this.renderer.getComputedSize();
+    this.renderer.scale(1, 1);
+    this.renderer.translate(
+      size.width  / 2 - (bbox.x + bbox.width  / 2),
+      size.height / 2 - (bbox.y + bbox.height / 2)
+    );
+    return this;
+  }
+
+  zoomIn(factor = 1.25) {
+    this._zoomAtCenter(factor);
+    return this;
+  }
+
+  zoomOut(factor = 0.8) {
+    this._zoomAtCenter(factor);
+    return this;
+  }
+
+  zoomReset() {
+    this._zoomAtCenter(1 / this.renderer.scale().sx);
+    return this;
+  }
+
+  zoomToFit() {
+    this.renderer.scaleContentToFit({ padding: 50, minScale: 0.2, maxScale: 2 });
+    return this;
+  }
+
+  getZoomLevel() {
+    return this.renderer.scale().sx;
+  }
+
+  getSelectedItem() {
+    return this.selection;
+  }
+
+  clearSelection() {
+    this._deselectAll();
+    return this;
+  }
 
   setAutoPortSwitching(enabled) {
     this.autoPortsOn = enabled;
     this.autoPortToggleButton.classList.toggle('active', enabled);
-    if (enabled) this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
+    if (enabled) {
+      this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
+    }
     return this;
   }
 
@@ -649,21 +1121,28 @@ class DiagramEditor extends EventBus {
       const { width, height } = el.size();
       dagreGraph.setNode(el.id, { width, height });
     });
+
     this.graph.getLinks().forEach(link => {
       const src = link.getSourceElement();
       const tgt = link.getTargetElement();
-      if (src && tgt) dagreGraph.setEdge(src.id, tgt.id);
+      if (src && tgt) {
+        dagreGraph.setEdge(src.id, tgt.id);
+      }
     });
 
     dagre.layout(dagreGraph);
 
     this.graph.getElements().forEach(el => {
       const n = dagreGraph.node(el.id);
-      if (!n) return;
+      if (!n) {
+        return;
+      }
       el.position(Math.round(n.x - n.width / 2), Math.round(n.y - n.height / 2));
     });
 
-    if (this.autoPortsOn) this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
+    if (this.autoPortsOn) {
+      this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
+    }
     this.centerContent();
     return this;
   }
@@ -676,10 +1155,17 @@ class DiagramEditor extends EventBus {
       x: node.x,
       y: node.y,
       props: {
-        label: node.label, labelColor: node.labelColor, labelFontSize: node.labelFontSize,
-        description: node.description, descriptionColor: node.descriptionColor,
-        backgroundColor: node.backgroundColor, borderColor: node.borderColor, borderWidth: node.borderWidth,
-        imageUrl: node.imageUrl, imageWidth: node.imageWidth, imageHeight: node.imageHeight,
+        label:            node.label,
+        labelColor:       node.labelColor,
+        labelFontSize:    node.labelFontSize,
+        description:      node.description,
+        descriptionColor: node.descriptionColor,
+        backgroundColor:  node.backgroundColor,
+        borderColor:      node.borderColor,
+        borderWidth:      node.borderWidth,
+        imageUrl:         node.imageUrl,
+        imageWidth:       node.imageWidth,
+        imageHeight:      node.imageHeight,
       },
       customProps: { ...node.customProps },
     }));
@@ -687,20 +1173,28 @@ class DiagramEditor extends EventBus {
     const edges = [...this.edgeMap.values()].map(edge => {
       const resolvePort = (endpoint, node) => {
         const portId = endpoint?.port;
-        if (!portId) return null;
+        if (!portId) {
+          return null;
+        }
         const index = node.cell.getPorts().findIndex(p => p.id === portId);
         return index >= 0 ? index + 1 : null;
       };
       return {
-        sourceId:   edge.source.cell.id,
-        targetId:   edge.target.cell.id,
-        sourcePort: resolvePort(edge.link.source(), edge.source),
-        targetPort: resolvePort(edge.link.target(), edge.target),
-        label: edge.label, labelColor: edge.labelColor, labelFontSize: edge.labelFontSize,
-        lineColor: edge.lineColor, lineWidth: edge.lineWidth, lineStyle: edge.lineStyle,
-        sourceArrow: edge.sourceArrow, targetArrow: edge.targetArrow,
-        connectorType: edge.connectorType, description: edge.description,
-        vertices: edge.link.vertices(),
+        sourceId:      edge.source.cell.id,
+        targetId:      edge.target.cell.id,
+        sourcePort:    resolvePort(edge.link.source(), edge.source),
+        targetPort:    resolvePort(edge.link.target(), edge.target),
+        label:         edge.label,
+        labelColor:    edge.labelColor,
+        labelFontSize: edge.labelFontSize,
+        lineColor:     edge.lineColor,
+        lineWidth:     edge.lineWidth,
+        lineStyle:     edge.lineStyle,
+        sourceArrow:   edge.sourceArrow,
+        targetArrow:   edge.targetArrow,
+        connectorType: edge.connectorType,
+        description:   edge.description,
+        vertices:      edge.link.vertices(),
       };
     });
 
@@ -710,7 +1204,9 @@ class DiagramEditor extends EventBus {
   // ── Deserialize JSON and rebuild the diagram ──
   async deserialize(json) {
     const { nodes: nodeDataList, edges: edgeDataList } = typeof json === 'string' ? JSON.parse(json) : json;
-    if (!Array.isArray(nodeDataList)) throw new Error('Invalid diagram file format.');
+    if (!Array.isArray(nodeDataList)) {
+      throw new Error('Invalid diagram file format.');
+    }
 
     this._deselectAll();
     this.nodeMap.clear();
@@ -722,7 +1218,6 @@ class DiagramEditor extends EventBus {
       ...Object.fromEntries(Object.entries(this.registeredNodeTypes).map(([, cls]) => [cls.name, cls]))
     };
 
-    const prevAutoPortsOn = this.autoPortsOn;
     this.autoPortsOn = false;
     this.isLoading   = true;
 
@@ -730,7 +1225,10 @@ class DiagramEditor extends EventBus {
 
     for (const nodeData of nodeDataList) {
       const NodeClass = nodeClassMap[nodeData.nodeClass];
-      if (!NodeClass) { console.warn(`Unknown node class: ${nodeData.nodeClass}`); continue; }
+      if (!NodeClass) {
+        console.warn(`Unknown node class: ${nodeData.nodeClass}`);
+        continue;
+      }
 
       const node = new NodeClass({ ...nodeData.props, ...nodeData.customProps });
       const cell = node._buildCell({ x: nodeData.x, y: nodeData.y }, joint.shapes);
@@ -742,7 +1240,9 @@ class DiagramEditor extends EventBus {
       const initOpts = node._initOptions || {};
       builtIns.forEach(key => {
         const value = initOpts[key] ?? node[`_init_${key}`];
-        if (value !== undefined) node[key] = value;
+        if (value !== undefined) {
+          node[key] = value;
+        }
       });
       Object.entries(node.customProps).forEach(([key, value]) => cell.set(`custom_${key}`, value));
 
@@ -753,7 +1253,10 @@ class DiagramEditor extends EventBus {
       this._fitNodeToContent(cell);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       this.renderer.updateViews();
-      if (node.renderFn) node.renderFn(node);
+
+      if (node.renderFn) {
+        node.renderFn(node);
+      }
 
       node.on('change', n => this.emit('node:change', n));
       node.on('move',   n => this.emit('node:move',   n));
@@ -764,22 +1267,36 @@ class DiagramEditor extends EventBus {
     for (const edgeData of edgeDataList) {
       const sourceNode = oldIdToNode[edgeData.sourceId];
       const targetNode = oldIdToNode[edgeData.targetId];
-      if (!sourceNode || !targetNode) continue;
+      if (!sourceNode || !targetNode) {
+        continue;
+      }
 
       const edge = sourceNode.connect(targetNode, edgeData.sourcePort, edgeData.targetPort);
-      if (!edge) continue;
+      if (!edge) {
+        continue;
+      }
 
-      if (edgeData.label)         edge.label         = edgeData.label;
-      if (edgeData.labelColor)    edge.labelColor    = edgeData.labelColor;
-      if (edgeData.labelFontSize) edge.labelFontSize = edgeData.labelFontSize;
+      if (edgeData.label) {
+        edge.label = edgeData.label;
+      }
+      if (edgeData.labelColor) {
+        edge.labelColor = edgeData.labelColor;
+      }
+      if (edgeData.labelFontSize) {
+        edge.labelFontSize = edgeData.labelFontSize;
+      }
       edge.lineColor     = edgeData.lineColor;
       edge.lineWidth     = edgeData.lineWidth;
       edge.lineStyle     = edgeData.lineStyle;
       edge.sourceArrow   = edgeData.sourceArrow;
       edge.targetArrow   = edgeData.targetArrow;
       edge.connectorType = edgeData.connectorType;
-      if (edgeData.description)      edge.description = edgeData.description;
-      if (edgeData.vertices?.length) edge.link.vertices(edgeData.vertices);
+      if (edgeData.description) {
+        edge.description = edgeData.description;
+      }
+      if (edgeData.vertices?.length) {
+        edge.link.vertices(edgeData.vertices);
+      }
     }
 
     this.isLoading = false;
@@ -790,14 +1307,22 @@ class DiagramEditor extends EventBus {
 
     this.graph.getLinks().forEach(link => {
       const edge = this.edgeMap.get(link.id);
-      if (!edge) return;
+      if (!edge) {
+        return;
+      }
       const savedEdge = edgeDataList.find(data =>
         oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
         oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id
       );
-      if (!savedEdge) return;
-      if (savedEdge.sourcePort != null) link.set('sourcePort', savedEdge.sourcePort);
-      if (savedEdge.targetPort != null) link.set('targetPort', savedEdge.targetPort);
+      if (!savedEdge) {
+        return;
+      }
+      if (savedEdge.sourcePort != null) {
+        link.set('sourcePort', savedEdge.sourcePort);
+      }
+      if (savedEdge.targetPort != null) {
+        link.set('targetPort', savedEdge.targetPort);
+      }
     });
 
     this.emit('change');
@@ -808,13 +1333,15 @@ class DiagramEditor extends EventBus {
   // Internal: hide/show mobile floating buttons
   // ══════════════════════════════════════════════════════════════
   _updateMobileButtonVisibility() {
-    if (!this._isMobile()) return;
+    if (!this._isMobile()) {
+      return;
+    }
     const shouldHide = this.selection !== null
       || !this.leftSidebar.classList.contains('wf-collapsed')
       || !this.rightSidebar.classList.contains('wf-collapsed');
     const display = shouldHide ? 'none' : '';
-    this.topRightButtons.style.display  = display;
-    this.topLeftButtons.style.display   = display;
+    this.topRightButtons.style.display   = display;
+    this.topLeftButtons.style.display    = display;
     this.bottomLeftButtons.style.display = display;
   }
 
@@ -822,7 +1349,7 @@ class DiagramEditor extends EventBus {
   // Internal: build the full DOM layout
   // ══════════════════════════════════════════════════════════════
   _buildLayout() {
-    this.container.innerHTML = '';
+    this.container.innerHTML  = '';
     this.container.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
     // Left sidebar — shape library
@@ -835,41 +1362,44 @@ class DiagramEditor extends EventBus {
     this._buildShapeLibrary();
 
     // Canvas area
-    this.canvasArea  = this.container.appendChild(this._makeElement('div', 'wf-canvas-container'));
+    this.canvasArea   = this.container.appendChild(this._makeElement('div', 'wf-canvas-container'));
     this.paperElement = this.canvasArea.appendChild(this._makeElement('div', 'wf-paper'));
 
     // Top-right buttons (export / import)
     this.topRightButtons = this.canvasArea.appendChild(this._makeElement('div'));
     this.topRightButtons.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
     this.exportButton = this.topRightButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
-    this.exportButton.title   = 'Export';
+    this.exportButton.title     = 'Export';
     this.exportButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
     this.importButton = this.topRightButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
-    this.importButton.title   = 'Import';
+    this.importButton.title     = 'Import';
     this.importButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
     this.importFileInput = this.canvasArea.appendChild(this._makeElement('input'));
-    this.importFileInput.type = 'file';
-    this.importFileInput.accept = '.json';
-    this.importFileInput.style.display = 'none';
+    this.importFileInput.type           = 'file';
+    this.importFileInput.accept         = '.json';
+    this.importFileInput.style.display  = 'none';
 
     // Top-left buttons (auto-port toggle / auto-arrange)
     this.topLeftButtons = this.canvasArea.appendChild(this._makeElement('div'));
     this.topLeftButtons.style.cssText = 'position:absolute;top:20px;left:20px;z-index:100;display:flex;gap:8px;';
     this.autoPortToggleButton = this.topLeftButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn active'));
-    this.autoPortToggleButton.title   = 'Toggle Auto Port Switching';
+    this.autoPortToggleButton.title     = 'Toggle Auto Port Switching';
     this.autoPortToggleButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
     this.autoArrangeButton = this.topLeftButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
-    this.autoArrangeButton.title   = 'Auto Arrange';
+    this.autoArrangeButton.title     = 'Auto Arrange';
     this.autoArrangeButton.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="5" width="7" height="4" rx="1"/><rect x="14" y="15" width="7" height="4" rx="1"/><line x1="10" y1="5" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="17"/><line x1="10" y1="19" x2="14" y2="17"/></svg>`;
 
     // Bottom-left buttons (zoom)
     this.bottomLeftButtons = this.canvasArea.appendChild(this._makeElement('div', 'wf-bottom-left'));
     const zoomGroup = this.bottomLeftButtons.appendChild(this._makeElement('div', 'wf-zoom-group'));
-    this.zoomToFitButton     = this._makeZoomButton(zoomGroup, 'Fit', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
-    this.zoomResetButton     = this._makeZoomButton(zoomGroup, 'Reset Zoom', '1:1');
-    this.zoomInButton        = this._makeZoomButton(zoomGroup, 'Zoom In', '+');
-    this.zoomOutButton       = this._makeZoomButton(zoomGroup, 'Zoom Out', '−');
-    if (this._isMobile()) { this.zoomInButton.style.display = 'none'; this.zoomOutButton.style.display = 'none'; }
+    this.zoomToFitButton = this._makeZoomButton(zoomGroup, 'Fit',        `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
+    this.zoomResetButton = this._makeZoomButton(zoomGroup, 'Reset Zoom', '1:1');
+    this.zoomInButton    = this._makeZoomButton(zoomGroup, 'Zoom In',    '+');
+    this.zoomOutButton   = this._makeZoomButton(zoomGroup, 'Zoom Out',   '−');
+    if (this._isMobile()) {
+      this.zoomInButton.style.display  = 'none';
+      this.zoomOutButton.style.display = 'none';
+    }
     this.centerButton = this._makeZoomButton(zoomGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
     // Right-click context menu
@@ -890,8 +1420,8 @@ class DiagramEditor extends EventBus {
         <button class="wf-header-btn" data-action="duplicate" title="Duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <button class="wf-header-btn danger" data-action="delete" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       </div>`;
-    this.rightCollapseButton  = rightHeader.querySelector('.wf-collapse-btn');
-    this.rightCollapseIcon    = rightHeader.querySelector('.wf-collapse-icon');
+    this.rightCollapseButton     = rightHeader.querySelector('.wf-collapse-btn');
+    this.rightCollapseIcon       = rightHeader.querySelector('.wf-collapse-icon');
     this.propertiesHeaderActions = rightHeader.querySelector('.wf-header-actions');
 
     this.nodePropertiesPanel = this._buildNodePropertiesPanel();
@@ -916,14 +1446,18 @@ class DiagramEditor extends EventBus {
 
     builtInShapes.forEach(({ label, type, cls }) => {
       const item = this.shapeLibrary.appendChild(this._makeElement('div', 'wf-node-template'));
-      item.textContent = label;
-      item.draggable   = true;
+      item.textContent  = label;
+      item.draggable    = true;
       item.dataset.type = type;
       item.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
       item.addEventListener('click', () => {
-        if (!this._isMobile()) return;
+        if (!this._isMobile()) {
+          return;
+        }
         this.addNode(new cls(label.toUpperCase()));
-        if (!this.leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.leftSidebar);
+        if (!this.leftSidebar.classList.contains('wf-collapsed')) {
+          this._toggleSidebar(this.leftSidebar);
+        }
       });
     });
   }
@@ -980,8 +1514,12 @@ class DiagramEditor extends EventBus {
       linkPinning: false,
       snapLinks: { radius: 25 },
       markAvailable: true,
-      defaultLink: () => new joint.shapes.standard.Link({ attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: ARROW_MARKERS.classic } } }),
-      validateConnection: (srcView, srcMagnet, tgtView, tgtMagnet) => srcMagnet && tgtMagnet && srcView !== tgtView
+      defaultLink: () => new joint.shapes.standard.Link({
+        attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: ARROW_MARKERS.classic } }
+      }),
+      validateConnection: (srcView, srcMagnet, tgtView, tgtMagnet) => {
+        return srcMagnet && tgtMagnet && srcView !== tgtView;
+      }
     });
   }
 
@@ -998,49 +1536,81 @@ class DiagramEditor extends EventBus {
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch (err) { alert('Export failed: ' + err.message); }
+      } catch (err) {
+        alert('Export failed: ' + err.message);
+      }
     });
 
     this.importButton.addEventListener('click', () => this.importFileInput.click());
+
     this.importFileInput.addEventListener('change', e => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const reader = new FileReader();
       reader.onload = ev => this.deserialize(ev.target.result).catch(err => alert('Import failed: ' + err.message));
       reader.readAsText(file);
       e.target.value = '';
     });
 
-    this.leftCollapseButton.addEventListener('click',  () => this._toggleSidebar(this.leftSidebar));
-    this.rightCollapseButton.addEventListener('click', () => this._toggleSidebar(this.rightSidebar));
+    this.leftCollapseButton.addEventListener('click',   () => this._toggleSidebar(this.leftSidebar));
+    this.rightCollapseButton.addEventListener('click',  () => this._toggleSidebar(this.rightSidebar));
     this.autoPortToggleButton.addEventListener('click', () => this.setAutoPortSwitching(!this.autoPortsOn));
-    this.autoArrangeButton.addEventListener('click',   () => this.autoArrange());
-    this.zoomToFitButton.addEventListener('click',     () => this.zoomToFit());
-    this.zoomResetButton.addEventListener('click',     () => this.zoomReset());
-    this.zoomInButton.addEventListener('click',        () => this.zoomIn());
-    this.zoomOutButton.addEventListener('click',       () => this.zoomOut());
-    this.centerButton.addEventListener('click',        () => this.centerContent());
+    this.autoArrangeButton.addEventListener('click',    () => this.autoArrange());
+    this.zoomToFitButton.addEventListener('click',      () => this.zoomToFit());
+    this.zoomResetButton.addEventListener('click',      () => this.zoomReset());
+    this.zoomInButton.addEventListener('click',         () => this.zoomIn());
+    this.zoomOutButton.addEventListener('click',        () => this.zoomOut());
+    this.centerButton.addEventListener('click',         () => this.centerContent());
 
     this.renderer.el.addEventListener('wheel', e => {
       e.preventDefault();
-      if (e.ctrlKey) this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
-      else { const t = this.renderer.translate(); this.renderer.translate(t.tx - e.deltaX, t.ty - e.deltaY); }
+      if (e.ctrlKey) {
+        this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+      } else {
+        const t = this.renderer.translate();
+        this.renderer.translate(t.tx - e.deltaX, t.ty - e.deltaY);
+      }
     }, { passive: false });
 
     this.contextMenu.addEventListener('click', e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
-      if (action === 'duplicate') this._duplicateSelected();
-      if (action === 'delete')    this._deleteSelected();
+      if (action === 'duplicate') {
+        this._duplicateSelected();
+      }
+      if (action === 'delete') {
+        this._deleteSelected();
+      }
       this.contextMenu.style.display = 'none';
     });
-    window.addEventListener('click', e => { if (!e.target.closest('.wf-context-menu')) this.contextMenu.style.display = 'none'; });
+
+    window.addEventListener('click', e => {
+      if (!e.target.closest('.wf-context-menu')) {
+        this.contextMenu.style.display = 'none';
+      }
+    });
 
     this.propertiesHeaderActions.addEventListener('click', e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
-      if (!action) return;
-      if (action === 'focus')     this._focusCameraOnSelection();
-      if (action === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this.rightSidebar); }
-      if (action === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this.rightSidebar); }
+      if (!action) {
+        return;
+      }
+      if (action === 'focus') {
+        this._focusCameraOnSelection();
+      }
+      if (action === 'duplicate') {
+        this._duplicateSelected();
+        if (this._isMobile()) {
+          this._toggleSidebar(this.rightSidebar);
+        }
+      }
+      if (action === 'delete') {
+        this._deleteSelected();
+        if (this._isMobile()) {
+          this._toggleSidebar(this.rightSidebar);
+        }
+      }
     });
 
     this.nodePropertiesPanel.addEventListener('input',  e => this._handleNodePropertyChange(e));
@@ -1051,6 +1621,7 @@ class DiagramEditor extends EventBus {
     this.canvasArea.addEventListener('dragover', e => e.preventDefault());
     this.canvasArea.addEventListener('drop', e => {
       e.preventDefault();
+
       const customLabel = e.dataTransfer.getData('customNode');
       if (customLabel && this.registeredNodeTypes?.[customLabel]) {
         const dropPos  = this.renderer.clientToLocalPoint({ x: e.clientX, y: e.clientY });
@@ -1068,7 +1639,9 @@ class DiagramEditor extends EventBus {
         (async () => {
           await this._waitForRender(cell);
           await this._resizeNodeAsync(cell);
-          if (node.renderFn) node.renderFn(node);
+          if (node.renderFn) {
+            node.renderFn(node);
+          }
           await this._waitForRender(cell);
           node.on('change', n => this.emit('node:change', n));
           node.on('move',   n => this.emit('node:move',   n));
@@ -1085,7 +1658,9 @@ class DiagramEditor extends EventBus {
         { type: 'hexagon',  cls: Hexagon   }, { type: 'pentagon', cls: Pentagon }, { type: 'octagon',  cls: Octagon  }
       ];
       const match = builtInShapes.find(s => s.type === droppedType);
-      if (!match) return;
+      if (!match) {
+        return;
+      }
 
       const label   = droppedType.charAt(0).toUpperCase() + droppedType.slice(1);
       const dropPos = this.renderer.clientToLocalPoint({ x: e.clientX, y: e.clientY });
@@ -1115,40 +1690,65 @@ class DiagramEditor extends EventBus {
     this.nodePropertiesPanel.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
       this.nodePropertiesPanel.querySelector('[data-action="image-file"]').click();
     });
+
     this.nodePropertiesPanel.querySelector('[data-action="image-file"]').addEventListener('change', e => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const reader = new FileReader();
       reader.onload = ev => {
         this.nodePropertiesPanel.querySelector('[data-prop="imageUrl"]').value = ev.target.result;
-        if (this.selection instanceof Node) this.selection.imageUrl = ev.target.result;
+        if (this.selection instanceof Node) {
+          this.selection.imageUrl = ev.target.result;
+        }
       };
       reader.readAsDataURL(file);
     });
   }
 
   _handleNodePropertyChange(e) {
-    if (!(this.selection instanceof Node)) return;
+    if (!(this.selection instanceof Node)) {
+      return;
+    }
     const input = e.target.closest('[data-prop]');
-    if (!input) return;
+    if (!input) {
+      return;
+    }
     const prop  = input.dataset.prop;
     const value = input.type === 'number' ? parseFloat(input.value) : input.value;
-    if (input.dataset.pair)       this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
-    if (input.dataset.pairPicker) this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    if (input.dataset.pair) {
+      this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
+    }
+    if (input.dataset.pairPicker) {
+      this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    }
     const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (resolvedProp in this.selection) this.selection[resolvedProp] = value;
+    if (resolvedProp in this.selection) {
+      this.selection[resolvedProp] = value;
+    }
   }
 
   _handleEdgePropertyChange(e) {
-    if (!(this.selection instanceof Edge)) return;
+    if (!(this.selection instanceof Edge)) {
+      return;
+    }
     const input = e.target.closest('[data-prop]');
-    if (!input) return;
+    if (!input) {
+      return;
+    }
     const prop  = input.dataset.prop;
     const value = input.type === 'number' ? parseFloat(input.value) : input.value;
-    if (input.dataset.pair)       this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
-    if (input.dataset.pairPicker) this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    if (input.dataset.pair) {
+      this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
+    }
+    if (input.dataset.pairPicker) {
+      this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    }
     const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (resolvedProp in this.selection) this.selection[resolvedProp] = value;
+    if (resolvedProp in this.selection) {
+      this.selection[resolvedProp] = value;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1162,11 +1762,15 @@ class DiagramEditor extends EventBus {
 
     this.renderer.on('element:pointerdown', (view, e) => {
       const node = this.nodeMap.get(view.model.id);
-      if (!node) return;
-      this.pointerDownAt = { x: e.clientX, y: e.clientY };
+      if (!node) {
+        return;
+      }
+      this.pointerDownAt             = { x: e.clientX, y: e.clientY };
       this.selectionWasAlreadyActive = this.selection === node;
       this._deselectAll();
-      if (!this._isMobile()) node.cell.toFront();
+      if (!this._isMobile()) {
+        node.cell.toFront();
+      }
       this._selectItem(node);
     });
 
@@ -1176,13 +1780,13 @@ class DiagramEditor extends EventBus {
       if (dx < 5 && dy < 5 && this.selectionWasAlreadyActive && this.rightSidebar.classList.contains('wf-collapsed')) {
         this._toggleSidebar(this.rightSidebar);
       }
-      this.pointerDownAt = null;
+      this.pointerDownAt             = null;
       this.selectionWasAlreadyActive = false;
       if (!this._isMobile()) {
         const node = this.nodeMap.get(view.model.id);
         if (node) {
-          const bbox     = node.cell.getBBox();
-          const openPos  = this._findOpenPosition(bbox.x, bbox.y, bbox.width, bbox.height, node.cell);
+          const bbox    = node.cell.getBBox();
+          const openPos = this._findOpenPosition(bbox.x, bbox.y, bbox.width, bbox.height, node.cell);
           node.cell.position(openPos.x, openPos.y);
         }
       }
@@ -1190,7 +1794,9 @@ class DiagramEditor extends EventBus {
 
     this.renderer.on('link:pointerdown', view => {
       const edge = this.edgeMap.get(view.model.id);
-      if (!edge) return;
+      if (!edge) {
+        return;
+      }
       this._deselectAll();
       view.model.toFront();
       this._selectItem(edge);
@@ -1203,8 +1809,11 @@ class DiagramEditor extends EventBus {
     });
 
     this.renderer.on('cell:pointerdown tool:pointerdown', (view, e) => {
-      if (e?.target?.closest?.('.joint-port')) this.renderer.el.classList.add('wf-dragging-link');
+      if (e?.target?.closest?.('.joint-port')) {
+        this.renderer.el.classList.add('wf-dragging-link');
+      }
     });
+
     this.renderer.on('cell:pointerup link:pointerup tool:pointerup', () => {
       this.renderer.el.classList.remove('wf-dragging-link');
     });
@@ -1213,21 +1822,30 @@ class DiagramEditor extends EventBus {
       e.preventDefault();
       const rect = this.canvasArea.getBoundingClientRect();
       this.contextMenu.style.display = 'block';
-      this.contextMenu.style.left = (e.clientX - rect.left) + 'px';
-      this.contextMenu.style.top  = (e.clientY - rect.top)  + 'px';
+      this.contextMenu.style.left    = (e.clientX - rect.left) + 'px';
+      this.contextMenu.style.top     = (e.clientY - rect.top)  + 'px';
       this.contextMenu.querySelector('[data-action="duplicate"]').style.display = this.nodeMap.has(view.model.id) ? 'flex' : 'none';
     });
 
     this.renderer.on('blank:pointerdown', e => {
       this._collapseAllSidebarsOnMobile();
-      const startX = e.clientX, startY = e.clientY;
+      const startX          = e.clientX;
+      const startY          = e.clientY;
       const initTranslation = this.renderer.translate();
-      if (this._isMobile()) { this._deselectAll(); return; }
-      const onMove = mv => this.renderer.translate(initTranslation.tx + (mv.clientX - startX), initTranslation.ty + (mv.clientY - startY));
-      const onUp   = up => {
+      if (this._isMobile()) {
+        this._deselectAll();
+        return;
+      }
+      const onMove = mv => this.renderer.translate(
+        initTranslation.tx + (mv.clientX - startX),
+        initTranslation.ty + (mv.clientY - startY)
+      );
+      const onUp = up => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
-        if (Math.abs(up.clientX - startX) < 5 && Math.abs(up.clientY - startY) < 5) this._deselectAll();
+        if (Math.abs(up.clientX - startX) < 5 && Math.abs(up.clientY - startY) < 5) {
+          this._deselectAll();
+        }
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup',   onUp);
@@ -1237,12 +1855,19 @@ class DiagramEditor extends EventBus {
       const link       = view.model;
       const sourceCell = link.getSourceElement();
       const targetCell = link.getTargetElement();
-      if (!sourceCell || !targetCell) return;
+      if (!sourceCell || !targetCell) {
+        return;
+      }
       const sourceNode = this.nodeMap.get(sourceCell.id);
       const targetNode = this.nodeMap.get(targetCell.id);
-      if (!sourceNode || !targetNode || this.edgeMap.has(link.id)) return;
+      if (!sourceNode || !targetNode || this.edgeMap.has(link.id)) {
+        return;
+      }
       const reverseExists = [...this.edgeMap.values()].some(e => e.source === targetNode && e.target === sourceNode);
-      if (reverseExists) { link.remove(); return; }
+      if (reverseExists) {
+        link.remove();
+        return;
+      }
       const edge = new Edge(link, sourceNode, targetNode, this);
       this.edgeMap.set(link.id, edge);
       edge.on('change', ed => this.emit('edge:change', ed));
@@ -1252,16 +1877,25 @@ class DiagramEditor extends EventBus {
     this.graph.on('remove', cell => {
       if (cell.isLink()) {
         const edge = this.edgeMap.get(cell.id);
-        if (edge) { this.edgeMap.delete(cell.id); this.emit('edge:remove', edge); }
+        if (edge) {
+          this.edgeMap.delete(cell.id);
+          this.emit('edge:remove', edge);
+        }
       } else {
         const node = this.nodeMap.get(cell.id);
-        if (node) { this.nodeMap.delete(cell.id); this.emit('node:remove', node); }
+        if (node) {
+          this.nodeMap.delete(cell.id);
+          this.emit('node:remove', node);
+        }
       }
     });
 
     this.graph.on('change:position', cell => {
       const node = this.nodeMap.get(cell.id);
-      if (node) { this._updateConnectionPorts(cell); node.emit('move', node); }
+      if (node) {
+        this._updateConnectionPorts(cell);
+        node.emit('move', node);
+      }
     });
   }
 
@@ -1270,41 +1904,71 @@ class DiagramEditor extends EventBus {
   // ══════════════════════════════════════════════════════════════
   _attachKeyboardShortcuts() {
     this.clipboard = null;
-    this.canvasArea.tabIndex = 0;
+    this.canvasArea.tabIndex     = 0;
     this.canvasArea.style.outline = 'none';
     this.canvasArea.focus();
 
     this.canvasArea.addEventListener('mousedown', () => {
       const tag = document.activeElement?.tagName;
-      if (tag !== 'INPUT' && tag !== 'TEXTAREA') this.canvasArea.focus();
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        this.canvasArea.focus();
+      }
     });
 
     this.canvasArea.addEventListener('keydown', async e => {
-      const tag       = document.activeElement?.tagName;
-      const isTyping  = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      const tag      = document.activeElement?.tagName;
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
       if (e.key === 'F2' || (!isTyping && e.key === 'Enter')) {
         if (this.selection instanceof Node || this.selection instanceof Edge) {
           e.preventDefault();
-          if (this.rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.rightSidebar);
+          if (this.rightSidebar.classList.contains('wf-collapsed')) {
+            this._toggleSidebar(this.rightSidebar);
+          }
           await this._waitForRender(this.selection.cell ?? this.selection.link);
           const panel      = this.selection instanceof Node ? this.nodePropertiesPanel : this.edgePropertiesPanel;
           const labelInput = panel.querySelector('[data-prop="label"]');
-          if (labelInput) { labelInput.focus(); labelInput.select(); }
+          if (labelInput) {
+            labelInput.focus();
+            labelInput.select();
+          }
         }
         return;
       }
 
-      if (isTyping) return;
-      if (e.key === 'Escape')                              { e.preventDefault(); this._deselectAll(); return; }
-      if (e.key === 'Delete' || e.key === 'Backspace')     { e.preventDefault(); this._deleteSelected(); return; }
-      if (e.key === '-' && !e.ctrlKey && !e.metaKey)       { e.preventDefault(); this.zoomOut(); return; }
-      if ((e.key === '=' || e.key === '+') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (this.selection instanceof Node) { e.preventDefault(); this.clipboard = this.selection; }
+      if (isTyping) {
         return;
       }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this._deselectAll();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        this._deleteSelected();
+        return;
+      }
+      if (e.key === '-' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        this.zoomOut();
+        return;
+      }
+      if ((e.key === '=' || e.key === '+') && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        this.zoomIn();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (this.selection instanceof Node) {
+          e.preventDefault();
+          this.clipboard = this.selection;
+        }
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         if (this.clipboard) {
           e.preventDefault();
@@ -1314,9 +1978,9 @@ class DiagramEditor extends EventBus {
           cloned.position(openPos.x, openPos.y);
           cloned.addTo(this.graph);
           this._deselectAll();
-          const copy    = new this.clipboard.constructor(this.clipboard.label);
-          copy.cell     = cloned;
-          copy.editor   = this;
+          const copy  = new this.clipboard.constructor(this.clipboard.label);
+          copy.cell   = cloned;
+          copy.editor = this;
           this.nodeMap.set(cloned.id, copy);
           (async () => {
             await this._waitForRender(cloned);
@@ -1350,12 +2014,21 @@ class DiagramEditor extends EventBus {
   // ══════════════════════════════════════════════════════════════
   _attachTouchListeners() {
     this.renderer.el.addEventListener('touchstart', e => {
-      if (!this._isMobile()) return;
+      if (!this._isMobile()) {
+        return;
+      }
       if (e.touches.length === 1) {
         const touch = e.touches[0];
-        if (document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.joint-cell')) return;
+        if (document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.joint-cell')) {
+          return;
+        }
         e.stopPropagation();
-        this.touchState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initTranslation: this.renderer.translate() };
+        this.touchState = {
+          type:            'pan',
+          startX:          touch.clientX,
+          startY:          touch.clientY,
+          initTranslation: this.renderer.translate()
+        };
       } else if (e.touches.length === 2) {
         e.stopPropagation();
         const [t1, t2] = [e.touches[0], e.touches[1]];
@@ -1370,7 +2043,9 @@ class DiagramEditor extends EventBus {
     }, { passive: true });
 
     this.renderer.el.addEventListener('touchmove', e => {
-      if (!this._isMobile() || !this.touchState) return;
+      if (!this._isMobile() || !this.touchState) {
+        return;
+      }
       e.preventDefault();
       const state = this.touchState;
 
@@ -1395,10 +2070,17 @@ class DiagramEditor extends EventBus {
     }, { passive: false });
 
     this.renderer.el.addEventListener('touchend', e => {
-      if (!this._isMobile()) return;
+      if (!this._isMobile()) {
+        return;
+      }
       if (this.touchState?.type === 'pinch' && e.touches.length === 1) {
         const touch = e.touches[0];
-        this.touchState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initTranslation: this.renderer.translate() };
+        this.touchState = {
+          type:            'pan',
+          startX:          touch.clientX,
+          startY:          touch.clientY,
+          initTranslation: this.renderer.translate()
+        };
       } else {
         this.touchState = null;
       }
@@ -1416,14 +2098,22 @@ class DiagramEditor extends EventBus {
 
     if (view) {
       view.el.classList.add('wf-selected');
-      joint.highlighters.stroke.add(view, 'root', 'selection', { padding: 5, attrs: { stroke: '#3498db', 'stroke-width': 3 } });
+      joint.highlighters.stroke.add(view, 'root', 'selection', {
+        padding: 5,
+        attrs: { stroke: '#3498db', 'stroke-width': 3 }
+      });
     }
 
     this.propertiesHeaderActions.style.display = 'flex';
     this.propertiesHeaderActions.querySelector('[data-action="duplicate"]').style.display = isNode ? 'flex' : 'none';
 
-    if (isNode) { this._showPropertiesPanel('node'); this._fillNodeProperties(item); }
-    else        { this._showPropertiesPanel('edge'); this._fillEdgeProperties(item); }
+    if (isNode) {
+      this._showPropertiesPanel('node');
+      this._fillNodeProperties(item);
+    } else {
+      this._showPropertiesPanel('edge');
+      this._fillEdgeProperties(item);
+    }
 
     this.emit('selection:change', item);
     this._updateMobileButtonVisibility();
@@ -1452,7 +2142,12 @@ class DiagramEditor extends EventBus {
 
   _fillNodeProperties(node) {
     const panel = this.nodePropertiesPanel;
-    const set   = (prop, val) => { const el = panel.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
+    const set   = (prop, val) => {
+      const el = panel.querySelector(`[data-prop="${prop}"]`);
+      if (el) {
+        el.value = val ?? '';
+      }
+    };
 
     set('label',               node.label);
     set('labelFontSize',       node.labelFontSize);
@@ -1471,14 +2166,18 @@ class DiagramEditor extends EventBus {
 
     panel.querySelector('.wf-custom-props')?.remove();
     const schema = node.getSchema?.() ?? {};
-    if (!Object.keys(schema).length) return;
+    if (!Object.keys(schema).length) {
+      return;
+    }
 
     const customSection = this._makeElement('div', 'wf-custom-props');
     const divider = customSection.appendChild(this._makeElement('div'));
     divider.style.cssText = 'border-top:1px solid #dee2e6;margin:4px 0;';
 
     Object.entries(schema).forEach(([key, def]) => {
-      if (def.visible === false) return;
+      if (def.visible === false) {
+        return;
+      }
 
       const group = customSection.appendChild(this._makeElement('div', 'wf-prop-group'));
       const lbl   = group.appendChild(this._makeElement('label'));
@@ -1491,7 +2190,7 @@ class DiagramEditor extends EventBus {
         input = this._makeElement('select');
         Object.entries(def.choices ?? {}).forEach(([val, label]) => {
           const opt = input.appendChild(this._makeElement('option'));
-          opt.value = val;
+          opt.value       = val;
           opt.textContent = label;
         });
         input.value = current ?? def.default;
@@ -1509,10 +2208,20 @@ class DiagramEditor extends EventBus {
 
       } else if (def.type === 'color') {
         const row    = group.appendChild(this._makeElement('div', 'wf-color-row'));
-        const picker = this._makeElement('input'); picker.type = 'color'; picker.value = current ?? def.default ?? '#000000';
-        const hex    = this._makeElement('input'); hex.type    = 'text';  hex.value    = current ?? def.default ?? '#000000';
-        picker.addEventListener('input', () => { hex.value = picker.value; node.setCustomProperty(key, picker.value); });
-        hex.addEventListener('input',    () => { picker.value = hex.value; node.setCustomProperty(key, hex.value); });
+        const picker = this._makeElement('input');
+        picker.type  = 'color';
+        picker.value = current ?? def.default ?? '#000000';
+        const hex    = this._makeElement('input');
+        hex.type     = 'text';
+        hex.value    = current ?? def.default ?? '#000000';
+        picker.addEventListener('input', () => {
+          hex.value = picker.value;
+          node.setCustomProperty(key, picker.value);
+        });
+        hex.addEventListener('input', () => {
+          picker.value = hex.value;
+          node.setCustomProperty(key, hex.value);
+        });
         row.appendChild(picker);
         row.appendChild(hex);
         group.appendChild(row);
@@ -1522,17 +2231,28 @@ class DiagramEditor extends EventBus {
         input = this._makeElement('input');
         input.type  = def.type === 'number' ? 'number' : 'text';
         input.value = current ?? '';
-        if (def.min !== undefined) input.min = def.min;
-        if (def.max !== undefined) input.max = def.max;
+        if (def.min !== undefined) {
+          input.min = def.min;
+        }
+        if (def.max !== undefined) {
+          input.max = def.max;
+        }
       }
 
-      if (def.readonly) input.disabled = true;
+      if (def.readonly) {
+        input.disabled = true;
+      }
       group.appendChild(input);
 
       input.addEventListener(def.type === 'boolean' ? 'change' : 'input', () => {
-        const newVal = def.type === 'boolean' ? input.checked
-          : def.type === 'number' ? parseFloat(input.value)
-          : input.value;
+        let newVal;
+        if (def.type === 'boolean') {
+          newVal = input.checked;
+        } else if (def.type === 'number') {
+          newVal = parseFloat(input.value);
+        } else {
+          newVal = input.value;
+        }
         node.setCustomProperty(key, newVal);
       });
     });
@@ -1542,7 +2262,12 @@ class DiagramEditor extends EventBus {
 
   _fillEdgeProperties(edge) {
     const panel = this.edgePropertiesPanel;
-    const set   = (prop, val) => { const el = panel.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
+    const set   = (prop, val) => {
+      const el = panel.querySelector(`[data-prop="${prop}"]`);
+      if (el) {
+        el.value = val ?? '';
+      }
+    };
 
     set('label',         edge.label);
     set('labelFontSize', edge.labelFontSize);
@@ -1561,8 +2286,8 @@ class DiagramEditor extends EventBus {
   // Internal: sidebar collapse / expand
   // ══════════════════════════════════════════════════════════════
   _toggleSidebar(sidebar) {
-    const isLeft     = sidebar === this.leftSidebar;
-    const icon       = isLeft ? this.leftCollapseIcon : this.rightCollapseIcon;
+    const isLeft          = sidebar === this.leftSidebar;
+    const icon            = isLeft ? this.leftCollapseIcon : this.rightCollapseIcon;
     const prevTranslation = this.renderer.translate();
     const isNowCollapsed  = sidebar.classList.toggle('wf-collapsed');
 
@@ -1597,7 +2322,9 @@ class DiagramEditor extends EventBus {
   }
 
   _collapseAllSidebarsOnMobile() {
-    if (!this._isMobile()) return;
+    if (!this._isMobile()) {
+      return;
+    }
     const prevTranslation = this.renderer.translate();
     this._setSidebarCollapsed(this.leftSidebar,  true);
     this._setSidebarCollapsed(this.rightSidebar, true);
@@ -1614,29 +2341,35 @@ class DiagramEditor extends EventBus {
   // Internal: duplicate / delete actions
   // ══════════════════════════════════════════════════════════════
   _duplicateSelected() {
-    if (!(this.selection instanceof Node)) return;
+    if (!(this.selection instanceof Node)) {
+      return;
+    }
     const bbox    = this.selection.cell.getBBox();
     const openPos = this._findOpenPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
     const cloned  = this.selection.cell.clone();
     cloned.translate(openPos.x - bbox.x, openPos.y - bbox.y);
     cloned.addTo(this.graph);
-    const copy    = new this.selection.constructor(this.selection.label);
-    copy.cell     = cloned;
-    copy.editor   = this;
+    const copy  = new this.selection.constructor(this.selection.label);
+    copy.cell   = cloned;
+    copy.editor = this;
     this.nodeMap.set(cloned.id, copy);
     this._selectItem(copy);
     this.emit('node:add', copy);
   }
 
   _deleteSelected() {
-    if (!this.selection) return;
+    if (!this.selection) {
+      return;
+    }
     const item = this.selection;
     this._deselectAll();
     item.remove();
   }
 
   _focusCameraOnSelection() {
-    if (!this.selection) return;
+    if (!this.selection) {
+      return;
+    }
     const model  = this.selection instanceof Node ? this.selection.cell : this.selection.link;
     const center = model.getBBox().center();
     const size   = this.renderer.getComputedSize();
@@ -1651,7 +2384,9 @@ class DiagramEditor extends EventBus {
     const reverseExists = [...this.edgeMap.values()].some(
       e => e.source === targetNode && e.target === sourceNode
     );
-    if (reverseExists) return null;
+    if (reverseExists) {
+      return null;
+    }
 
     const link = new joint.shapes.standard.Link({
       attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: ARROW_MARKERS.classic } }
@@ -1665,8 +2400,12 @@ class DiagramEditor extends EventBus {
     link.source(srcPort ? { id: sourceNode.cell.id, port: srcPort.id } : { id: sourceNode.cell.id });
     link.target(tgtPort ? { id: targetNode.cell.id, port: tgtPort.id } : { id: targetNode.cell.id });
 
-    if (sourcePortIndex !== null) link.set('sourcePort', sourcePortIndex);
-    if (targetPortIndex !== null) link.set('targetPort', targetPortIndex);
+    if (sourcePortIndex !== null) {
+      link.set('sourcePort', sourcePortIndex);
+    }
+    if (targetPortIndex !== null) {
+      link.set('targetPort', targetPortIndex);
+    }
 
     this.graph.startBatch('edge');
     link.addTo(this.graph);
@@ -1688,15 +2427,23 @@ class DiagramEditor extends EventBus {
   // Internal: auto port distribution along edges
   // ══════════════════════════════════════════════════════════════
   _updateConnectionPorts(cell) {
-    if (!this.autoPortsOn || this.isLoading) return;
+    if (!this.autoPortsOn || this.isLoading) {
+      return;
+    }
 
     this.graph.getConnectedLinks(cell).forEach(link => {
-      if (typeof link.get('sourcePort') === 'number') return;
-      if (typeof link.get('targetPort') === 'number') return;
+      if (typeof link.get('sourcePort') === 'number') {
+        return;
+      }
+      if (typeof link.get('targetPort') === 'number') {
+        return;
+      }
 
       const srcCell = link.getSourceElement();
       const tgtCell = link.getTargetElement();
-      if (!srcCell || !tgtCell) return;
+      if (!srcCell || !tgtCell) {
+        return;
+      }
 
       const getCenter = el => {
         const pos  = el.position();
@@ -1705,30 +2452,43 @@ class DiagramEditor extends EventBus {
       };
 
       const getBestPort = (el, towardPoint) => {
-        const center       = getCenter(el);
-        const angleToward  = Math.atan2(towardPoint.y - center.y, towardPoint.x - center.x);
+        const center        = getCenter(el);
+        const angleToward   = Math.atan2(towardPoint.y - center.y, towardPoint.x - center.x);
         const portPositions = el.getPortsPositions('all');
         const size          = el.size();
         let bestId = null, bestAngleDiff = Infinity;
 
         el.getPorts().forEach(port => {
           const pos = portPositions[port.id];
-          if (!pos) return;
+          if (!pos) {
+            return;
+          }
           const portAngle = Math.atan2(pos.y - size.height / 2, pos.x - size.width / 2);
           let diff = Math.abs(angleToward - portAngle);
-          if (diff > Math.PI) diff = 2 * Math.PI - diff;
-          if (diff < bestAngleDiff) { bestAngleDiff = diff; bestId = port.id; }
+          if (diff > Math.PI) {
+            diff = 2 * Math.PI - diff;
+          }
+          if (diff < bestAngleDiff) {
+            bestAngleDiff = diff;
+            bestId        = port.id;
+          }
         });
         return bestId;
       };
 
-      const srcCenter    = getCenter(srcCell);
-      const tgtCenter    = getCenter(tgtCell);
-      const bestSrcPort  = getBestPort(srcCell, tgtCenter);
-      const bestTgtPort  = getBestPort(tgtCell, srcCenter);
+      const srcCenter   = getCenter(srcCell);
+      const tgtCenter   = getCenter(tgtCell);
+      const bestSrcPort = getBestPort(srcCell, tgtCenter);
+      const bestTgtPort = getBestPort(tgtCell, srcCenter);
 
-      if (link.source().port !== bestSrcPort) { link.source({ id: srcCell.id, port: bestSrcPort }); link.unset('sourcePort'); }
-      if (link.target().port !== bestTgtPort) { link.target({ id: tgtCell.id, port: bestTgtPort }); link.unset('targetPort'); }
+      if (link.source().port !== bestSrcPort) {
+        link.source({ id: srcCell.id, port: bestSrcPort });
+        link.unset('sourcePort');
+      }
+      if (link.target().port !== bestTgtPort) {
+        link.target({ id: tgtCell.id, port: bestTgtPort });
+        link.unset('targetPort');
+      }
     });
   }
 
@@ -1738,7 +2498,10 @@ class DiagramEditor extends EventBus {
   _waitForRender(cell) {
     return new Promise(resolve => {
       const view = this.renderer.findViewByModel(cell);
-      if (!view) { resolve(); return; }
+      if (!view) {
+        resolve();
+        return;
+      }
       requestAnimationFrame(() => requestAnimationFrame(() => resolve(view)));
     });
   }
@@ -1751,27 +2514,31 @@ class DiagramEditor extends EventBus {
 
   _fitNodeToContent(cell) {
     const view = this.renderer.findViewByModel(cell);
-    if (!view) return;
+    if (!view) {
+      return;
+    }
 
     const labelEl = view.el.querySelector('.label');
     const descEl  = view.el.querySelector('.descriptionLabel');
-    if (!labelEl || !descEl) return;
+    if (!labelEl || !descEl) {
+      return;
+    }
 
     const fontScale = (cell.get('fontSizePercent') || 100) / 100;
     cell.attr({ label: { fontSize: 13 * fontScale }, descriptionLabel: { fontSize: 11 * fontScale } });
 
-    const imageUrl    = cell.get('imageUrl');
-    const shapeType   = cell.get('type');
-    const descText    = cell.attr('descriptionLabel/text') || '';
-    const imgW        = parseInt(cell.get('imageWidth')  || 32);
-    const imgH        = parseInt(cell.get('imageHeight') || 32);
-    const padding     = 15;
-    const imgSpacing  = imageUrl ? 10 : 0;
+    const imageUrl   = cell.get('imageUrl');
+    const shapeType  = cell.get('type');
+    const descText   = cell.attr('descriptionLabel/text') || '';
+    const imgW       = parseInt(cell.get('imageWidth')  || 32);
+    const imgH       = parseInt(cell.get('imageHeight') || 32);
+    const padding    = 15;
+    const imgSpacing = imageUrl ? 10 : 0;
 
-    const labelBBox = labelEl.getBBox();
-    const descBBox  = descEl.getBBox();
-    const textW     = Math.max(labelBBox.width, descBBox.width);
-    const totalW    = (imageUrl ? imgW : 0) + imgSpacing + textW;
+    const labelBBox  = labelEl.getBBox();
+    const descBBox   = descEl.getBBox();
+    const textW      = Math.max(labelBBox.width, descBBox.width);
+    const totalW     = (imageUrl ? imgW : 0) + imgSpacing + textW;
 
     let w = Math.max(140, padding + totalW + padding);
     const totalTextH = descText ? labelBBox.height + descBBox.height : labelBBox.height;
@@ -1780,9 +2547,15 @@ class DiagramEditor extends EventBus {
     if (shapeType === 'diamond' || shapeType === 'circle') {
       w = h = Math.max(w, h);
     } else if (['triangle', 'hexagon', 'pentagon', 'octagon'].includes(shapeType)) {
-      if (w / h > 1.2) h = w / 1.2;
-      else w = h * 1.2;
-      if (shapeType === 'triangle') { w *= 1.25; h *= 1.25; }
+      if (w / h > 1.2) {
+        h = w / 1.2;
+      } else {
+        w = h * 1.2;
+      }
+      if (shapeType === 'triangle') {
+        w *= 1.25;
+        h *= 1.25;
+      }
     }
 
     const contentStartX = (w - totalW) / 2;
@@ -1792,10 +2565,22 @@ class DiagramEditor extends EventBus {
 
     if (descText) {
       const contentStartY = (h - totalTextH) / 2;
-      cell.attr('label',            { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height / 2,                textAnchor: 'middle', textVerticalAnchor: 'middle' });
-      cell.attr('descriptionLabel', { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height + descBBox.height / 2, textAnchor: 'middle', textVerticalAnchor: 'middle' });
+      cell.attr('label', {
+        refX: 0, refX2: textCenterX,
+        refY: 0, refY2: contentStartY + labelBBox.height / 2,
+        textAnchor: 'middle', textVerticalAnchor: 'middle'
+      });
+      cell.attr('descriptionLabel', {
+        refX: 0, refX2: textCenterX,
+        refY: 0, refY2: contentStartY + labelBBox.height + descBBox.height / 2,
+        textAnchor: 'middle', textVerticalAnchor: 'middle'
+      });
     } else {
-      cell.attr('label', { refX: 0, refX2: textCenterX, refY: 0.5, refY2: 0, textAnchor: 'middle', textVerticalAnchor: 'middle' });
+      cell.attr('label', {
+        refX: 0, refX2: textCenterX,
+        refY: 0.5, refY2: 0,
+        textAnchor: 'middle', textVerticalAnchor: 'middle'
+      });
     }
 
     cell.resize(w, h);
@@ -1810,7 +2595,9 @@ class DiagramEditor extends EventBus {
 
   _makeElement(tag, className = '') {
     const el = document.createElement(tag);
-    if (className) el.className = className;
+    if (className) {
+      el.className = className;
+    }
     return el;
   }
 
@@ -1822,14 +2609,14 @@ class DiagramEditor extends EventBus {
   }
 
   _zoomAtPoint(factor, clientX, clientY) {
-    const current    = this.renderer.scale().sx;
-    const newScale   = Math.max(0.1, Math.min(10, current * factor));
-    const rect       = this.renderer.el.getBoundingClientRect();
-    const vpX        = clientX - rect.left;
-    const vpY        = clientY - rect.top;
+    const current     = this.renderer.scale().sx;
+    const newScale    = Math.max(0.1, Math.min(10, current * factor));
+    const rect        = this.renderer.el.getBoundingClientRect();
+    const vpX         = clientX - rect.left;
+    const vpY         = clientY - rect.top;
     const translation = this.renderer.translate();
-    const originX    = (vpX - translation.tx) / current;
-    const originY    = (vpY - translation.ty) / current;
+    const originX     = (vpX - translation.tx) / current;
+    const originY     = (vpY - translation.ty) / current;
     this.renderer.scale(newScale, newScale);
     this.renderer.translate(vpX - originX * newScale, vpY - originY * newScale);
   }
@@ -1847,20 +2634,28 @@ class DiagramEditor extends EventBus {
     const isBlocked = (testX, testY) => {
       const testRect = new joint.g.Rect(testX, testY, w, h).inflate(clearance);
       return this.graph.getElements().some(el => {
-        if (excludeCell && el.id === excludeCell.id) return false;
+        if (excludeCell && el.id === excludeCell.id) {
+          return false;
+        }
         return testRect.intersect(el.getBBox().clone().inflate(clearance));
       });
     };
 
-    if (!isBlocked(x, y)) return { x, y };
+    if (!isBlocked(x, y)) {
+      return { x, y };
+    }
 
     for (let radius = 1; radius < 30; radius++) {
       for (let dx = -radius; dx <= radius; dx++) {
         for (let dy = -radius; dy <= radius; dy++) {
-          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) {
+            continue;
+          }
           const tx = x + dx * this.gridSize;
           const ty = y + dy * this.gridSize;
-          if (!isBlocked(tx, ty)) return { x: tx, y: ty };
+          if (!isBlocked(tx, ty)) {
+            return { x: tx, y: ty };
+          }
         }
       }
     }
@@ -1875,7 +2670,10 @@ class DiagramEditor extends EventBus {
   }
 
   _touchMidpoint(t1, t2) {
-    return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+    return {
+      x: (t1.clientX + t2.clientX) / 2,
+      y: (t1.clientY + t2.clientY) / 2
+    };
   }
 }
 
