@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>JointJS Workflow</title>
+  <title>Diagram Editor</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
@@ -72,67 +72,67 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════
-// EventEmitter — minimal pub/sub base class
+// EventBus — minimal pub/sub base class
 // ═══════════════════════════════════════════════════════════════
-class EventEmitter {
+class EventBus {
   constructor() {
-    this._listenersByEvent = {};
+    this.listeners = {};
   }
 
-  on(eventName, callbackFn) {
-    if (!this._listenersByEvent[eventName]) this._listenersByEvent[eventName] = [];
-    this._listenersByEvent[eventName].push(callbackFn);
+  on(eventName, callback) {
+    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    this.listeners[eventName].push(callback);
     return this;
   }
 
-  off(eventName, callbackFn) {
-    if (!this._listenersByEvent[eventName]) return this;
-    this._listenersByEvent[eventName] = this._listenersByEvent[eventName].filter(fn => fn !== callbackFn);
+  off(eventName, callback) {
+    if (!this.listeners[eventName]) return this;
+    this.listeners[eventName] = this.listeners[eventName].filter(fn => fn !== callback);
     return this;
   }
 
   emit(eventName, ...args) {
-    (this._listenersByEvent[eventName] || []).forEach(fn => fn(...args));
+    (this.listeners[eventName] || []).forEach(fn => fn(...args));
     return this;
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Vertex — a single movable point on a connection path
+// PathPoint — a single movable bend point on an edge's path
 // ═══════════════════════════════════════════════════════════════
-class Vertex extends EventEmitter {
-  constructor(parentLink, vertexIndex) {
+class PathPoint extends EventBus {
+  constructor(parentEdge, pointIndex) {
     super();
-    this.id = `vertex-${Math.random().toString(36).slice(2)}`;
-    this._parentLink = parentLink;
-    this._vertexIndex = vertexIndex;
+    this.id = `pathpoint-${Math.random().toString(36).slice(2)}`;
+    this.edge       = parentEdge;
+    this.pointIndex = pointIndex;
   }
 
-  get x() { return this._parentLink.vertices()[this._vertexIndex]?.x ?? 0; }
-  get y() { return this._parentLink.vertices()[this._vertexIndex]?.y ?? 0; }
+  get x() { return this.edge.vertices()[this.pointIndex]?.x ?? 0; }
+  get y() { return this.edge.vertices()[this.pointIndex]?.y ?? 0; }
 
-  moveTo(newX, newY) {
-    const allVertices = [...this._parentLink.vertices()];
-    allVertices[this._vertexIndex] = { x: newX, y: newY };
-    this._parentLink.vertices(allVertices);
+  moveTo(x, y) {
+    const points = [...this.edge.vertices()];
+    points[this.pointIndex] = { x, y };
+    this.edge.vertices(points);
     this.emit('move', this);
     return this;
   }
 
-  moveBy(deltaX, deltaY) {
-    return this.moveTo(this.x + deltaX, this.y + deltaY);
+  moveBy(dx, dy) {
+    return this.moveTo(this.x + dx, this.y + dy);
   }
 
   remove() {
-    const allVertices = [...this._parentLink.vertices()];
-    allVertices.splice(this._vertexIndex, 1);
-    this._parentLink.vertices(allVertices);
+    const points = [...this.edge.vertices()];
+    points.splice(this.pointIndex, 1);
+    this.edge.vertices(points);
     this.emit('remove', this);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Arrow marker definitions for connection endpoints
+// Arrow marker definitions for edge endpoints
 // ═══════════════════════════════════════════════════════════════
 const ARROW_MARKERS = {
   none:    null,
@@ -141,295 +141,295 @@ const ARROW_MARKERS = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// Connection — wraps a JointJS link with a friendlier API
+// Edge — a connection between two nodes
 // ═══════════════════════════════════════════════════════════════
-class Connection extends EventEmitter {
-  constructor(jointLink, sourceShape, targetShape, parentCanvas) {
+class Edge extends EventBus {
+  constructor(link, sourceNode, targetNode, editor) {
     super();
-    this._jointLink   = jointLink;
-    this._sourceShape = sourceShape;
-    this._targetShape = targetShape;
-    this._parentCanvas = parentCanvas;
-    this._vertices    = [];
+    this.link       = link;
+    this.sourceNode = sourceNode;
+    this.targetNode = targetNode;
+    this.editor     = editor;
+    this.pathPoints = [];
   }
 
-  get id()     { return this._jointLink.id; }
-  get source() { return this._sourceShape; }
-  get target() { return this._targetShape; }
+  get id()     { return this.link.id; }
+  get source() { return this.sourceNode; }
+  get target() { return this.targetNode; }
 
-  get label() { return this._jointLink.label(0)?.attrs?.text?.text || ''; }
-  set label(newLabel) { this._applyLabelToLink(newLabel); this.emit('change', this); }
+  get label() { return this.link.label(0)?.attrs?.text?.text || ''; }
+  set label(value) { this._applyLabel(value); this.emit('change', this); }
 
-  get labelColor() { return this._jointLink.label(0)?.attrs?.text?.fill || '#333333'; }
-  set labelColor(newColor) { this._jointLink.prop('labelColor', newColor); this._applyLabelToLink(this.label); this.emit('change', this); }
+  get labelColor() { return this.link.label(0)?.attrs?.text?.fill || '#333333'; }
+  set labelColor(value) { this.link.prop('labelColor', value); this._applyLabel(this.label); this.emit('change', this); }
 
-  get labelFontSize() { return this._jointLink.get('fontSizePercent') || 100; }
-  set labelFontSize(newSizePercent) { this._jointLink.set('fontSizePercent', newSizePercent); this._applyLabelToLink(this.label); this.emit('change', this); }
+  get labelFontSize() { return this.link.get('fontSizePercent') || 100; }
+  set labelFontSize(value) { this.link.set('fontSizePercent', value); this._applyLabel(this.label); this.emit('change', this); }
 
-  get lineColor() { return this._jointLink.attr('line/stroke') || '#495057'; }
-  set lineColor(newColor) { this._jointLink.attr('line/stroke', newColor); this.emit('change', this); }
+  get lineColor() { return this.link.attr('line/stroke') || '#495057'; }
+  set lineColor(value) { this.link.attr('line/stroke', value); this.emit('change', this); }
 
-  get lineWidth() { return this._jointLink.attr('line/strokeWidth') || 2; }
-  set lineWidth(newWidth) { this._jointLink.attr('line/strokeWidth', newWidth); this.emit('change', this); }
+  get lineWidth() { return this.link.attr('line/strokeWidth') || 2; }
+  set lineWidth(value) { this.link.attr('line/strokeWidth', value); this.emit('change', this); }
 
   get lineStyle() {
-    const dashArray = this._jointLink.attr('line/strokeDasharray') || '';
-    return dashArray === '5,5' ? 'dashed' : dashArray === '1,5' ? 'dotted' : 'solid';
+    const dash = this.link.attr('line/strokeDasharray') || '';
+    return dash === '5,5' ? 'dashed' : dash === '1,5' ? 'dotted' : 'solid';
   }
-  set lineStyle(newStyle) {
-    this._jointLink.attr('line/strokeDasharray', newStyle === 'dashed' ? '5,5' : newStyle === 'dotted' ? '1,5' : '');
+  set lineStyle(value) {
+    this.link.attr('line/strokeDasharray', value === 'dashed' ? '5,5' : value === 'dotted' ? '1,5' : '');
     this.emit('change', this);
   }
 
-  get sourceArrow() { return this._markerTypeFromDefinition(this._jointLink.attr('line/sourceMarker')); }
-  set sourceArrow(arrowType) { this._jointLink.attr('line/sourceMarker', ARROW_MARKERS[arrowType] || null); this.emit('change', this); }
+  get sourceArrow() { return this._arrowNameFromDefinition(this.link.attr('line/sourceMarker')); }
+  set sourceArrow(value) { this.link.attr('line/sourceMarker', ARROW_MARKERS[value] || null); this.emit('change', this); }
 
-  get targetArrow() { return this._markerTypeFromDefinition(this._jointLink.attr('line/targetMarker')); }
-  set targetArrow(arrowType) { this._jointLink.attr('line/targetMarker', ARROW_MARKERS[arrowType] || null); this.emit('change', this); }
+  get targetArrow() { return this._arrowNameFromDefinition(this.link.attr('line/targetMarker')); }
+  set targetArrow(value) { this.link.attr('line/targetMarker', ARROW_MARKERS[value] || null); this.emit('change', this); }
 
   get connectorType() {
-    const connectorName = this._jointLink.connector()?.name;
-    const routerName    = this._jointLink.router()?.name;
-    return connectorName === 'smooth' ? 'curved' : routerName === 'normal' ? 'straight' : 'elbow';
+    const connector = this.link.connector()?.name;
+    const router    = this.link.router()?.name;
+    return connector === 'smooth' ? 'curved' : router === 'normal' ? 'straight' : 'elbow';
   }
-  set connectorType(newType) {
-    const gridSize = this._parentCanvas._gridSize;
-    if (newType === 'elbow')         { this._jointLink.router('manhattan', { step: gridSize, padding: 20 }); this._jointLink.connector('rounded'); }
-    else if (newType === 'straight') { this._jointLink.router('normal'); this._jointLink.connector('normal'); }
-    else                             { this._jointLink.router('normal'); this._jointLink.connector('smooth'); }
+  set connectorType(value) {
+    const gridSize = this.editor.gridSize;
+    if (value === 'elbow')         { this.link.router('manhattan', { step: gridSize, padding: 20 }); this.link.connector('rounded'); }
+    else if (value === 'straight') { this.link.router('normal'); this.link.connector('normal'); }
+    else                           { this.link.router('normal'); this.link.connector('smooth'); }
     this.emit('change', this);
   }
 
-  get sourcePort() { return this._jointLink.get('sourcePort') ?? null; }
-  set sourcePort(portIndex) { this._setEndpointPort('source', portIndex); }
+  get sourcePort() { return this.link.get('sourcePort') ?? null; }
+  set sourcePort(value) { this._setPort('source', value); }
 
-  get targetPort() { return this._jointLink.get('targetPort') ?? null; }
-  set targetPort(portIndex) { this._setEndpointPort('target', portIndex); }
+  get targetPort() { return this.link.get('targetPort') ?? null; }
+  set targetPort(value) { this._setPort('target', value); }
 
-  get description() { return this._jointLink.get('description') || ''; }
-  set description(newDescription) { this._jointLink.set('description', newDescription); this.emit('change', this); }
+  get description() { return this.link.get('description') || ''; }
+  set description(value) { this.link.set('description', value); this.emit('change', this); }
 
-  getVertices() { return [...this._vertices]; }
+  getPathPoints() { return [...this.pathPoints]; }
 
-  addVertex(x, y) {
-    const allVertices = [...this._jointLink.vertices(), { x, y }];
-    this._jointLink.vertices(allVertices);
-    const newVertex = new Vertex(this._jointLink, allVertices.length - 1);
-    this._vertices.push(newVertex);
-    return newVertex;
+  addPathPoint(x, y) {
+    const points = [...this.link.vertices(), { x, y }];
+    this.link.vertices(points);
+    const point = new PathPoint(this.link, points.length - 1);
+    this.pathPoints.push(point);
+    return point;
   }
 
-  select()   { this._parentCanvas._selectCellOrConnection(this); return this; }
-  deselect() { this._parentCanvas._deselectAll(); return this; }
-  remove()   { this._jointLink.remove(); this.emit('remove', this); }
+  select()   { this.editor._selectItem(this); return this; }
+  deselect() { this.editor.clearSelection(); return this; }
+  remove()   { this.link.remove(); this.emit('remove', this); }
 
-  _applyLabelToLink(labelText) {
-    const fontSize  = 12 * ((this._jointLink.get('fontSizePercent') || 100) / 100);
-    const textColor = this._jointLink.get('labelColor') || '#333333';
-    this._jointLink.labels(labelText
-      ? [{ attrs: { text: { text: labelText, fill: textColor, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }]
+  _applyLabel(text) {
+    const fontSize = 12 * ((this.link.get('fontSizePercent') || 100) / 100);
+    const color    = this.link.get('labelColor') || '#333333';
+    this.link.labels(text
+      ? [{ attrs: { text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' }, rect: { fill: 'white', opacity: 0.9 } }, position: { distance: 0.5 } }]
       : []
     );
   }
 
-  _markerTypeFromDefinition(markerDefinition) {
-    if (!markerDefinition) return 'none';
-    if (markerDefinition.d === ARROW_MARKERS.classic.d) return 'classic';
-    if (markerDefinition.d === ARROW_MARKERS.block.d)   return 'block';
+  _arrowNameFromDefinition(definition) {
+    if (!definition) return 'none';
+    if (definition.d === ARROW_MARKERS.classic.d) return 'classic';
+    if (definition.d === ARROW_MARKERS.block.d)   return 'block';
     return 'none';
   }
 
-  _setEndpointPort(endpointSide, portIndex) {
-    const endpointShape = endpointSide === 'source' ? this._sourceShape : this._targetShape;
-    this._jointLink.set(`${endpointSide}Port`, portIndex);
+  _setPort(side, portIndex) {
+    const node = side === 'source' ? this.sourceNode : this.targetNode;
+    this.link.set(`${side}Port`, portIndex);
     if (portIndex === null) {
-      this._jointLink[endpointSide]({ id: endpointShape._jointCell.id });
+      this.link[side]({ id: node.cell.id });
     } else {
-      const portDefinition = endpointShape._jointCell.getPorts()[portIndex - 1];
-      if (portDefinition) this._jointLink[endpointSide]({ id: endpointShape._jointCell.id, port: portDefinition.id });
+      const port = node.cell.getPorts()[portIndex - 1];
+      if (port) this.link[side]({ id: node.cell.id, port: port.id });
     }
     this.emit('change', this);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Shape — base class wrapping a JointJS element
+// Node — base class for a diagram shape
 // ═══════════════════════════════════════════════════════════════
-class Shape extends EventEmitter {
+class Node extends EventBus {
   constructor(options = {}) {
     super();
-    this._label        = typeof options === 'string' ? options : (options.label ?? '');
-    this._initOptions  = typeof options === 'string' ? {} : options;
-    this._jointCell    = null;
-    this._parentCanvas = null;
-    this._propertySchema    = {};
-    this._customPropertyValues = {};
-    this._renderFunction   = null;
+    this._label       = typeof options === 'string' ? options : (options.label ?? '');
+    this._initOptions = typeof options === 'string' ? {} : options;
+    this.cell         = null;
+    this.editor       = null;
+    this.schema       = {};
+    this.customProps  = {};
+    this.renderFn     = null;
   }
 
-  getCustomProperty(propertyKey) { return this._customPropertyValues[propertyKey]; }
+  getCustomProperty(key) { return this.customProps[key]; }
 
-  setCustomProperty(propertyKey, newValue) {
-    this._customPropertyValues[propertyKey] = newValue;
-    this._jointCell?.set(`custom_${propertyKey}`, newValue);
-    if (this._renderFunction) this._renderFunction(this);
+  setCustomProperty(key, value) {
+    this.customProps[key] = value;
+    this.cell?.set(`custom_${key}`, value);
+    if (this.renderFn) this.renderFn(this);
     this.emit('change', this);
   }
 
-  getSchema() { return this._propertySchema; }
+  getSchema() { return this.schema; }
 
-  get id()     { return this._jointCell?.id ?? null; }
-  get x()      { return this._jointCell?.position().x ?? 0; }
-  set x(newX)  { this._jointCell?.position(newX, this.y); this.emit('change', this); }
-  get y()      { return this._jointCell?.position().y ?? 0; }
-  set y(newY)  { this._jointCell?.position(this.x, newY); this.emit('change', this); }
-  get width()  { return this._jointCell?.size().width ?? 0; }
-  get height() { return this._jointCell?.size().height ?? 0; }
+  get id()     { return this.cell?.id ?? null; }
+  get x()      { return this.cell?.position().x ?? 0; }
+  set x(value) { this.cell?.position(value, this.y); this.emit('change', this); }
+  get y()      { return this.cell?.position().y ?? 0; }
+  set y(value) { this.cell?.position(this.x, value); this.emit('change', this); }
+  get width()  { return this.cell?.size().width ?? 0; }
+  get height() { return this.cell?.size().height ?? 0; }
   get portCount() { return 4; }
 
-  get label()           { return this._jointCell?.attr('label/text') ?? this._label; }
-  set label(newLabel)   { this._jointCell?.attr('label/text', newLabel); this._label = newLabel; this._autoResizeToFitContent(); this.emit('change', this); }
+  get label()           { return this.cell?.attr('label/text') ?? this._label; }
+  set label(value)      { this.cell?.attr('label/text', value); this._label = value; this._resizeToFitContent(); this.emit('change', this); }
 
-  get labelColor()      { return this._jointCell?.attr('label/fill') ?? '#212529'; }
-  set labelColor(newColor) { this._jointCell?.attr('label/fill', newColor); this.emit('change', this); }
+  get labelColor()      { return this.cell?.attr('label/fill') ?? '#212529'; }
+  set labelColor(value) { this.cell?.attr('label/fill', value); this.emit('change', this); }
 
-  get labelFontSize()   { return this._jointCell?.get('fontSizePercent') ?? 100; }
-  set labelFontSize(newSizePercent) { this._jointCell?.set('fontSizePercent', newSizePercent); this._autoResizeToFitContent(); this.emit('change', this); }
+  get labelFontSize()   { return this.cell?.get('fontSizePercent') ?? 100; }
+  set labelFontSize(value) { this.cell?.set('fontSizePercent', value); this._resizeToFitContent(); this.emit('change', this); }
 
-  get description()     { return this._jointCell?.get('description') ?? ''; }
-  set description(newDescription) { this._jointCell?.set('description', newDescription); this._jointCell?.attr('descriptionLabel/text', newDescription); this._autoResizeToFitContent(); this.emit('change', this); }
+  get description()     { return this.cell?.get('description') ?? ''; }
+  set description(value) { this.cell?.set('description', value); this.cell?.attr('descriptionLabel/text', value); this._resizeToFitContent(); this.emit('change', this); }
 
-  get descriptionColor()      { return this._jointCell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
-  set descriptionColor(newColor) { this._jointCell?.attr('descriptionLabel/fill', newColor); this.emit('change', this); }
+  get descriptionColor()      { return this.cell?.attr('descriptionLabel/fill') ?? '#6c757d'; }
+  set descriptionColor(value) { this.cell?.attr('descriptionLabel/fill', value); this.emit('change', this); }
 
-  get backgroundColor()       { return this._jointCell?.attr('body/fill') ?? '#ffffff'; }
-  set backgroundColor(newColor)  { this._jointCell?.attr('body/fill', newColor); this.emit('change', this); }
+  get backgroundColor()       { return this.cell?.attr('body/fill') ?? '#ffffff'; }
+  set backgroundColor(value)  { this.cell?.attr('body/fill', value); this.emit('change', this); }
 
-  get borderColor()     { return this._jointCell?.attr('body/stroke') ?? '#adb5bd'; }
-  set borderColor(newColor) { this._jointCell?.attr('body/stroke', newColor); this.emit('change', this); }
+  get borderColor()     { return this.cell?.attr('body/stroke') ?? '#adb5bd'; }
+  set borderColor(value) { this.cell?.attr('body/stroke', value); this.emit('change', this); }
 
-  get borderWidth()     { return this._jointCell?.attr('body/strokeWidth') ?? 2; }
-  set borderWidth(newWidth) { this._jointCell?.attr('body/strokeWidth', newWidth); this.emit('change', this); }
+  get borderWidth()     { return this.cell?.attr('body/strokeWidth') ?? 2; }
+  set borderWidth(value) { this.cell?.attr('body/strokeWidth', value); this.emit('change', this); }
 
-  get imageUrl()        { return this._jointCell?.get('imageUrl') ?? ''; }
-  set imageUrl(newUrl)  { this._jointCell?.set('imageUrl', newUrl); this._jointCell?.attr('image/xlink:href', newUrl); this._jointCell?.attr('image/display', newUrl ? 'block' : 'none'); this._autoResizeToFitContent(); this.emit('change', this); }
+  get imageUrl()        { return this.cell?.get('imageUrl') ?? ''; }
+  set imageUrl(value)   { this.cell?.set('imageUrl', value); this.cell?.attr('image/xlink:href', value); this.cell?.attr('image/display', value ? 'block' : 'none'); this._resizeToFitContent(); this.emit('change', this); }
 
-  get imageWidth()      { return this._jointCell?.get('imageWidth') ?? 32; }
-  set imageWidth(newWidth) { this._jointCell?.set('imageWidth', newWidth); this._autoResizeToFitContent(); this.emit('change', this); }
+  get imageWidth()      { return this.cell?.get('imageWidth') ?? 32; }
+  set imageWidth(value) { this.cell?.set('imageWidth', value); this._resizeToFitContent(); this.emit('change', this); }
 
-  get imageHeight()     { return this._jointCell?.get('imageHeight') ?? 32; }
-  set imageHeight(newHeight) { this._jointCell?.set('imageHeight', newHeight); this._autoResizeToFitContent(); this.emit('change', this); }
+  get imageHeight()     { return this.cell?.get('imageHeight') ?? 32; }
+  set imageHeight(value) { this.cell?.set('imageHeight', value); this._resizeToFitContent(); this.emit('change', this); }
 
-  get status()          { return this._jointCell?.get('status') ?? 'pending'; }
-  set status(newStatus) { this._jointCell?.set('status', newStatus); this.emit('change', this); }
+  get status()          { return this.cell?.get('status') ?? 'pending'; }
+  set status(value)     { this.cell?.set('status', value); this.emit('change', this); }
 
-  get priority()        { return this._jointCell?.get('priority') ?? 1; }
-  set priority(newPriority) { this._jointCell?.set('priority', newPriority); this.emit('change', this); }
+  get priority()        { return this.cell?.get('priority') ?? 1; }
+  set priority(value)   { this.cell?.set('priority', value); this.emit('change', this); }
 
-  moveTo(newX, newY)       { this._jointCell?.position(newX, newY); this.emit('move', this); return this; }
-  moveBy(deltaX, deltaY)   { return this.moveTo(this.x + deltaX, this.y + deltaY); }
-  toFront()                { this._jointCell?.toFront(); return this; }
-  toBack()                 { this._jointCell?.toBack(); return this; }
-  select()                 { this._parentCanvas?._selectCellOrConnection(this); return this; }
-  deselect()               { this._parentCanvas?._deselectAll(); return this; }
+  moveTo(x, y)       { this.cell?.position(x, y); this.emit('move', this); return this; }
+  moveBy(dx, dy)     { return this.moveTo(this.x + dx, this.y + dy); }
+  toFront()          { this.cell?.toFront(); return this; }
+  toBack()           { this.cell?.toBack(); return this; }
+  select()           { this.editor?._selectItem(this); return this; }
+  deselect()         { this.editor?.clearSelection(); return this; }
 
-  getConnections()         { return this._parentCanvas?._getConnectionsForShape(this) ?? []; }
-  getIncomingConnections() { return this.getConnections().filter(conn => conn.target === this); }
-  getOutgoingConnections() { return this.getConnections().filter(conn => conn.source === this); }
+  getEdges()         { return this.editor?._getEdgesForNode(this) ?? []; }
+  getIncomingEdges() { return this.getEdges().filter(e => e.target === this); }
+  getOutgoingEdges() { return this.getEdges().filter(e => e.source === this); }
 
-  connect(targetShape, sourcePortIndex = null, targetPortIndex = null) {
-    if (targetShape === this) throw new Error('A shape cannot connect to itself.');
-    return this._parentCanvas?._createConnection(this, targetShape, sourcePortIndex, targetPortIndex);
+  connect(targetNode, sourcePortIndex = null, targetPortIndex = null) {
+    if (targetNode === this) throw new Error('A node cannot connect to itself.');
+    return this.editor?._createEdge(this, targetNode, sourcePortIndex, targetPortIndex);
   }
 
-  remove() { this._jointCell?.remove(); this.emit('remove', this); }
+  remove() { this.cell?.remove(); this.emit('remove', this); }
 
-  _buildJointCell(position, jointNamespace) { throw new Error('_buildJointCell must be implemented by subclass'); }
-  _autoResizeToFitContent() { if (!this._parentCanvas || !this._jointCell) return; this._parentCanvas._autoResizeCellToFitContent(this._jointCell); }
+  _buildCell(position, jointNamespace) { throw new Error('_buildCell must be implemented by subclass'); }
+  _resizeToFitContent() { if (!this.editor || !this.cell) return; this.editor._fitNodeToContent(this.cell); }
   _getShapeType() { return 'rect'; }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Shape.define — factory for custom shape classes
+// Node.define — factory that creates custom node classes
 // ═══════════════════════════════════════════════════════════════
-Shape.define = function(BaseShapeClass, defaultOptions = {}, propertySchema = {}, renderFunction = null) {
-  class CustomShape extends BaseShapeClass {
+Node.define = function(BaseNodeClass, defaultOptions = {}, schema = {}, renderFn = null) {
+  class CustomNode extends BaseNodeClass {
     constructor(options = {}) {
       super();
-      this._customPropertyValues = {};
-      this._propertySchema       = propertySchema;
-      this._renderFunction       = renderFunction;
-      this._defaultOptions       = defaultOptions;
+      this.customProps    = {};
+      this.schema         = schema;
+      this.renderFn       = renderFn;
+      this._defaultOptions = defaultOptions;
 
-      const mergedOptions = { ...defaultOptions, ...options };
-      const builtInPropertyNames = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-      builtInPropertyNames.forEach(key => { if (mergedOptions[key] !== undefined) this[`_init_${key}`] = mergedOptions[key]; });
-      this._label = mergedOptions.label ?? defaultOptions.label ?? '';
+      const merged = { ...defaultOptions, ...options };
+      const builtIns = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+      builtIns.forEach(key => { if (merged[key] !== undefined) this[`_init_${key}`] = merged[key]; });
+      this._label = merged.label ?? defaultOptions.label ?? '';
 
-      Object.entries(propertySchema).forEach(([key, definition]) => {
-        this._customPropertyValues[key] = options[key] !== undefined ? options[key] : definition.default;
+      Object.entries(schema).forEach(([key, def]) => {
+        this.customProps[key] = options[key] !== undefined ? options[key] : def.default;
       });
     }
 
-    getCustomProperty(propertyKey) { return this._customPropertyValues[propertyKey]; }
+    getCustomProperty(key) { return this.customProps[key]; }
 
-    setCustomProperty(propertyKey, newValue) {
-      if (!(propertyKey in this._propertySchema)) throw new Error(`Unknown custom property: ${propertyKey}`);
-      this._customPropertyValues[propertyKey] = newValue;
-      this._jointCell?.set(`custom_${propertyKey}`, newValue);
-      if (this._renderFunction) this._renderFunction(this);
+    setCustomProperty(key, value) {
+      if (!(key in this.schema)) throw new Error(`Unknown custom property: ${key}`);
+      this.customProps[key] = value;
+      this.cell?.set(`custom_${key}`, value);
+      if (this.renderFn) this.renderFn(this);
       this.emit('change', this);
     }
 
-    getSchema() { return this._propertySchema; }
-    _buildJointCell(position, jointNamespace) { return super._buildJointCell(position, jointNamespace); }
+    getSchema() { return this.schema; }
+    _buildCell(position, jointNamespace) { return super._buildCell(position, jointNamespace); }
   }
 
-  CustomShape.prototype._getShapeType = BaseShapeClass.prototype._getShapeType;
-  Object.defineProperty(CustomShape.prototype, 'portCount',
-    Object.getOwnPropertyDescriptor(BaseShapeClass.prototype, 'portCount') || { get() { return 4; } }
+  CustomNode.prototype._getShapeType = BaseNodeClass.prototype._getShapeType;
+  Object.defineProperty(CustomNode.prototype, 'portCount',
+    Object.getOwnPropertyDescriptor(BaseNodeClass.prototype, 'portCount') || { get() { return 4; } }
   );
-  return CustomShape;
+  return CustomNode;
 };
 
 // ═══════════════════════════════════════════════════════════════
-// Concrete shape subclasses
+// Concrete node shape subclasses
 // ═══════════════════════════════════════════════════════════════
-class Rectangle extends Shape {
+class Rectangle extends Node {
   get portCount() { return 4; } _getShapeType() { return 'rect'; }
-  _buildJointCell(position, ns) { return _buildRectangleCell(position, ns, 'rect', 140, 50); }
+  _buildCell(pos, ns) { return _buildRectangleCell(pos, ns, 'rect', 140, 50); }
 }
-class Square extends Shape {
+class Square extends Node {
   get portCount() { return 4; } _getShapeType() { return 'square'; }
-  _buildJointCell(position, ns) { return _buildRectangleCell(position, ns, 'square', 80, 80); }
+  _buildCell(pos, ns) { return _buildRectangleCell(pos, ns, 'square', 80, 80); }
 }
-class Ellipse extends Shape {
+class Ellipse extends Node {
   get portCount() { return 4; } _getShapeType() { return 'ellipse'; }
-  _buildJointCell(position, ns) { return _buildEllipseCell(position, ns, 'ellipse', 140, 50); }
+  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'ellipse', 140, 50); }
 }
-class Circle extends Shape {
+class Circle extends Node {
   get portCount() { return 4; } _getShapeType() { return 'circle'; }
-  _buildJointCell(position, ns) { return _buildEllipseCell(position, ns, 'circle', 80, 80); }
+  _buildCell(pos, ns) { return _buildEllipseCell(pos, ns, 'circle', 80, 80); }
 }
-class Diamond extends Shape {
+class Diamond extends Node {
   get portCount() { return 4; } _getShapeType() { return 'diamond'; }
-  _buildJointCell(position, ns) { return _buildPolygonCell(position, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'diamond', 80, 80, [[0,10],[10,0],[20,10],[10,20]]); }
 }
-class Triangle extends Shape {
+class Triangle extends Node {
   get portCount() { return 3; } _getShapeType() { return 'triangle'; }
-  _buildJointCell(position, ns) { return _buildPolygonCell(position, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'triangle', 140, 50, [[10,0],[20,20],[0,20]]); }
 }
-class Hexagon extends Shape {
+class Hexagon extends Node {
   get portCount() { return 6; } _getShapeType() { return 'hexagon'; }
-  _buildJointCell(position, ns) { return _buildPolygonCell(position, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'hexagon', 140, 50, [[5,0],[15,0],[20,10],[15,20],[5,20],[0,10]]); }
 }
-class Pentagon extends Shape {
+class Pentagon extends Node {
   get portCount() { return 5; } _getShapeType() { return 'pentagon'; }
-  _buildJointCell(position, ns) { return _buildPolygonCell(position, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'pentagon', 140, 50, [[10,0],[20,7],[16,20],[4,20],[0,7]]); }
 }
-class Octagon extends Shape {
+class Octagon extends Node {
   get portCount() { return 8; } _getShapeType() { return 'octagon'; }
-  _buildJointCell(position, ns) { return _buildPolygonCell(position, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
+  _buildCell(pos, ns) { return _buildPolygonCell(pos, ns, 'octagon', 140, 50, [[6,0],[14,0],[20,6],[20,14],[14,20],[6,20],[0,14],[0,6]]); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -447,13 +447,13 @@ const SHARED_CELL_ATTRS = {
   descriptionLabel: { text: '', fill: '#6c757d', fontSize: 11, pointerEvents: 'none' }
 };
 
-const SHARED_CELL_PROPS = {
+const SHARED_CELL_DEFAULTS = {
   description: '', status: 'pending', priority: 1,
   imageUrl: '', imageWidth: 32, imageHeight: 32, fontSizePercent: 100
 };
 
-function _attachPortsToCell(jointCell, polygonPoints) {
-  jointCell.prop('ports/groups', {
+function _attachPortsToCell(cell, polygonPoints) {
+  cell.prop('ports/groups', {
     all: {
       position: 'absolute',
       attrs: {
@@ -463,182 +463,180 @@ function _attachPortsToCell(jointCell, polygonPoints) {
     }
   });
 
-  const portDefinitions = polygonPoints.length === 0
+  const ports = polygonPoints.length === 0
     ? [
         { group: 'all', args: { x: '50%', y: '0%',   dy: -1 } },
         { group: 'all', args: { x: '100%', y: '50%' } },
         { group: 'all', args: { x: '50%', y: '100%', dy: 1  } },
         { group: 'all', args: { x: '0%',  y: '50%'  } }
       ]
-    : polygonPoints.map((point, index) => {
-        const nextPoint = polygonPoints[(index + 1) % polygonPoints.length];
+    : polygonPoints.map((point, i) => {
+        const next = polygonPoints[(i + 1) % polygonPoints.length];
         return { group: 'all', args: {
-          x: `${((point[0] + nextPoint[0]) / 2 / 20) * 100}%`,
-          y: `${((point[1] + nextPoint[1]) / 2 / 20) * 100}%`
+          x: `${((point[0] + next[0]) / 2 / 20) * 100}%`,
+          y: `${((point[1] + next[1]) / 2 / 20) * 100}%`
         }};
       });
 
-  jointCell.addPorts(portDefinitions);
+  cell.addPorts(ports);
 }
 
-function _buildRectangleCell(position, jointNamespace, shapeType, initialWidth, initialHeight) {
-  const cell = new jointNamespace.standard.Rectangle();
+function _buildRectangleCell(position, ns, shapeType, w, h) {
+  const cell = new ns.standard.Rectangle();
   cell.markup = [{ tagName: 'rect', selector: 'body', className: 'body' }, ...SHARED_CELL_MARKUP];
-  cell.position(position.x, position.y).resize(initialWidth, initialHeight);
+  cell.position(position.x, position.y).resize(w, h);
   cell.attr({ body: { fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2, rx: 5, ry: 5 }, ...SHARED_CELL_ATTRS });
-  cell.set({ type: shapeType, ...SHARED_CELL_PROPS });
+  cell.set({ type: shapeType, ...SHARED_CELL_DEFAULTS });
   _attachPortsToCell(cell, []);
   return cell;
 }
 
-function _buildEllipseCell(position, jointNamespace, shapeType, initialWidth, initialHeight) {
-  const cell = new jointNamespace.standard.Ellipse();
+function _buildEllipseCell(position, ns, shapeType, w, h) {
+  const cell = new ns.standard.Ellipse();
   cell.markup = [{ tagName: 'ellipse', selector: 'body', className: 'body' }, ...SHARED_CELL_MARKUP];
-  cell.position(position.x, position.y).resize(initialWidth, initialHeight);
+  cell.position(position.x, position.y).resize(w, h);
   cell.attr({ body: { fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2 }, ...SHARED_CELL_ATTRS });
-  cell.set({ type: shapeType, ...SHARED_CELL_PROPS });
+  cell.set({ type: shapeType, ...SHARED_CELL_DEFAULTS });
   _attachPortsToCell(cell, []);
   return cell;
 }
 
-function _buildPolygonCell(position, jointNamespace, shapeType, initialWidth, initialHeight, polygonPoints) {
-  const cell = new jointNamespace.standard.Polygon();
+function _buildPolygonCell(position, ns, shapeType, w, h, points) {
+  const cell = new ns.standard.Polygon();
   cell.markup = [{ tagName: 'polygon', selector: 'body', className: 'body' }, ...SHARED_CELL_MARKUP];
-  cell.position(position.x, position.y).resize(initialWidth, initialHeight);
-  cell.attr({ body: { refPoints: polygonPoints.map(p => p.join(',')).join(' '), fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2 }, ...SHARED_CELL_ATTRS });
-  cell.set({ type: shapeType, ...SHARED_CELL_PROPS });
-  _attachPortsToCell(cell, polygonPoints);
+  cell.position(position.x, position.y).resize(w, h);
+  cell.attr({ body: { refPoints: points.map(p => p.join(',')).join(' '), fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2 }, ...SHARED_CELL_ATTRS });
+  cell.set({ type: shapeType, ...SHARED_CELL_DEFAULTS });
+  _attachPortsToCell(cell, points);
   return cell;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Canvas — the main diagram controller
+// DiagramEditor — the main controller
 // ═══════════════════════════════════════════════════════════════
-class Canvas extends EventEmitter {
-  constructor(hostElement) {
+class DiagramEditor extends EventBus {
+  constructor(container) {
     super();
-    this._hostElement        = hostElement;
-    this._gridSize           = 10;
-    this._shapeClearanceGridUnits = 4;
-    this._shapesByJointId    = new Map();
-    this._connectionsByJointId = new Map();
-    this._selectedItem       = null;
-    this._autoPortEnabled    = true;
-    this._isDeserializing    = false;
-    this._touchGestureState  = null;
-    this._pointerDownPosition = null;
-    this._wasShapeAlreadySelected = false;
-    this._registeredCustomShapes  = {};
+    this.container       = container;
+    this.gridSize        = 10;
+    this.clearanceUnits  = 4;
+    this.nodeMap         = new Map();
+    this.edgeMap         = new Map();
+    this.selection       = null;
+    this.autoPortsOn     = true;
+    this.isLoading       = false;
+    this.touchState      = null;
+    this.pointerDownAt   = null;
+    this.selectionWasAlreadyActive = false;
+    this.registeredNodeTypes       = {};
 
-    this._buildDOMStructure();
-    this._initJointPaper();
-    this._bindUIEventHandlers();
-    this._bindJointPaperEventHandlers();
-    this._bindTouchGestureHandlers();
-    this._bindKeyboardShortcuts();
+    this._buildLayout();
+    this._setupRenderer();
+    this._attachButtonListeners();
+    this._attachDiagramListeners();
+    this._attachTouchListeners();
+    this._attachKeyboardShortcuts();
 
-    // Bubble individual mutation events into a single 'change' event
-    // (suppressed during deserialize — one 'change' fires at the end instead)
-    ['shape:add','shape:remove','shape:change','shape:move','connection:add','connection:remove','connection:change']
-      .forEach(eventName => this.on(eventName, () => { if (!this._isDeserializing) this.emit('change'); }));
+    ['node:add','node:remove','node:change','node:move','edge:add','edge:remove','edge:change']
+      .forEach(event => this.on(event, () => { if (!this.isLoading) this.emit('change'); }));
 
-    if (this._isMobileDevice()) {
-      this._setSidebarCollapsedState(this._leftSidebarElement, true);
-      this._setSidebarCollapsedState(this._rightSidebarElement, true);
+    if (this._isMobile()) {
+      this._setSidebarCollapsed(this.leftSidebar, true);
+      this._setSidebarCollapsed(this.rightSidebar, true);
     }
   }
 
-  // ── Public: register a custom shape class in the library panel ──
-  registerShape(displayLabel, ShapeClass) {
-    const libraryItem = this._libraryPanelElement.appendChild(this._createElement('div', 'wf-node-template'));
-    libraryItem.textContent = displayLabel;
-    libraryItem.draggable   = true;
-    libraryItem.dataset.shapeLabel = displayLabel;
+  // ── Public: register a node type in the shape library ──
+  registerNodeType(label, NodeClass) {
+    const item = this.shapeLibrary.appendChild(this._makeElement('div', 'wf-node-template'));
+    item.textContent = label;
+    item.draggable   = true;
+    item.dataset.nodeTypeLabel = label;
 
-    libraryItem.addEventListener('click', () => {
-      if (!this._isMobileDevice()) return;
-      this.addShape(new ShapeClass());
-      if (!this._leftSidebarElement.classList.contains('wf-collapsed')) this._toggleSidebarCollapsed(this._leftSidebarElement);
+    item.addEventListener('click', () => {
+      if (!this._isMobile()) return;
+      this.addNode(new NodeClass());
+      if (!this.leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.leftSidebar);
     });
-    libraryItem.addEventListener('dragstart', event => event.dataTransfer.setData('customShape', displayLabel));
+    item.addEventListener('dragstart', e => e.dataTransfer.setData('customNode', label));
 
-    this._registeredCustomShapes[displayLabel] = ShapeClass;
+    this.registeredNodeTypes[label] = NodeClass;
   }
 
-  // ── Public: add a shape to the canvas, returns a Promise resolving to the shape ──
-  addShape(shape, canvasX, canvasY) {
-    const jointNamespace = joint.shapes;
-    const containerElement = this._canvasContainerElement;
-    const centerX = canvasX ?? containerElement.clientWidth  / 2;
-    const centerY = canvasY ?? containerElement.clientHeight / 2;
+  // ── Public: add a node to the diagram ──
+  addNode(node, canvasX, canvasY) {
+    const ns      = joint.shapes;
+    const area    = this.canvasArea;
+    const centerX = canvasX ?? area.clientWidth  / 2;
+    const centerY = canvasY ?? area.clientHeight / 2;
 
-    const localPoint = this._jointPaper.clientToLocalPoint({
-      x: centerX + containerElement.getBoundingClientRect().left,
-      y: centerY + containerElement.getBoundingClientRect().top
+    const localPoint = this.renderer.clientToLocalPoint({
+      x: centerX + area.getBoundingClientRect().left,
+      y: centerY + area.getBoundingClientRect().top
     });
 
-    const isSquarish = shape instanceof Square || shape instanceof Circle || shape instanceof Diamond;
-    const initialWidth  = isSquarish ? 80 : 140;
-    const initialHeight = isSquarish ? 80 : 50;
+    const isSquarish = node instanceof Square || node instanceof Circle || node instanceof Diamond;
+    const w = isSquarish ? 80 : 140;
+    const h = isSquarish ? 80 : 50;
 
-    const clearPosition = this._findNearestClearPosition(localPoint.x - initialWidth / 2, localPoint.y - initialHeight / 2, initialWidth, initialHeight);
-    const jointCell = shape._buildJointCell(clearPosition, jointNamespace);
-    jointCell.attr('label/text', shape._label);
+    const openPos = this._findOpenPosition(localPoint.x - w / 2, localPoint.y - h / 2, w, h);
+    const cell    = node._buildCell(openPos, ns);
+    cell.attr('label/text', node._label);
 
-    shape._jointCell    = jointCell;
-    shape._parentCanvas = this;
+    node.cell   = cell;
+    node.editor = this;
 
-    const builtInPropertyNames = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-    const initOptions = shape._initOptions || {};
-    builtInPropertyNames.forEach(key => {
-      const value = initOptions[key] ?? shape[`_init_${key}`];
-      if (value !== undefined) shape[key] = value;
+    const builtIns = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+    const initOpts = node._initOptions || {};
+    builtIns.forEach(key => {
+      const value = initOpts[key] ?? node[`_init_${key}`];
+      if (value !== undefined) node[key] = value;
     });
-    Object.entries(shape._customPropertyValues).forEach(([key, value]) => jointCell.set(`custom_${key}`, value));
+    Object.entries(node.customProps).forEach(([key, value]) => cell.set(`custom_${key}`, value));
 
-    jointCell.addTo(this._jointGraph);
-    this._shapesByJointId.set(jointCell.id, shape);
-    this._deselectAll();
+    cell.addTo(this.graph);
+    this.nodeMap.set(cell.id, node);
+    this.clearSelection();
 
-    const readyPromise = (async () => {
-      await this._waitForCellToRender(jointCell);
-      await this._autoResizeCellAsync(jointCell);
-      if (shape._renderFunction) shape._renderFunction(shape);
-      await this._waitForCellToRender(jointCell);
-      shape.on('change', updatedShape => this.emit('shape:change', updatedShape));
-      shape.on('move',   movedShape   => this.emit('shape:move',   movedShape));
-      return shape;
+    const ready = (async () => {
+      await this._waitForRender(cell);
+      await this._resizeNodeAsync(cell);
+      if (node.renderFn) node.renderFn(node);
+      await this._waitForRender(cell);
+      node.on('change', n => this.emit('node:change', n));
+      node.on('move',   n => this.emit('node:move',   n));
+      return node;
     })();
 
-    this.emit('shape:add', shape);
-    return readyPromise;
+    this.emit('node:add', node);
+    return ready;
   }
 
-  removeShape(shape) { shape.remove(); this._shapesByJointId.delete(shape.id); this.emit('shape:remove', shape); }
-  getShapes()        { return [...this._shapesByJointId.values()]; }
-  getConnections()   { return [...this._connectionsByJointId.values()]; }
+  removeNode(node) { node.remove(); this.nodeMap.delete(node.id); this.emit('node:remove', node); }
+  getNodes()       { return [...this.nodeMap.values()]; }
+  getEdges()       { return [...this.edgeMap.values()]; }
 
   // ── Viewport controls ──
-  panTo(x, y)       { this._jointPaper.translate(x, y); return this; }
-  centerContent()   {
-    const boundingBox = this._jointGraph.getBBox(); if (!boundingBox) return this;
-    const paperSize = this._jointPaper.getComputedSize();
-    this._jointPaper.scale(1, 1);
-    this._jointPaper.translate(paperSize.width / 2 - (boundingBox.x + boundingBox.width / 2), paperSize.height / 2 - (boundingBox.y + boundingBox.height / 2));
+  panTo(x, y)      { this.renderer.translate(x, y); return this; }
+  centerContent()  {
+    const bbox = this.graph.getBBox(); if (!bbox) return this;
+    const size = this.renderer.getComputedSize();
+    this.renderer.scale(1, 1);
+    this.renderer.translate(size.width / 2 - (bbox.x + bbox.width / 2), size.height / 2 - (bbox.y + bbox.height / 2));
     return this;
   }
-  zoomIn(factor = 1.25)  { this._zoomAroundCenter(factor); return this; }
-  zoomOut(factor = 0.8)  { this._zoomAroundCenter(factor); return this; }
-  zoomReset()            { this._zoomAroundCenter(1 / this._jointPaper.scale().sx); return this; }
-  zoomToFit()            { this._jointPaper.scaleContentToFit({ padding: 50, minScale: 0.2, maxScale: 2 }); return this; }
-  getZoomLevel()         { return this._jointPaper.scale().sx; }
-  getSelectedItem()      { return this._selectedItem; }
+  zoomIn(factor = 1.25)  { this._zoomAtCenter(factor); return this; }
+  zoomOut(factor = 0.8)  { this._zoomAtCenter(factor); return this; }
+  zoomReset()            { this._zoomAtCenter(1 / this.renderer.scale().sx); return this; }
+  zoomToFit()            { this.renderer.scaleContentToFit({ padding: 50, minScale: 0.2, maxScale: 2 }); return this; }
+  getZoomLevel()         { return this.renderer.scale().sx; }
+  getSelectedItem()      { return this.selection; }
   clearSelection()       { this._deselectAll(); return this; }
 
   setAutoPortSwitching(enabled) {
-    this._autoPortEnabled = enabled;
-    this._autoPortToggleButton.classList.toggle('active', enabled);
-    if (enabled) this._jointGraph.getElements().forEach(element => this._redistributePortsForElement(element));
+    this.autoPortsOn = enabled;
+    this.autoPortToggleButton.classList.toggle('active', enabled);
+    if (enabled) this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
     return this;
   }
 
@@ -647,161 +645,159 @@ class Canvas extends EventEmitter {
     dagreGraph.setGraph({ rankdir: 'TB', ranksep: 60, nodesep: 40, marginx: 40, marginy: 40 });
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    this._jointGraph.getElements().forEach(element => {
-      const { width, height } = element.size();
-      dagreGraph.setNode(element.id, { width, height });
+    this.graph.getElements().forEach(el => {
+      const { width, height } = el.size();
+      dagreGraph.setNode(el.id, { width, height });
     });
-    this._jointGraph.getLinks().forEach(link => {
-      const sourceElement = link.getSourceElement();
-      const targetElement = link.getTargetElement();
-      if (sourceElement && targetElement) dagreGraph.setEdge(sourceElement.id, targetElement.id);
+    this.graph.getLinks().forEach(link => {
+      const src = link.getSourceElement();
+      const tgt = link.getTargetElement();
+      if (src && tgt) dagreGraph.setEdge(src.id, tgt.id);
     });
 
     dagre.layout(dagreGraph);
 
-    this._jointGraph.getElements().forEach(element => {
-      const layoutNode = dagreGraph.node(element.id);
-      if (!layoutNode) return;
-      element.position(Math.round(layoutNode.x - layoutNode.width / 2), Math.round(layoutNode.y - layoutNode.height / 2));
+    this.graph.getElements().forEach(el => {
+      const n = dagreGraph.node(el.id);
+      if (!n) return;
+      el.position(Math.round(n.x - n.width / 2), Math.round(n.y - n.height / 2));
     });
 
-    if (this._autoPortEnabled) {
-      this._jointGraph.getElements().forEach(element => this._redistributePortsForElement(element));
-    }
+    if (this.autoPortsOn) this.graph.getElements().forEach(el => this._updateConnectionPorts(el));
     this.centerContent();
     return this;
   }
 
-  // ── Serialize the diagram to a JSON string ──
+  // ── Serialize the diagram to JSON ──
   serialize() {
-    const shapeDataArray = [...this._shapesByJointId.values()].map(shape => ({
-      id: shape._jointCell.id,
-      shapeClass: shape.constructor.name,
-      x: shape.x,
-      y: shape.y,
+    const nodes = [...this.nodeMap.values()].map(node => ({
+      id: node.cell.id,
+      nodeClass: node.constructor.name,
+      x: node.x,
+      y: node.y,
       props: {
-        label: shape.label, labelColor: shape.labelColor, labelFontSize: shape.labelFontSize,
-        description: shape.description, descriptionColor: shape.descriptionColor,
-        backgroundColor: shape.backgroundColor, borderColor: shape.borderColor, borderWidth: shape.borderWidth,
-        imageUrl: shape.imageUrl, imageWidth: shape.imageWidth, imageHeight: shape.imageHeight,
+        label: node.label, labelColor: node.labelColor, labelFontSize: node.labelFontSize,
+        description: node.description, descriptionColor: node.descriptionColor,
+        backgroundColor: node.backgroundColor, borderColor: node.borderColor, borderWidth: node.borderWidth,
+        imageUrl: node.imageUrl, imageWidth: node.imageWidth, imageHeight: node.imageHeight,
       },
-      customProps: { ...shape._customPropertyValues },
+      customProps: { ...node.customProps },
     }));
 
-    const connectionDataArray = [...this._connectionsByJointId.values()].map(connection => {
-      const resolvePortIndex = (endpoint, shape) => {
+    const edges = [...this.edgeMap.values()].map(edge => {
+      const resolvePort = (endpoint, node) => {
         const portId = endpoint?.port;
         if (!portId) return null;
-        const index = shape._jointCell.getPorts().findIndex(port => port.id === portId);
+        const index = node.cell.getPorts().findIndex(p => p.id === portId);
         return index >= 0 ? index + 1 : null;
       };
       return {
-        sourceId:   connection.source._jointCell.id,
-        targetId:   connection.target._jointCell.id,
-        sourcePort: resolvePortIndex(connection._jointLink.source(), connection.source),
-        targetPort: resolvePortIndex(connection._jointLink.target(), connection.target),
-        label: connection.label, labelColor: connection.labelColor, labelFontSize: connection.labelFontSize,
-        lineColor: connection.lineColor, lineWidth: connection.lineWidth, lineStyle: connection.lineStyle,
-        sourceArrow: connection.sourceArrow, targetArrow: connection.targetArrow,
-        connectorType: connection.connectorType, description: connection.description,
-        vertices: connection._jointLink.vertices(),
+        sourceId:   edge.source.cell.id,
+        targetId:   edge.target.cell.id,
+        sourcePort: resolvePort(edge.link.source(), edge.source),
+        targetPort: resolvePort(edge.link.target(), edge.target),
+        label: edge.label, labelColor: edge.labelColor, labelFontSize: edge.labelFontSize,
+        lineColor: edge.lineColor, lineWidth: edge.lineWidth, lineStyle: edge.lineStyle,
+        sourceArrow: edge.sourceArrow, targetArrow: edge.targetArrow,
+        connectorType: edge.connectorType, description: edge.description,
+        vertices: edge.link.vertices(),
       };
     });
 
-    return JSON.stringify({ shapes: shapeDataArray, connections: connectionDataArray });
+    return JSON.stringify({ nodes, edges });
   }
 
-  // ── Deserialize a JSON string and rebuild the diagram ──
-  async deserialize(jsonData) {
-    const { shapes: shapeDataArray, connections: connectionDataArray } = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
-    if (!Array.isArray(shapeDataArray)) throw new Error('Invalid diagram file format.');
+  // ── Deserialize JSON and rebuild the diagram ──
+  async deserialize(json) {
+    const { nodes: nodeDataList, edges: edgeDataList } = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!Array.isArray(nodeDataList)) throw new Error('Invalid diagram file format.');
 
     this._deselectAll();
-    this._shapesByJointId.clear();
-    this._connectionsByJointId.clear();
-    this._jointGraph.clear();
+    this.nodeMap.clear();
+    this.edgeMap.clear();
+    this.graph.clear();
 
-    const shapeClassMap = {
+    const nodeClassMap = {
       Rectangle, Square, Ellipse, Circle, Diamond, Triangle, Hexagon, Pentagon, Octagon,
-      ...Object.fromEntries(Object.entries(this._registeredCustomShapes).map(([, cls]) => [cls.name, cls]))
+      ...Object.fromEntries(Object.entries(this.registeredNodeTypes).map(([, cls]) => [cls.name, cls]))
     };
 
-    const prevAutoPortEnabled = this._autoPortEnabled;
-    this._autoPortEnabled = false;
-    this._isDeserializing = true;
+    const prevAutoPortsOn = this.autoPortsOn;
+    this.autoPortsOn = false;
+    this.isLoading   = true;
 
-    const oldIdToNewShapeMap = {};
+    const oldIdToNode = {};
 
-    for (const shapeData of shapeDataArray) {
-      const ShapeClass = shapeClassMap[shapeData.shapeClass];
-      if (!ShapeClass) { console.warn(`Unknown shape class: ${shapeData.shapeClass}`); continue; }
+    for (const nodeData of nodeDataList) {
+      const NodeClass = nodeClassMap[nodeData.nodeClass];
+      if (!NodeClass) { console.warn(`Unknown node class: ${nodeData.nodeClass}`); continue; }
 
-      const shape = new ShapeClass({ ...shapeData.props, ...shapeData.customProps });
-      const jointCell = shape._buildJointCell({ x: shapeData.x, y: shapeData.y }, joint.shapes);
-      jointCell.attr('label/text', shape._label);
-      shape._jointCell    = jointCell;
-      shape._parentCanvas = this;
+      const node = new NodeClass({ ...nodeData.props, ...nodeData.customProps });
+      const cell = node._buildCell({ x: nodeData.x, y: nodeData.y }, joint.shapes);
+      cell.attr('label/text', node._label);
+      node.cell   = cell;
+      node.editor = this;
 
-      const builtInPropertyNames = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
-      const initOptions = shape._initOptions || {};
-      builtInPropertyNames.forEach(key => {
-        const value = initOptions[key] ?? shape[`_init_${key}`];
-        if (value !== undefined) shape[key] = value;
+      const builtIns = ['label','labelColor','labelFontSize','description','descriptionColor','backgroundColor','borderColor','borderWidth','imageUrl','imageWidth','imageHeight','status','priority'];
+      const initOpts = node._initOptions || {};
+      builtIns.forEach(key => {
+        const value = initOpts[key] ?? node[`_init_${key}`];
+        if (value !== undefined) node[key] = value;
       });
-      Object.entries(shape._customPropertyValues).forEach(([key, value]) => jointCell.set(`custom_${key}`, value));
+      Object.entries(node.customProps).forEach(([key, value]) => cell.set(`custom_${key}`, value));
 
-      jointCell.addTo(this._jointGraph);
-      this._shapesByJointId.set(jointCell.id, shape);
+      cell.addTo(this.graph);
+      this.nodeMap.set(cell.id, node);
 
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      this._autoResizeCellToFitContent(jointCell);
+      this._fitNodeToContent(cell);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      this._jointPaper.updateViews();
-      if (shape._renderFunction) shape._renderFunction(shape);
+      this.renderer.updateViews();
+      if (node.renderFn) node.renderFn(node);
 
-      shape.on('change', updatedShape => this.emit('shape:change', updatedShape));
-      shape.on('move',   movedShape   => this.emit('shape:move',   movedShape));
+      node.on('change', n => this.emit('node:change', n));
+      node.on('move',   n => this.emit('node:move',   n));
 
-      oldIdToNewShapeMap[shapeData.id] = shape;
+      oldIdToNode[nodeData.id] = node;
     }
 
-    for (const connectionData of connectionDataArray) {
-      const sourceShape = oldIdToNewShapeMap[connectionData.sourceId];
-      const targetShape = oldIdToNewShapeMap[connectionData.targetId];
-      if (!sourceShape || !targetShape) continue;
+    for (const edgeData of edgeDataList) {
+      const sourceNode = oldIdToNode[edgeData.sourceId];
+      const targetNode = oldIdToNode[edgeData.targetId];
+      if (!sourceNode || !targetNode) continue;
 
-      const connection = sourceShape.connect(targetShape, connectionData.sourcePort, connectionData.targetPort);
-      if (!connection) continue;
+      const edge = sourceNode.connect(targetNode, edgeData.sourcePort, edgeData.targetPort);
+      if (!edge) continue;
 
-      if (connectionData.label)         connection.label         = connectionData.label;
-      if (connectionData.labelColor)    connection.labelColor    = connectionData.labelColor;
-      if (connectionData.labelFontSize) connection.labelFontSize = connectionData.labelFontSize;
-      connection.lineColor     = connectionData.lineColor;
-      connection.lineWidth     = connectionData.lineWidth;
-      connection.lineStyle     = connectionData.lineStyle;
-      connection.sourceArrow   = connectionData.sourceArrow;
-      connection.targetArrow   = connectionData.targetArrow;
-      connection.connectorType = connectionData.connectorType;
-      if (connectionData.description)      connection.description = connectionData.description;
-      if (connectionData.vertices?.length) connection._jointLink.vertices(connectionData.vertices);
+      if (edgeData.label)         edge.label         = edgeData.label;
+      if (edgeData.labelColor)    edge.labelColor    = edgeData.labelColor;
+      if (edgeData.labelFontSize) edge.labelFontSize = edgeData.labelFontSize;
+      edge.lineColor     = edgeData.lineColor;
+      edge.lineWidth     = edgeData.lineWidth;
+      edge.lineStyle     = edgeData.lineStyle;
+      edge.sourceArrow   = edgeData.sourceArrow;
+      edge.targetArrow   = edgeData.targetArrow;
+      edge.connectorType = edgeData.connectorType;
+      if (edgeData.description)      edge.description = edgeData.description;
+      if (edgeData.vertices?.length) edge.link.vertices(edgeData.vertices);
     }
 
-    this._isDeserializing = false;
+    this.isLoading = false;
 
-    const allCells = this._jointGraph.getCells();
-    this._jointGraph.resetCells(allCells);
+    const allCells = this.graph.getCells();
+    this.graph.resetCells(allCells);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-    this._jointGraph.getLinks().forEach(link => {
-      const connection = this._connectionsByJointId.get(link.id);
-      if (!connection) return;
-      const savedConnectionData = connectionDataArray.find(data =>
-        oldIdToNewShapeMap[data.sourceId]?._jointCell.id === connection.source._jointCell.id &&
-        oldIdToNewShapeMap[data.targetId]?._jointCell.id === connection.target._jointCell.id
+    this.graph.getLinks().forEach(link => {
+      const edge = this.edgeMap.get(link.id);
+      if (!edge) return;
+      const savedEdge = edgeDataList.find(data =>
+        oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
+        oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id
       );
-      if (!savedConnectionData) return;
-      if (savedConnectionData.sourcePort != null) link.set('sourcePort', savedConnectionData.sourcePort);
-      if (savedConnectionData.targetPort != null) link.set('targetPort', savedConnectionData.targetPort);
+      if (!savedEdge) return;
+      if (savedEdge.sourcePort != null) link.set('sourcePort', savedEdge.sourcePort);
+      if (savedEdge.targetPort != null) link.set('targetPort', savedEdge.targetPort);
     });
 
     this.emit('change');
@@ -809,83 +805,83 @@ class Canvas extends EventEmitter {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: mobile button visibility
+  // Internal: hide/show mobile floating buttons
   // ══════════════════════════════════════════════════════════════
   _updateMobileButtonVisibility() {
-    if (!this._isMobileDevice()) return;
-    const shouldHide = this._selectedItem !== null
-      || !this._leftSidebarElement.classList.contains('wf-collapsed')
-      || !this._rightSidebarElement.classList.contains('wf-collapsed');
-    const displayValue = shouldHide ? 'none' : '';
-    this._topRightButtonGroup.style.display  = displayValue;
-    this._topLeftButtonGroup.style.display   = displayValue;
-    this._bottomLeftButtonGroup.style.display = displayValue;
+    if (!this._isMobile()) return;
+    const shouldHide = this.selection !== null
+      || !this.leftSidebar.classList.contains('wf-collapsed')
+      || !this.rightSidebar.classList.contains('wf-collapsed');
+    const display = shouldHide ? 'none' : '';
+    this.topRightButtons.style.display  = display;
+    this.topLeftButtons.style.display   = display;
+    this.bottomLeftButtons.style.display = display;
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: DOM construction
+  // Internal: build the full DOM layout
   // ══════════════════════════════════════════════════════════════
-  _buildDOMStructure() {
-    this._hostElement.innerHTML = '';
-    this._hostElement.style.cssText = 'display:flex;height:100%;overflow:hidden;';
+  _buildLayout() {
+    this.container.innerHTML = '';
+    this.container.style.cssText = 'display:flex;height:100%;overflow:hidden;';
 
-    // Left sidebar (shape library)
-    this._leftSidebarElement = this._hostElement.appendChild(this._createElement('div', 'wf-sidebar wf-sidebar-left'));
-    const leftSidebarHeader = this._leftSidebarElement.appendChild(this._createElement('div', 'wf-sidebar-header'));
-    leftSidebarHeader.innerHTML = `<span class="wf-sidebar-title">Library</span><button class="wf-collapse-btn" title="Toggle Library"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><span class="wf-collapsed-label" style="display:none">Library</span>`;
-    this._leftSidebarCollapseButton = leftSidebarHeader.querySelector('.wf-collapse-btn');
-    this._leftSidebarCollapseIcon   = leftSidebarHeader.querySelector('.wf-collapse-icon');
-    this._libraryPanelElement = this._leftSidebarElement.appendChild(this._createElement('div', 'wf-library wf-sidebar-body'));
-    this._buildShapeLibraryItems();
+    // Left sidebar — shape library
+    this.leftSidebar = this.container.appendChild(this._makeElement('div', 'wf-sidebar wf-sidebar-left'));
+    const leftHeader = this.leftSidebar.appendChild(this._makeElement('div', 'wf-sidebar-header'));
+    leftHeader.innerHTML = `<span class="wf-sidebar-title">Library</span><button class="wf-collapse-btn" title="Toggle Library"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><span class="wf-collapsed-label" style="display:none">Library</span>`;
+    this.leftCollapseButton = leftHeader.querySelector('.wf-collapse-btn');
+    this.leftCollapseIcon   = leftHeader.querySelector('.wf-collapse-icon');
+    this.shapeLibrary = this.leftSidebar.appendChild(this._makeElement('div', 'wf-library wf-sidebar-body'));
+    this._buildShapeLibrary();
 
     // Canvas area
-    this._canvasContainerElement = this._hostElement.appendChild(this._createElement('div', 'wf-canvas-container'));
-    this._paperDOMElement = this._canvasContainerElement.appendChild(this._createElement('div', 'wf-paper'));
+    this.canvasArea  = this.container.appendChild(this._makeElement('div', 'wf-canvas-container'));
+    this.paperElement = this.canvasArea.appendChild(this._makeElement('div', 'wf-paper'));
 
     // Top-right buttons (export / import)
-    this._topRightButtonGroup = this._canvasContainerElement.appendChild(this._createElement('div'));
-    this._topRightButtonGroup.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
-    this._exportButton = this._topRightButtonGroup.appendChild(this._createElement('button', 'wf-ctrl-btn'));
-    this._exportButton.title   = 'Export';
-    this._exportButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-    this._importButton = this._topRightButtonGroup.appendChild(this._createElement('button', 'wf-ctrl-btn'));
-    this._importButton.title   = 'Import';
-    this._importButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
-    this._importFileInputElement = this._canvasContainerElement.appendChild(this._createElement('input'));
-    this._importFileInputElement.type = 'file';
-    this._importFileInputElement.accept = '.json';
-    this._importFileInputElement.style.display = 'none';
+    this.topRightButtons = this.canvasArea.appendChild(this._makeElement('div'));
+    this.topRightButtons.style.cssText = 'position:absolute;top:20px;right:20px;z-index:100;display:flex;gap:8px;';
+    this.exportButton = this.topRightButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
+    this.exportButton.title   = 'Export';
+    this.exportButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    this.importButton = this.topRightButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
+    this.importButton.title   = 'Import';
+    this.importButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+    this.importFileInput = this.canvasArea.appendChild(this._makeElement('input'));
+    this.importFileInput.type = 'file';
+    this.importFileInput.accept = '.json';
+    this.importFileInput.style.display = 'none';
 
     // Top-left buttons (auto-port toggle / auto-arrange)
-    this._topLeftButtonGroup = this._canvasContainerElement.appendChild(this._createElement('div'));
-    this._topLeftButtonGroup.style.cssText = 'position:absolute;top:20px;left:20px;z-index:100;display:flex;gap:8px;';
-    this._autoPortToggleButton = this._topLeftButtonGroup.appendChild(this._createElement('button', 'wf-ctrl-btn active'));
-    this._autoPortToggleButton.title   = 'Toggle Auto Port Switching';
-    this._autoPortToggleButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
-    this._autoArrangeButton = this._topLeftButtonGroup.appendChild(this._createElement('button', 'wf-ctrl-btn'));
-    this._autoArrangeButton.title   = 'Auto Arrange';
-    this._autoArrangeButton.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="5" width="7" height="4" rx="1"/><rect x="14" y="15" width="7" height="4" rx="1"/><line x1="10" y1="5" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="17"/><line x1="10" y1="19" x2="14" y2="17"/></svg>`;
+    this.topLeftButtons = this.canvasArea.appendChild(this._makeElement('div'));
+    this.topLeftButtons.style.cssText = 'position:absolute;top:20px;left:20px;z-index:100;display:flex;gap:8px;';
+    this.autoPortToggleButton = this.topLeftButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn active'));
+    this.autoPortToggleButton.title   = 'Toggle Auto Port Switching';
+    this.autoPortToggleButton.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m3 10H5M16 12H8M7 7l-4 4 4 4M17 9l4 4-4 4"/></svg>`;
+    this.autoArrangeButton = this.topLeftButtons.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
+    this.autoArrangeButton.title   = 'Auto Arrange';
+    this.autoArrangeButton.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="5" width="7" height="4" rx="1"/><rect x="14" y="15" width="7" height="4" rx="1"/><line x1="10" y1="5" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="7"/><line x1="10" y1="12" x2="14" y2="17"/><line x1="10" y1="19" x2="14" y2="17"/></svg>`;
 
-    // Bottom-left buttons (zoom controls)
-    this._bottomLeftButtonGroup = this._canvasContainerElement.appendChild(this._createElement('div', 'wf-bottom-left'));
-    const zoomButtonGroup = this._bottomLeftButtonGroup.appendChild(this._createElement('div', 'wf-zoom-group'));
-    this._zoomToFitButton    = this._createZoomButton(zoomButtonGroup, 'Fit', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
-    this._zoomResetButton    = this._createZoomButton(zoomButtonGroup, 'Reset Zoom', '1:1');
-    this._zoomInButton       = this._createZoomButton(zoomButtonGroup, 'Zoom In', '+');
-    this._zoomOutButton      = this._createZoomButton(zoomButtonGroup, 'Zoom Out', '−');
-    if (this._isMobileDevice()) { this._zoomInButton.style.display = 'none'; this._zoomOutButton.style.display = 'none'; }
-    this._centerContentButton = this._createZoomButton(zoomButtonGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
+    // Bottom-left buttons (zoom)
+    this.bottomLeftButtons = this.canvasArea.appendChild(this._makeElement('div', 'wf-bottom-left'));
+    const zoomGroup = this.bottomLeftButtons.appendChild(this._makeElement('div', 'wf-zoom-group'));
+    this.zoomToFitButton     = this._makeZoomButton(zoomGroup, 'Fit', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`);
+    this.zoomResetButton     = this._makeZoomButton(zoomGroup, 'Reset Zoom', '1:1');
+    this.zoomInButton        = this._makeZoomButton(zoomGroup, 'Zoom In', '+');
+    this.zoomOutButton       = this._makeZoomButton(zoomGroup, 'Zoom Out', '−');
+    if (this._isMobile()) { this.zoomInButton.style.display = 'none'; this.zoomOutButton.style.display = 'none'; }
+    this.centerButton = this._makeZoomButton(zoomGroup, 'Center', `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`);
 
-    // Context menu (right-click)
-    this._contextMenuElement = this._canvasContainerElement.appendChild(this._createElement('div', 'wf-context-menu'));
-    this._contextMenuElement.innerHTML = `
+    // Right-click context menu
+    this.contextMenu = this.canvasArea.appendChild(this._makeElement('div', 'wf-context-menu'));
+    this.contextMenu.innerHTML = `
       <div class="wf-menu-item" data-action="duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate</div>
       <div class="wf-menu-item danger" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</div>`;
 
-    // Right sidebar (properties panel)
-    this._rightSidebarElement = this._hostElement.appendChild(this._createElement('div', 'wf-sidebar wf-sidebar-right'));
-    const rightSidebarHeader = this._rightSidebarElement.appendChild(this._createElement('div', 'wf-sidebar-header'));
-    rightSidebarHeader.innerHTML = `
+    // Right sidebar — properties panel
+    this.rightSidebar = this.container.appendChild(this._makeElement('div', 'wf-sidebar wf-sidebar-right'));
+    const rightHeader = this.rightSidebar.appendChild(this._makeElement('div', 'wf-sidebar-header'));
+    rightHeader.innerHTML = `
       <button class="wf-collapse-btn" title="Toggle Properties"><svg class="wf-collapse-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
       <span class="wf-sidebar-title">Properties</span>
       <span class="wf-collapsed-label" style="display:none">Properties</span>
@@ -894,19 +890,19 @@ class Canvas extends EventEmitter {
         <button class="wf-header-btn" data-action="duplicate" title="Duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         <button class="wf-header-btn danger" data-action="delete" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       </div>`;
-    this._rightSidebarCollapseButton = rightSidebarHeader.querySelector('.wf-collapse-btn');
-    this._rightSidebarCollapseIcon   = rightSidebarHeader.querySelector('.wf-collapse-icon');
-    this._propertiesPanelHeaderActions = rightSidebarHeader.querySelector('.wf-header-actions');
+    this.rightCollapseButton  = rightHeader.querySelector('.wf-collapse-btn');
+    this.rightCollapseIcon    = rightHeader.querySelector('.wf-collapse-icon');
+    this.propertiesHeaderActions = rightHeader.querySelector('.wf-header-actions');
 
-    this._elementPropertiesPanel    = this._buildElementPropertiesPanel();
-    this._connectionPropertiesPanel = this._buildConnectionPropertiesPanel();
-    this._noSelectionMessageElement = this._rightSidebarElement.appendChild(this._createElement('div', 'wf-no-selection wf-sidebar-body'));
-    this._noSelectionMessageElement.textContent = 'Select an item to view properties';
+    this.nodePropertiesPanel = this._buildNodePropertiesPanel();
+    this.edgePropertiesPanel = this._buildEdgePropertiesPanel();
+    this.noSelectionMessage  = this.rightSidebar.appendChild(this._makeElement('div', 'wf-no-selection wf-sidebar-body'));
+    this.noSelectionMessage.textContent = 'Select an item to view properties';
     this._showPropertiesPanel('none');
   }
 
-  _buildShapeLibraryItems() {
-    const builtInShapeDefinitions = [
+  _buildShapeLibrary() {
+    const builtInShapes = [
       { label: 'Rectangle', type: 'rect',     cls: Rectangle },
       { label: 'Square',    type: 'square',   cls: Square    },
       { label: 'Ellipse',   type: 'ellipse',  cls: Ellipse   },
@@ -918,22 +914,22 @@ class Canvas extends EventEmitter {
       { label: 'Octagon',   type: 'octagon',  cls: Octagon   },
     ];
 
-    builtInShapeDefinitions.forEach(({ label, type, cls }) => {
-      const libraryItem = this._libraryPanelElement.appendChild(this._createElement('div', 'wf-node-template'));
-      libraryItem.textContent = label;
-      libraryItem.draggable   = true;
-      libraryItem.dataset.type = type;
-      libraryItem.addEventListener('dragstart', event => event.dataTransfer.setData('type', type));
-      libraryItem.addEventListener('click', () => {
-        if (!this._isMobileDevice()) return;
-        this.addShape(new cls(label.toUpperCase()));
-        if (!this._leftSidebarElement.classList.contains('wf-collapsed')) this._toggleSidebarCollapsed(this._leftSidebarElement);
+    builtInShapes.forEach(({ label, type, cls }) => {
+      const item = this.shapeLibrary.appendChild(this._makeElement('div', 'wf-node-template'));
+      item.textContent = label;
+      item.draggable   = true;
+      item.dataset.type = type;
+      item.addEventListener('dragstart', e => e.dataTransfer.setData('type', type));
+      item.addEventListener('click', () => {
+        if (!this._isMobile()) return;
+        this.addNode(new cls(label.toUpperCase()));
+        if (!this.leftSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.leftSidebar);
       });
     });
   }
 
-  _buildElementPropertiesPanel() {
-    const panel = this._rightSidebarElement.appendChild(this._createElement('div', 'wf-properties wf-prop-panel-element wf-sidebar-body'));
+  _buildNodePropertiesPanel() {
+    const panel = this.rightSidebar.appendChild(this._makeElement('div', 'wf-properties wf-prop-panel-element wf-sidebar-body'));
     panel.style.display = 'none';
     panel.innerHTML = `
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
@@ -948,8 +944,8 @@ class Canvas extends EventEmitter {
     return panel;
   }
 
-  _buildConnectionPropertiesPanel() {
-    const panel = this._rightSidebarElement.appendChild(this._createElement('div', 'wf-properties wf-prop-panel-link wf-sidebar-body'));
+  _buildEdgePropertiesPanel() {
+    const panel = this.rightSidebar.appendChild(this._makeElement('div', 'wf-properties wf-prop-panel-link wf-sidebar-body'));
     panel.style.display = 'none';
     panel.innerHTML = `
       <div class="wf-prop-group"><label>Label</label><input type="text" data-prop="label"></div>
@@ -965,240 +961,240 @@ class Canvas extends EventEmitter {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: JointJS paper initialisation
+  // Internal: JointJS renderer setup
   // ══════════════════════════════════════════════════════════════
-  _initJointPaper() {
-    this._jointGraph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
-    this._jointPaper = new joint.dia.Paper({
-      el: this._paperDOMElement,
-      model: this._jointGraph,
+  _setupRenderer() {
+    this.graph    = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
+    this.renderer = new joint.dia.Paper({
+      el: this.paperElement,
+      model: this.graph,
       width: '100%', height: '100%',
-      gridSize: this._gridSize,
+      gridSize: this.gridSize,
       drawGrid: { name: 'dot', color: '#e9ecef' },
       background: { color: '#ffffff' },
       cellNamespace: joint.shapes,
       defaultConnector: { name: 'rounded' },
-      defaultRouter: { name: 'manhattan', args: { step: this._gridSize, padding: 30, maxIter: 200 } },
+      defaultRouter: { name: 'manhattan', args: { step: this.gridSize, padding: 30, maxIter: 200 } },
       interactive: { linkMove: true, vertexAdd: true, vertexMove: true, elementMove: true },
       preventDefaultBlankAction: false,
       linkPinning: false,
       snapLinks: { radius: 25 },
       markAvailable: true,
       defaultLink: () => new joint.shapes.standard.Link({ attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: ARROW_MARKERS.classic } } }),
-      validateConnection: (sourceView, sourceMagnet, targetView, targetMagnet) => sourceMagnet && targetMagnet && sourceView !== targetView
+      validateConnection: (srcView, srcMagnet, tgtView, tgtMagnet) => srcMagnet && tgtMagnet && srcView !== tgtView
     });
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: UI event handler binding
+  // Internal: button / UI event listeners
   // ══════════════════════════════════════════════════════════════
-  _bindUIEventHandlers() {
-    this._exportButton.addEventListener('click', () => {
+  _attachButtonListeners() {
+    this.exportButton.addEventListener('click', () => {
       try {
-        const jsonBlob = new Blob([this.serialize()], { type: 'application/json' });
-        const downloadUrl = URL.createObjectURL(jsonBlob);
-        const downloadLink = Object.assign(document.createElement('a'), { href: downloadUrl, download: 'diagram.json' });
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-      } catch (error) { alert('Export failed: ' + error.message); }
+        const blob = new Blob([this.serialize()], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = Object.assign(document.createElement('a'), { href: url, download: 'diagram.json' });
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) { alert('Export failed: ' + err.message); }
     });
 
-    this._importButton.addEventListener('click', () => this._importFileInputElement.click());
-    this._importFileInputElement.addEventListener('change', event => {
-      const selectedFile = event.target.files[0];
-      if (!selectedFile) return;
-      const fileReader = new FileReader();
-      fileReader.onload = loadEvent => this.deserialize(loadEvent.target.result).catch(error => alert('Import failed: ' + error.message));
-      fileReader.readAsText(selectedFile);
-      event.target.value = '';
+    this.importButton.addEventListener('click', () => this.importFileInput.click());
+    this.importFileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => this.deserialize(ev.target.result).catch(err => alert('Import failed: ' + err.message));
+      reader.readAsText(file);
+      e.target.value = '';
     });
 
-    this._leftSidebarCollapseButton.addEventListener('click',  () => this._toggleSidebarCollapsed(this._leftSidebarElement));
-    this._rightSidebarCollapseButton.addEventListener('click', () => this._toggleSidebarCollapsed(this._rightSidebarElement));
-    this._autoPortToggleButton.addEventListener('click', () => this.setAutoPortSwitching(!this._autoPortEnabled));
-    this._autoArrangeButton.addEventListener('click',   () => this.autoArrange());
-    this._zoomToFitButton.addEventListener('click',    () => this.zoomToFit());
-    this._zoomResetButton.addEventListener('click',    () => this.zoomReset());
-    this._zoomInButton.addEventListener('click',       () => this.zoomIn());
-    this._zoomOutButton.addEventListener('click',      () => this.zoomOut());
-    this._centerContentButton.addEventListener('click', () => this.centerContent());
+    this.leftCollapseButton.addEventListener('click',  () => this._toggleSidebar(this.leftSidebar));
+    this.rightCollapseButton.addEventListener('click', () => this._toggleSidebar(this.rightSidebar));
+    this.autoPortToggleButton.addEventListener('click', () => this.setAutoPortSwitching(!this.autoPortsOn));
+    this.autoArrangeButton.addEventListener('click',   () => this.autoArrange());
+    this.zoomToFitButton.addEventListener('click',     () => this.zoomToFit());
+    this.zoomResetButton.addEventListener('click',     () => this.zoomReset());
+    this.zoomInButton.addEventListener('click',        () => this.zoomIn());
+    this.zoomOutButton.addEventListener('click',       () => this.zoomOut());
+    this.centerButton.addEventListener('click',        () => this.centerContent());
 
-    this._jointPaper.el.addEventListener('wheel', event => {
-      event.preventDefault();
-      if (event.ctrlKey) this._zoomAroundPoint(Math.exp(-event.deltaY * 0.0015), event.clientX, event.clientY);
-      else { const translation = this._jointPaper.translate(); this._jointPaper.translate(translation.tx - event.deltaX, translation.ty - event.deltaY); }
+    this.renderer.el.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (e.ctrlKey) this._zoomAtPoint(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+      else { const t = this.renderer.translate(); this.renderer.translate(t.tx - e.deltaX, t.ty - e.deltaY); }
     }, { passive: false });
 
-    this._contextMenuElement.addEventListener('click', event => {
-      const action = event.target.closest('[data-action]')?.dataset.action;
-      if (action === 'duplicate') this._duplicateSelectedShape();
-      if (action === 'delete')    this._deleteSelectedItem();
-      this._contextMenuElement.style.display = 'none';
+    this.contextMenu.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (action === 'duplicate') this._duplicateSelected();
+      if (action === 'delete')    this._deleteSelected();
+      this.contextMenu.style.display = 'none';
     });
-    window.addEventListener('click', event => { if (!event.target.closest('.wf-context-menu')) this._contextMenuElement.style.display = 'none'; });
+    window.addEventListener('click', e => { if (!e.target.closest('.wf-context-menu')) this.contextMenu.style.display = 'none'; });
 
-    this._propertiesPanelHeaderActions.addEventListener('click', event => {
-      const action = event.target.closest('[data-action]')?.dataset.action;
+    this.propertiesHeaderActions.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
-      if (action === 'focus')     this._focusCameraOnSelected();
-      if (action === 'duplicate') { this._duplicateSelectedShape(); if (this._isMobileDevice()) this._toggleSidebarCollapsed(this._rightSidebarElement); }
-      if (action === 'delete')    { this._deleteSelectedItem();    if (this._isMobileDevice()) this._toggleSidebarCollapsed(this._rightSidebarElement); }
+      if (action === 'focus')     this._focusCameraOnSelection();
+      if (action === 'duplicate') { this._duplicateSelected(); if (this._isMobile()) this._toggleSidebar(this.rightSidebar); }
+      if (action === 'delete')    { this._deleteSelected();    if (this._isMobile()) this._toggleSidebar(this.rightSidebar); }
     });
 
-    this._elementPropertiesPanel.addEventListener('input',  event => this._handleElementPropertyInput(event));
-    this._elementPropertiesPanel.addEventListener('change', event => this._handleElementPropertyInput(event));
-    this._connectionPropertiesPanel.addEventListener('input',  event => this._handleConnectionPropertyInput(event));
-    this._connectionPropertiesPanel.addEventListener('change', event => this._handleConnectionPropertyInput(event));
+    this.nodePropertiesPanel.addEventListener('input',  e => this._handleNodePropertyChange(e));
+    this.nodePropertiesPanel.addEventListener('change', e => this._handleNodePropertyChange(e));
+    this.edgePropertiesPanel.addEventListener('input',  e => this._handleEdgePropertyChange(e));
+    this.edgePropertiesPanel.addEventListener('change', e => this._handleEdgePropertyChange(e));
 
-    this._canvasContainerElement.addEventListener('dragover', event => event.preventDefault());
-    this._canvasContainerElement.addEventListener('drop', event => {
-      event.preventDefault();
-      const customShapeLabel = event.dataTransfer.getData('customShape');
-      if (customShapeLabel && this._registeredCustomShapes?.[customShapeLabel]) {
-        const dropPosition = this._jointPaper.clientToLocalPoint({ x: event.clientX, y: event.clientY });
-        const ShapeClass = this._registeredCustomShapes[customShapeLabel];
-        const newShape = new ShapeClass();
-        const clearPosition = this._findNearestClearPosition(dropPosition.x - 70, dropPosition.y - 25, 140, 50);
-        const jointCell = newShape._buildJointCell(clearPosition, joint.shapes);
-        jointCell.attr('label/text', newShape._label);
-        newShape._jointCell = jointCell;
-        newShape._parentCanvas = this;
-        Object.entries(newShape._customPropertyValues).forEach(([key, value]) => jointCell.set(`custom_${key}`, value));
-        jointCell.addTo(this._jointGraph);
-        this._shapesByJointId.set(jointCell.id, newShape);
-        this._deselectAll();
+    this.canvasArea.addEventListener('dragover', e => e.preventDefault());
+    this.canvasArea.addEventListener('drop', e => {
+      e.preventDefault();
+      const customLabel = e.dataTransfer.getData('customNode');
+      if (customLabel && this.registeredNodeTypes?.[customLabel]) {
+        const dropPos  = this.renderer.clientToLocalPoint({ x: e.clientX, y: e.clientY });
+        const NodeClass = this.registeredNodeTypes[customLabel];
+        const node     = new NodeClass();
+        const openPos  = this._findOpenPosition(dropPos.x - 70, dropPos.y - 25, 140, 50);
+        const cell     = node._buildCell(openPos, joint.shapes);
+        cell.attr('label/text', node._label);
+        node.cell   = cell;
+        node.editor = this;
+        Object.entries(node.customProps).forEach(([k, v]) => cell.set(`custom_${k}`, v));
+        cell.addTo(this.graph);
+        this.nodeMap.set(cell.id, node);
+        this.clearSelection();
         (async () => {
-          await this._waitForCellToRender(jointCell);
-          await this._autoResizeCellAsync(jointCell);
-          if (newShape._renderFunction) newShape._renderFunction(newShape);
-          await this._waitForCellToRender(jointCell);
-          newShape.on('change', updatedShape => this.emit('shape:change', updatedShape));
-          newShape.on('move',   movedShape   => this.emit('shape:move',   movedShape));
-          this._selectCellOrConnection(newShape);
+          await this._waitForRender(cell);
+          await this._resizeNodeAsync(cell);
+          if (node.renderFn) node.renderFn(node);
+          await this._waitForRender(cell);
+          node.on('change', n => this.emit('node:change', n));
+          node.on('move',   n => this.emit('node:move',   n));
+          this._selectItem(node);
         })();
-        this.emit('shape:add', newShape);
+        this.emit('node:add', node);
         return;
       }
 
-      const droppedShapeType = event.dataTransfer.getData('type');
-      const builtInShapeDefinitions = [
+      const droppedType = e.dataTransfer.getData('type');
+      const builtInShapes = [
         { type: 'rect',     cls: Rectangle }, { type: 'square',   cls: Square   }, { type: 'ellipse',  cls: Ellipse  },
         { type: 'circle',   cls: Circle    }, { type: 'diamond',  cls: Diamond  }, { type: 'triangle', cls: Triangle },
         { type: 'hexagon',  cls: Hexagon   }, { type: 'pentagon', cls: Pentagon }, { type: 'octagon',  cls: Octagon  }
       ];
-      const matchedDefinition = builtInShapeDefinitions.find(def => def.type === droppedShapeType);
-      if (!matchedDefinition) return;
+      const match = builtInShapes.find(s => s.type === droppedType);
+      if (!match) return;
 
-      const displayLabel = droppedShapeType.charAt(0).toUpperCase() + droppedShapeType.slice(1);
-      const dropPosition = this._jointPaper.clientToLocalPoint({ x: event.clientX, y: event.clientY });
-      const newShape = new matchedDefinition.cls(displayLabel.toUpperCase());
-      const isSquarish = ['square', 'circle', 'diamond'].includes(droppedShapeType);
-      const initialWidth  = isSquarish ? 80 : 140;
-      const initialHeight = isSquarish ? 80 : 50;
-      const clearPosition = this._findNearestClearPosition(dropPosition.x - initialWidth / 2, dropPosition.y - initialHeight / 2, initialWidth, initialHeight);
-      const jointCell = newShape._buildJointCell(clearPosition, joint.shapes);
-      jointCell.attr('label/text', newShape._label);
-      newShape._jointCell = jointCell;
-      newShape._parentCanvas = this;
-      jointCell.addTo(this._jointGraph);
-      this._shapesByJointId.set(jointCell.id, newShape);
-      this._deselectAll();
+      const label   = droppedType.charAt(0).toUpperCase() + droppedType.slice(1);
+      const dropPos = this.renderer.clientToLocalPoint({ x: e.clientX, y: e.clientY });
+      const node    = new match.cls(label.toUpperCase());
+      const isSquarish = ['square', 'circle', 'diamond'].includes(droppedType);
+      const w = isSquarish ? 80 : 140;
+      const h = isSquarish ? 80 : 50;
+      const openPos = this._findOpenPosition(dropPos.x - w / 2, dropPos.y - h / 2, w, h);
+      const cell    = node._buildCell(openPos, joint.shapes);
+      cell.attr('label/text', node._label);
+      node.cell   = cell;
+      node.editor = this;
+      cell.addTo(this.graph);
+      this.nodeMap.set(cell.id, node);
+      this.clearSelection();
       (async () => {
-        await this._waitForCellToRender(jointCell);
-        await this._autoResizeCellAsync(jointCell);
-        await this._waitForCellToRender(jointCell);
-        newShape.on('change', updatedShape => this.emit('shape:change', updatedShape));
-        newShape.on('move',   movedShape   => this.emit('shape:move',   movedShape));
-        this._selectCellOrConnection(newShape);
+        await this._waitForRender(cell);
+        await this._resizeNodeAsync(cell);
+        await this._waitForRender(cell);
+        node.on('change', n => this.emit('node:change', n));
+        node.on('move',   n => this.emit('node:move',   n));
+        this._selectItem(node);
       })();
-      this.emit('shape:add', newShape);
+      this.emit('node:add', node);
     });
 
-    this._elementPropertiesPanel.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
-      this._elementPropertiesPanel.querySelector('[data-action="image-file"]').click();
+    this.nodePropertiesPanel.querySelector('[data-action="upload-image"]').addEventListener('click', () => {
+      this.nodePropertiesPanel.querySelector('[data-action="image-file"]').click();
     });
-    this._elementPropertiesPanel.querySelector('[data-action="image-file"]').addEventListener('change', event => {
-      const selectedFile = event.target.files[0];
-      if (!selectedFile) return;
-      const fileReader = new FileReader();
-      fileReader.onload = loadEvent => {
-        this._elementPropertiesPanel.querySelector('[data-prop="imageUrl"]').value = loadEvent.target.result;
-        if (this._selectedItem instanceof Shape) this._selectedItem.imageUrl = loadEvent.target.result;
+    this.nodePropertiesPanel.querySelector('[data-action="image-file"]').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        this.nodePropertiesPanel.querySelector('[data-prop="imageUrl"]').value = ev.target.result;
+        if (this.selection instanceof Node) this.selection.imageUrl = ev.target.result;
       };
-      fileReader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(file);
     });
   }
 
-  _handleElementPropertyInput(event) {
-    if (!(this._selectedItem instanceof Shape)) return;
-    const inputElement = event.target.closest('[data-prop]');
-    if (!inputElement) return;
-    const propName = inputElement.dataset.prop;
-    const propValue = inputElement.type === 'number' ? parseFloat(inputElement.value) : inputElement.value;
-    if (inputElement.dataset.pair)       this._elementPropertiesPanel.querySelector(`[data-prop="${inputElement.dataset.pair}"]`).value = propValue;
-    if (inputElement.dataset.pairPicker) this._elementPropertiesPanel.querySelector(`[data-prop="${inputElement.dataset.pairPicker}"]`).value = propValue;
-    const resolvedPropName = propName.endsWith('Hex') ? propName.slice(0, -3) : propName;
-    if (resolvedPropName in this._selectedItem) this._selectedItem[resolvedPropName] = propValue;
+  _handleNodePropertyChange(e) {
+    if (!(this.selection instanceof Node)) return;
+    const input = e.target.closest('[data-prop]');
+    if (!input) return;
+    const prop  = input.dataset.prop;
+    const value = input.type === 'number' ? parseFloat(input.value) : input.value;
+    if (input.dataset.pair)       this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
+    if (input.dataset.pairPicker) this.nodePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
+    if (resolvedProp in this.selection) this.selection[resolvedProp] = value;
   }
 
-  _handleConnectionPropertyInput(event) {
-    if (!(this._selectedItem instanceof Connection)) return;
-    const inputElement = event.target.closest('[data-prop]');
-    if (!inputElement) return;
-    const propName = inputElement.dataset.prop;
-    const propValue = inputElement.type === 'number' ? parseFloat(inputElement.value) : inputElement.value;
-    if (inputElement.dataset.pair)       this._connectionPropertiesPanel.querySelector(`[data-prop="${inputElement.dataset.pair}"]`).value = propValue;
-    if (inputElement.dataset.pairPicker) this._connectionPropertiesPanel.querySelector(`[data-prop="${inputElement.dataset.pairPicker}"]`).value = propValue;
-    const resolvedPropName = propName.endsWith('Hex') ? propName.slice(0, -3) : propName;
-    if (resolvedPropName in this._selectedItem) this._selectedItem[resolvedPropName] = propValue;
+  _handleEdgePropertyChange(e) {
+    if (!(this.selection instanceof Edge)) return;
+    const input = e.target.closest('[data-prop]');
+    if (!input) return;
+    const prop  = input.dataset.prop;
+    const value = input.type === 'number' ? parseFloat(input.value) : input.value;
+    if (input.dataset.pair)       this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pair}"]`).value = value;
+    if (input.dataset.pairPicker) this.edgePropertiesPanel.querySelector(`[data-prop="${input.dataset.pairPicker}"]`).value = value;
+    const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
+    if (resolvedProp in this.selection) this.selection[resolvedProp] = value;
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: JointJS paper event handler binding
+  // Internal: JointJS diagram event listeners
   // ══════════════════════════════════════════════════════════════
-  _bindJointPaperEventHandlers() {
+  _attachDiagramListeners() {
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
       tagName: 'circle',
       attributes: { r: 6, fill: '#3498db', stroke: '#fff', 'stroke-width': 2, cursor: 'move' }
     });
 
-    this._jointPaper.on('element:pointerdown', (cellView, pointerEvent) => {
-      const shape = this._shapesByJointId.get(cellView.model.id);
-      if (!shape) return;
-      this._pointerDownPosition = { x: pointerEvent.clientX, y: pointerEvent.clientY };
-      this._wasShapeAlreadySelected = this._selectedItem === shape;
+    this.renderer.on('element:pointerdown', (view, e) => {
+      const node = this.nodeMap.get(view.model.id);
+      if (!node) return;
+      this.pointerDownAt = { x: e.clientX, y: e.clientY };
+      this.selectionWasAlreadyActive = this.selection === node;
       this._deselectAll();
-      if (!this._isMobileDevice()) shape._jointCell.toFront();
-      this._selectCellOrConnection(shape);
+      if (!this._isMobile()) node.cell.toFront();
+      this._selectItem(node);
     });
 
-    this._jointPaper.on('element:pointerup', (cellView, pointerEvent) => {
-      const distanceX = Math.abs(pointerEvent.clientX - (this._pointerDownPosition?.x ?? pointerEvent.clientX));
-      const distanceY = Math.abs(pointerEvent.clientY - (this._pointerDownPosition?.y ?? pointerEvent.clientY));
-      if (distanceX < 5 && distanceY < 5 && this._wasShapeAlreadySelected && this._rightSidebarElement.classList.contains('wf-collapsed')) {
-        this._toggleSidebarCollapsed(this._rightSidebarElement);
+    this.renderer.on('element:pointerup', (view, e) => {
+      const dx = Math.abs(e.clientX - (this.pointerDownAt?.x ?? e.clientX));
+      const dy = Math.abs(e.clientY - (this.pointerDownAt?.y ?? e.clientY));
+      if (dx < 5 && dy < 5 && this.selectionWasAlreadyActive && this.rightSidebar.classList.contains('wf-collapsed')) {
+        this._toggleSidebar(this.rightSidebar);
       }
-      this._pointerDownPosition = null;
-      this._wasShapeAlreadySelected = false;
-      if (!this._isMobileDevice()) {
-        const shape = this._shapesByJointId.get(cellView.model.id);
-        if (shape) {
-          const shapeBoundingBox = shape._jointCell.getBBox();
-          const clearPosition = this._findNearestClearPosition(shapeBoundingBox.x, shapeBoundingBox.y, shapeBoundingBox.width, shapeBoundingBox.height, shape._jointCell);
-          shape._jointCell.position(clearPosition.x, clearPosition.y);
+      this.pointerDownAt = null;
+      this.selectionWasAlreadyActive = false;
+      if (!this._isMobile()) {
+        const node = this.nodeMap.get(view.model.id);
+        if (node) {
+          const bbox     = node.cell.getBBox();
+          const openPos  = this._findOpenPosition(bbox.x, bbox.y, bbox.width, bbox.height, node.cell);
+          node.cell.position(openPos.x, openPos.y);
         }
       }
     });
 
-    this._jointPaper.on('link:pointerdown', linkView => {
-      const connection = this._connectionsByJointId.get(linkView.model.id);
-      if (!connection) return;
+    this.renderer.on('link:pointerdown', view => {
+      const edge = this.edgeMap.get(view.model.id);
+      if (!edge) return;
       this._deselectAll();
-      linkView.model.toFront();
-      this._selectCellOrConnection(connection);
-      linkView.addTools(new joint.dia.ToolsView({ tools: [
+      view.model.toFront();
+      this._selectItem(edge);
+      view.addTools(new joint.dia.ToolsView({ tools: [
         new joint.linkTools.Vertices(),
         new CustomSourceArrowhead(),
         new joint.linkTools.TargetArrowhead({ offset: -1 }),
@@ -1206,210 +1202,205 @@ class Canvas extends EventEmitter {
       ]}));
     });
 
-    this._jointPaper.on('cell:pointerdown tool:pointerdown', (view, event) => {
-      if (event?.target?.closest?.('.joint-port')) this._jointPaper.el.classList.add('wf-dragging-link');
+    this.renderer.on('cell:pointerdown tool:pointerdown', (view, e) => {
+      if (e?.target?.closest?.('.joint-port')) this.renderer.el.classList.add('wf-dragging-link');
     });
-    this._jointPaper.on('cell:pointerup link:pointerup tool:pointerup', () => {
-      this._jointPaper.el.classList.remove('wf-dragging-link');
-    });
-
-    this._jointPaper.on('cell:contextmenu', (cellView, event) => {
-      event.preventDefault();
-      const containerRect = this._canvasContainerElement.getBoundingClientRect();
-      this._contextMenuElement.style.display = 'block';
-      this._contextMenuElement.style.left = (event.clientX - containerRect.left) + 'px';
-      this._contextMenuElement.style.top  = (event.clientY - containerRect.top)  + 'px';
-      this._contextMenuElement.querySelector('[data-action="duplicate"]').style.display = this._shapesByJointId.has(cellView.model.id) ? 'flex' : 'none';
+    this.renderer.on('cell:pointerup link:pointerup tool:pointerup', () => {
+      this.renderer.el.classList.remove('wf-dragging-link');
     });
 
-    this._jointPaper.on('blank:pointerdown', pointerEvent => {
+    this.renderer.on('cell:contextmenu', (view, e) => {
+      e.preventDefault();
+      const rect = this.canvasArea.getBoundingClientRect();
+      this.contextMenu.style.display = 'block';
+      this.contextMenu.style.left = (e.clientX - rect.left) + 'px';
+      this.contextMenu.style.top  = (e.clientY - rect.top)  + 'px';
+      this.contextMenu.querySelector('[data-action="duplicate"]').style.display = this.nodeMap.has(view.model.id) ? 'flex' : 'none';
+    });
+
+    this.renderer.on('blank:pointerdown', e => {
       this._collapseAllSidebarsOnMobile();
-      const startX = pointerEvent.clientX, startY = pointerEvent.clientY;
-      const initialTranslation = this._jointPaper.translate();
-      if (this._isMobileDevice()) {
-        this._deselectAll();
-        return;
-      }
-      const onMouseMove = moveEvent => this._jointPaper.translate(initialTranslation.tx + (moveEvent.clientX - startX), initialTranslation.ty + (moveEvent.clientY - startY));
-      const onMouseUp   = upEvent => {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup',   onMouseUp);
-        const distanceX = Math.abs(upEvent.clientX - startX);
-        const distanceY = Math.abs(upEvent.clientY - startY);
-        if (distanceX < 5 && distanceY < 5) this._deselectAll();
+      const startX = e.clientX, startY = e.clientY;
+      const initTranslation = this.renderer.translate();
+      if (this._isMobile()) { this._deselectAll(); return; }
+      const onMove = mv => this.renderer.translate(initTranslation.tx + (mv.clientX - startX), initTranslation.ty + (mv.clientY - startY));
+      const onUp   = up => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+        if (Math.abs(up.clientX - startX) < 5 && Math.abs(up.clientY - startY) < 5) this._deselectAll();
       };
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup',   onMouseUp);
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
     });
 
-    this._jointPaper.on('link:connect', linkView => {
-      const link = linkView.model;
-      const sourceElement = link.getSourceElement();
-      const targetElement = link.getTargetElement();
-      if (!sourceElement || !targetElement) return;
-      const sourceShape = this._shapesByJointId.get(sourceElement.id);
-      const targetShape = this._shapesByJointId.get(targetElement.id);
-      if (!sourceShape || !targetShape || this._connectionsByJointId.has(link.id)) return;
-      const reverseConnectionExists = [...this._connectionsByJointId.values()].some(conn => conn.source === targetShape && conn.target === sourceShape);
-      if (reverseConnectionExists) { link.remove(); return; }
-      const newConnection = new Connection(link, sourceShape, targetShape, this);
-      this._connectionsByJointId.set(link.id, newConnection);
-      newConnection.on('change', updatedConnection => this.emit('connection:change', updatedConnection));
-      this.emit('connection:add', newConnection);
+    this.renderer.on('link:connect', view => {
+      const link       = view.model;
+      const sourceCell = link.getSourceElement();
+      const targetCell = link.getTargetElement();
+      if (!sourceCell || !targetCell) return;
+      const sourceNode = this.nodeMap.get(sourceCell.id);
+      const targetNode = this.nodeMap.get(targetCell.id);
+      if (!sourceNode || !targetNode || this.edgeMap.has(link.id)) return;
+      const reverseExists = [...this.edgeMap.values()].some(e => e.source === targetNode && e.target === sourceNode);
+      if (reverseExists) { link.remove(); return; }
+      const edge = new Edge(link, sourceNode, targetNode, this);
+      this.edgeMap.set(link.id, edge);
+      edge.on('change', ed => this.emit('edge:change', ed));
+      this.emit('edge:add', edge);
     });
 
-    this._jointGraph.on('remove', removedCell => {
-      if (removedCell.isLink()) {
-        const connection = this._connectionsByJointId.get(removedCell.id);
-        if (connection) { this._connectionsByJointId.delete(removedCell.id); this.emit('connection:remove', connection); }
+    this.graph.on('remove', cell => {
+      if (cell.isLink()) {
+        const edge = this.edgeMap.get(cell.id);
+        if (edge) { this.edgeMap.delete(cell.id); this.emit('edge:remove', edge); }
       } else {
-        const shape = this._shapesByJointId.get(removedCell.id);
-        if (shape) { this._shapesByJointId.delete(removedCell.id); this.emit('shape:remove', shape); }
+        const node = this.nodeMap.get(cell.id);
+        if (node) { this.nodeMap.delete(cell.id); this.emit('node:remove', node); }
       }
     });
 
-    this._jointGraph.on('change:position', changedCell => {
-      const shape = this._shapesByJointId.get(changedCell.id);
-      if (shape) { this._redistributePortsForElement(changedCell); shape.emit('move', shape); }
+    this.graph.on('change:position', cell => {
+      const node = this.nodeMap.get(cell.id);
+      if (node) { this._updateConnectionPorts(cell); node.emit('move', node); }
     });
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: keyboard shortcut binding
+  // Internal: keyboard shortcuts
   // ══════════════════════════════════════════════════════════════
-  _bindKeyboardShortcuts() {
-    this._clipboardShape = null;
-    this._canvasContainerElement.tabIndex = 0;
-    this._canvasContainerElement.style.outline = 'none';
-    this._canvasContainerElement.focus();
+  _attachKeyboardShortcuts() {
+    this.clipboard = null;
+    this.canvasArea.tabIndex = 0;
+    this.canvasArea.style.outline = 'none';
+    this.canvasArea.focus();
 
-    this._canvasContainerElement.addEventListener('mousedown', () => {
-      const activeTag = document.activeElement?.tagName;
-      if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') this._canvasContainerElement.focus();
+    this.canvasArea.addEventListener('mousedown', () => {
+      const tag = document.activeElement?.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') this.canvasArea.focus();
     });
 
-    this._canvasContainerElement.addEventListener('keydown', async event => {
-      const activeTag = document.activeElement?.tagName;
-      const isTypingInInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT';
+    this.canvasArea.addEventListener('keydown', async e => {
+      const tag       = document.activeElement?.tagName;
+      const isTyping  = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-      if (event.key === 'F2' || (!isTypingInInput && event.key === 'Enter')) {
-        if (this._selectedItem instanceof Shape || this._selectedItem instanceof Connection) {
-          event.preventDefault();
-          if (this._rightSidebarElement.classList.contains('wf-collapsed')) this._toggleSidebarCollapsed(this._rightSidebarElement);
-          await this._waitForCellToRender(this._selectedItem._jointCell ?? this._selectedItem._jointLink);
-          const propertiesPanel = this._selectedItem instanceof Shape ? this._elementPropertiesPanel : this._connectionPropertiesPanel;
-          const labelInput = propertiesPanel.querySelector('[data-prop="label"]');
+      if (e.key === 'F2' || (!isTyping && e.key === 'Enter')) {
+        if (this.selection instanceof Node || this.selection instanceof Edge) {
+          e.preventDefault();
+          if (this.rightSidebar.classList.contains('wf-collapsed')) this._toggleSidebar(this.rightSidebar);
+          await this._waitForRender(this.selection.cell ?? this.selection.link);
+          const panel      = this.selection instanceof Node ? this.nodePropertiesPanel : this.edgePropertiesPanel;
+          const labelInput = panel.querySelector('[data-prop="label"]');
           if (labelInput) { labelInput.focus(); labelInput.select(); }
         }
         return;
       }
 
-      if (isTypingInInput) return;
-      if (event.key === 'Escape')                               { event.preventDefault(); this._deselectAll(); return; }
-      if (event.key === 'Delete' || event.key === 'Backspace')  { event.preventDefault(); this._deleteSelectedItem(); return; }
-      if (event.key === '-' && !event.ctrlKey && !event.metaKey){ event.preventDefault(); this.zoomOut(); return; }
-      if ((event.key === '=' || event.key === '+') && !event.ctrlKey && !event.metaKey) { event.preventDefault(); this.zoomIn(); return; }
+      if (isTyping) return;
+      if (e.key === 'Escape')                              { e.preventDefault(); this._deselectAll(); return; }
+      if (e.key === 'Delete' || e.key === 'Backspace')     { e.preventDefault(); this._deleteSelected(); return; }
+      if (e.key === '-' && !e.ctrlKey && !e.metaKey)       { e.preventDefault(); this.zoomOut(); return; }
+      if ((e.key === '=' || e.key === '+') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); this.zoomIn(); return; }
 
-      if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
-        if (this._selectedItem instanceof Shape) { event.preventDefault(); this._clipboardShape = this._selectedItem; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (this.selection instanceof Node) { e.preventDefault(); this.clipboard = this.selection; }
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
-        if (this._clipboardShape) {
-          event.preventDefault();
-          const clipboardBBox = this._clipboardShape._jointCell.getBBox();
-          const pastePosition  = this._findNearestClearPosition(clipboardBBox.x + 40, clipboardBBox.y + 40, clipboardBBox.width, clipboardBBox.height);
-          const clonedCell = this._clipboardShape._jointCell.clone();
-          clonedCell.position(pastePosition.x, pastePosition.y);
-          clonedCell.addTo(this._jointGraph);
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        if (this.clipboard) {
+          e.preventDefault();
+          const bbox    = this.clipboard.cell.getBBox();
+          const openPos = this._findOpenPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
+          const cloned  = this.clipboard.cell.clone();
+          cloned.position(openPos.x, openPos.y);
+          cloned.addTo(this.graph);
           this._deselectAll();
-          const clonedShape = new this._clipboardShape.constructor(this._clipboardShape.label);
-          clonedShape._jointCell    = clonedCell;
-          clonedShape._parentCanvas = this;
-          this._shapesByJointId.set(clonedCell.id, clonedShape);
+          const copy    = new this.clipboard.constructor(this.clipboard.label);
+          copy.cell     = cloned;
+          copy.editor   = this;
+          this.nodeMap.set(cloned.id, copy);
           (async () => {
-            await this._waitForCellToRender(clonedCell);
-            await this._autoResizeCellAsync(clonedCell);
-            await this._waitForCellToRender(clonedCell);
-            clonedShape.on('change', s => this.emit('shape:change', s));
-            clonedShape.on('move',   s => this.emit('shape:move',   s));
-            this._selectCellOrConnection(clonedShape);
+            await this._waitForRender(cloned);
+            await this._resizeNodeAsync(cloned);
+            await this._waitForRender(cloned);
+            copy.on('change', n => this.emit('node:change', n));
+            copy.on('move',   n => this.emit('node:move',   n));
+            this._selectItem(copy);
           })();
-          this.emit('shape:add', clonedShape);
+          this.emit('node:add', copy);
         }
         return;
       }
 
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-        event.preventDefault();
-        const deltaX = event.key === 'ArrowLeft' ? -this._gridSize : event.key === 'ArrowRight' ? this._gridSize : 0;
-        const deltaY = event.key === 'ArrowUp'   ? -this._gridSize : event.key === 'ArrowDown'  ? this._gridSize : 0;
-        if (this._selectedItem instanceof Shape) {
-          this._selectedItem.moveBy(deltaX, deltaY);
-        } else if (!this._selectedItem) {
-          const currentTranslation = this._jointPaper.translate();
-          this._jointPaper.translate(currentTranslation.tx - deltaX, currentTranslation.ty - deltaY);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const dx = e.key === 'ArrowLeft' ? -this.gridSize : e.key === 'ArrowRight' ? this.gridSize : 0;
+        const dy = e.key === 'ArrowUp'   ? -this.gridSize : e.key === 'ArrowDown'  ? this.gridSize : 0;
+        if (this.selection instanceof Node) {
+          this.selection.moveBy(dx, dy);
+        } else if (!this.selection) {
+          const t = this.renderer.translate();
+          this.renderer.translate(t.tx - dx, t.ty - dy);
         }
       }
     });
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: touch gesture binding (mobile pan/pinch)
+  // Internal: touch gesture handling (mobile pan / pinch-zoom)
   // ══════════════════════════════════════════════════════════════
-  _bindTouchGestureHandlers() {
-    this._jointPaper.el.addEventListener('touchstart', event => {
-      if (!this._isMobileDevice()) return;
-      if (event.touches.length === 1) {
-        const touch = event.touches[0];
+  _attachTouchListeners() {
+    this.renderer.el.addEventListener('touchstart', e => {
+      if (!this._isMobile()) return;
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
         if (document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.joint-cell')) return;
-        event.stopPropagation();
-        this._touchGestureState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initialTranslation: this._jointPaper.translate() };
-      } else if (event.touches.length === 2) {
-        event.stopPropagation();
-        const [touch1, touch2] = [event.touches[0], event.touches[1]];
-        this._touchGestureState = {
-          type: 'pinch',
-          initialDistance:    this._getTouchDistance(touch1, touch2),
-          initialMidpoint:    this._getTouchMidpoint(touch1, touch2),
-          initialScale:       this._jointPaper.scale().sx,
-          initialTranslation: this._jointPaper.translate()
+        e.stopPropagation();
+        this.touchState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initTranslation: this.renderer.translate() };
+      } else if (e.touches.length === 2) {
+        e.stopPropagation();
+        const [t1, t2] = [e.touches[0], e.touches[1]];
+        this.touchState = {
+          type:            'pinch',
+          initDistance:    this._touchDistance(t1, t2),
+          initMidpoint:    this._touchMidpoint(t1, t2),
+          initScale:       this.renderer.scale().sx,
+          initTranslation: this.renderer.translate()
         };
       }
     }, { passive: true });
 
-    this._jointPaper.el.addEventListener('touchmove', event => {
-      if (!this._isMobileDevice() || !this._touchGestureState) return;
-      event.preventDefault();
-      const gestureState = this._touchGestureState;
+    this.renderer.el.addEventListener('touchmove', e => {
+      if (!this._isMobile() || !this.touchState) return;
+      e.preventDefault();
+      const state = this.touchState;
 
-      if (gestureState.type === 'pan' && event.touches.length === 1) {
-        const touch = event.touches[0];
-        this._jointPaper.translate(
-          gestureState.initialTranslation.tx + (touch.clientX - gestureState.startX),
-          gestureState.initialTranslation.ty + (touch.clientY - gestureState.startY)
+      if (state.type === 'pan' && e.touches.length === 1) {
+        const touch = e.touches[0];
+        this.renderer.translate(
+          state.initTranslation.tx + (touch.clientX - state.startX),
+          state.initTranslation.ty + (touch.clientY - state.startY)
         );
-      } else if (gestureState.type === 'pinch' && event.touches.length === 2) {
-        const [touch1, touch2] = [event.touches[0], event.touches[1]];
-        const newScale = Math.max(0.1, Math.min(10, gestureState.initialScale * this._getTouchDistance(touch1, touch2) / gestureState.initialDistance));
-        const midpoint = this._getTouchMidpoint(touch1, touch2);
-        const paperRect = this._jointPaper.el.getBoundingClientRect();
-        const viewportX = midpoint.x - paperRect.left;
-        const viewportY = midpoint.y - paperRect.top;
-        const originX = (viewportX - gestureState.initialTranslation.tx) / gestureState.initialScale;
-        const originY = (viewportY - gestureState.initialTranslation.ty) / gestureState.initialScale;
-        this._jointPaper.scale(newScale, newScale);
-        this._jointPaper.translate(viewportX - originX * newScale, viewportY - originY * newScale);
+      } else if (state.type === 'pinch' && e.touches.length === 2) {
+        const [t1, t2] = [e.touches[0], e.touches[1]];
+        const newScale  = Math.max(0.1, Math.min(10, state.initScale * this._touchDistance(t1, t2) / state.initDistance));
+        const mid       = this._touchMidpoint(t1, t2);
+        const rect      = this.renderer.el.getBoundingClientRect();
+        const vpX       = mid.x - rect.left;
+        const vpY       = mid.y - rect.top;
+        const originX   = (vpX - state.initTranslation.tx) / state.initScale;
+        const originY   = (vpY - state.initTranslation.ty) / state.initScale;
+        this.renderer.scale(newScale, newScale);
+        this.renderer.translate(vpX - originX * newScale, vpY - originY * newScale);
       }
     }, { passive: false });
 
-    this._jointPaper.el.addEventListener('touchend', event => {
-      if (!this._isMobileDevice()) return;
-      if (this._touchGestureState?.type === 'pinch' && event.touches.length === 1) {
-        const touch = event.touches[0];
-        this._touchGestureState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initialTranslation: this._jointPaper.translate() };
+    this.renderer.el.addEventListener('touchend', e => {
+      if (!this._isMobile()) return;
+      if (this.touchState?.type === 'pinch' && e.touches.length === 1) {
+        const touch = e.touches[0];
+        this.touchState = { type: 'pan', startX: touch.clientX, startY: touch.clientY, initTranslation: this.renderer.translate() };
       } else {
-        this._touchGestureState = null;
+        this.touchState = null;
       }
     }, { passive: true });
   }
@@ -1417,485 +1408,483 @@ class Canvas extends EventEmitter {
   // ══════════════════════════════════════════════════════════════
   // Internal: selection management
   // ══════════════════════════════════════════════════════════════
-  _selectCellOrConnection(shapeOrConnection) {
-    this._selectedItem = shapeOrConnection;
-    const isShape = shapeOrConnection instanceof Shape;
-    const jointModel = isShape ? shapeOrConnection._jointCell : shapeOrConnection._jointLink;
-    const cellView = this._jointPaper.findViewByModel(jointModel);
+  _selectItem(item) {
+    this.selection = item;
+    const isNode   = item instanceof Node;
+    const model    = isNode ? item.cell : item.link;
+    const view     = this.renderer.findViewByModel(model);
 
-    if (cellView) {
-      cellView.el.classList.add('wf-selected');
-      joint.highlighters.stroke.add(cellView, 'root', 'selection', { padding: 5, attrs: { stroke: '#3498db', 'stroke-width': 3 } });
+    if (view) {
+      view.el.classList.add('wf-selected');
+      joint.highlighters.stroke.add(view, 'root', 'selection', { padding: 5, attrs: { stroke: '#3498db', 'stroke-width': 3 } });
     }
 
-    this._propertiesPanelHeaderActions.style.display = 'flex';
-    this._propertiesPanelHeaderActions.querySelector('[data-action="duplicate"]').style.display = isShape ? 'flex' : 'none';
+    this.propertiesHeaderActions.style.display = 'flex';
+    this.propertiesHeaderActions.querySelector('[data-action="duplicate"]').style.display = isNode ? 'flex' : 'none';
 
-    if (isShape) { this._showPropertiesPanel('element');    this._populateElementPropertiesPanel(shapeOrConnection); }
-    else         { this._showPropertiesPanel('connection'); this._populateConnectionPropertiesPanel(shapeOrConnection); }
+    if (isNode) { this._showPropertiesPanel('node'); this._fillNodeProperties(item); }
+    else        { this._showPropertiesPanel('edge'); this._fillEdgeProperties(item); }
 
-    this.emit('selection:change', shapeOrConnection);
+    this.emit('selection:change', item);
     this._updateMobileButtonVisibility();
   }
 
   _deselectAll() {
-    if (this._selectedItem) {
-      const jointModel = this._selectedItem instanceof Shape ? this._selectedItem._jointCell : this._selectedItem._jointLink;
-      this._jointPaper.findViewByModel(jointModel)?.el.classList.remove('wf-selected');
+    if (this.selection) {
+      const model = this.selection instanceof Node ? this.selection.cell : this.selection.link;
+      this.renderer.findViewByModel(model)?.el.classList.remove('wf-selected');
     }
-    this._jointPaper.removeTools();
-    joint.highlighters.stroke.removeAll(this._jointPaper);
-    this._selectedItem = null;
-    this._propertiesPanelHeaderActions.style.display = 'none';
+    this.renderer.removeTools();
+    joint.highlighters.stroke.removeAll(this.renderer);
+    this.selection = null;
+    this.propertiesHeaderActions.style.display = 'none';
     this._showPropertiesPanel('none');
     this.emit('selection:change', null);
-    this._canvasContainerElement.focus();
+    this.canvasArea.focus();
     this._updateMobileButtonVisibility();
   }
 
-  _showPropertiesPanel(panelType) {
-    this._elementPropertiesPanel.style.display    = panelType === 'element'    ? 'flex' : 'none';
-    this._connectionPropertiesPanel.style.display = panelType === 'connection' ? 'flex' : 'none';
-    this._noSelectionMessageElement.style.display = panelType === 'none'       ? 'block' : 'none';
+  _showPropertiesPanel(which) {
+    this.nodePropertiesPanel.style.display = which === 'node' ? 'flex' : 'none';
+    this.edgePropertiesPanel.style.display = which === 'edge' ? 'flex' : 'none';
+    this.noSelectionMessage.style.display  = which === 'none' ? 'block' : 'none';
   }
 
-  _populateElementPropertiesPanel(shape) {
-    const panel = this._elementPropertiesPanel;
-    const setFieldValue = (propName, value) => { const el = panel.querySelector(`[data-prop="${propName}"]`); if (el) el.value = value ?? ''; };
+  _fillNodeProperties(node) {
+    const panel = this.nodePropertiesPanel;
+    const set   = (prop, val) => { const el = panel.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
 
-    setFieldValue('label',            shape.label);
-    setFieldValue('labelFontSize',    shape.labelFontSize);
-    setFieldValue('description',      shape.description);
-    setFieldValue('imageUrl',         shape.imageUrl);
-    setFieldValue('imageWidth',       shape.imageWidth);
-    setFieldValue('imageHeight',      shape.imageHeight);
-    setFieldValue('backgroundColor',  shape.backgroundColor);
-    setFieldValue('backgroundColorHex', shape.backgroundColor);
-    setFieldValue('borderColor',      shape.borderColor);
-    setFieldValue('borderColorHex',   shape.borderColor);
-    setFieldValue('labelColor',       shape.labelColor);
-    setFieldValue('labelColorHex',    shape.labelColor);
-    setFieldValue('descriptionColor', shape.descriptionColor);
-    setFieldValue('descriptionColorHex', shape.descriptionColor);
+    set('label',               node.label);
+    set('labelFontSize',       node.labelFontSize);
+    set('description',         node.description);
+    set('imageUrl',            node.imageUrl);
+    set('imageWidth',          node.imageWidth);
+    set('imageHeight',         node.imageHeight);
+    set('backgroundColor',     node.backgroundColor);
+    set('backgroundColorHex',  node.backgroundColor);
+    set('borderColor',         node.borderColor);
+    set('borderColorHex',      node.borderColor);
+    set('labelColor',          node.labelColor);
+    set('labelColorHex',       node.labelColor);
+    set('descriptionColor',    node.descriptionColor);
+    set('descriptionColorHex', node.descriptionColor);
 
     panel.querySelector('.wf-custom-props')?.remove();
-    const schema = shape.getSchema?.() ?? {};
+    const schema = node.getSchema?.() ?? {};
     if (!Object.keys(schema).length) return;
 
-    const customPropsSection = this._createElement('div', 'wf-custom-props');
-    const divider = customPropsSection.appendChild(this._createElement('div'));
+    const customSection = this._makeElement('div', 'wf-custom-props');
+    const divider = customSection.appendChild(this._makeElement('div'));
     divider.style.cssText = 'border-top:1px solid #dee2e6;margin:4px 0;';
 
-    Object.entries(schema).forEach(([propertyKey, propertyDefinition]) => {
-      if (propertyDefinition.visible === false) return;
+    Object.entries(schema).forEach(([key, def]) => {
+      if (def.visible === false) return;
 
-      const propertyGroup = customPropsSection.appendChild(this._createElement('div', 'wf-prop-group'));
-      const propertyLabel = propertyGroup.appendChild(this._createElement('label'));
-      propertyLabel.textContent = propertyDefinition.label ?? propertyKey;
+      const group = customSection.appendChild(this._makeElement('div', 'wf-prop-group'));
+      const lbl   = group.appendChild(this._makeElement('label'));
+      lbl.textContent = def.label ?? key;
 
-      const currentValue = shape.getCustomProperty(propertyKey);
-      let inputElement;
+      const current = node.getCustomProperty(key);
+      let input;
 
-      if (propertyDefinition.type === 'choice') {
-        inputElement = this._createElement('select');
-        Object.entries(propertyDefinition.choices ?? {}).forEach(([choiceValue, choiceLabel]) => {
-          const optionEl = inputElement.appendChild(this._createElement('option'));
-          optionEl.value = choiceValue;
-          optionEl.textContent = choiceLabel;
+      if (def.type === 'choice') {
+        input = this._makeElement('select');
+        Object.entries(def.choices ?? {}).forEach(([val, label]) => {
+          const opt = input.appendChild(this._makeElement('option'));
+          opt.value = val;
+          opt.textContent = label;
         });
-        inputElement.value = currentValue ?? propertyDefinition.default;
+        input.value = current ?? def.default;
 
-      } else if (propertyDefinition.type === 'textarea') {
-        inputElement = this._createElement('textarea');
-        inputElement.value = currentValue ?? '';
+      } else if (def.type === 'textarea') {
+        input = this._makeElement('textarea');
+        input.value = current ?? '';
 
-      } else if (propertyDefinition.type === 'boolean') {
-        inputElement = this._createElement('input');
-        inputElement.type = 'checkbox';
-        inputElement.checked = currentValue ?? propertyDefinition.default ?? false;
-        inputElement.style.cssText = 'width:auto !important;margin:0;cursor:pointer;align-self:flex-start;';
-        propertyGroup.appendChild(inputElement);
+      } else if (def.type === 'boolean') {
+        input = this._makeElement('input');
+        input.type    = 'checkbox';
+        input.checked = current ?? def.default ?? false;
+        input.style.cssText = 'width:auto !important;margin:0;cursor:pointer;align-self:flex-start;';
+        group.appendChild(input);
 
-      } else if (propertyDefinition.type === 'color') {
-        const colorRow = propertyGroup.appendChild(this._createElement('div', 'wf-color-row'));
-        const colorPicker = this._createElement('input'); colorPicker.type = 'color'; colorPicker.value = currentValue ?? propertyDefinition.default ?? '#000000';
-        const hexInput    = this._createElement('input'); hexInput.type    = 'text';  hexInput.value    = currentValue ?? propertyDefinition.default ?? '#000000';
-        colorPicker.addEventListener('input', () => { hexInput.value = colorPicker.value; shape.setCustomProperty(propertyKey, colorPicker.value); });
-        hexInput.addEventListener('input',    () => { colorPicker.value = hexInput.value; shape.setCustomProperty(propertyKey, hexInput.value); });
-        colorRow.appendChild(colorPicker);
-        colorRow.appendChild(hexInput);
-        propertyGroup.appendChild(colorRow);
+      } else if (def.type === 'color') {
+        const row    = group.appendChild(this._makeElement('div', 'wf-color-row'));
+        const picker = this._makeElement('input'); picker.type = 'color'; picker.value = current ?? def.default ?? '#000000';
+        const hex    = this._makeElement('input'); hex.type    = 'text';  hex.value    = current ?? def.default ?? '#000000';
+        picker.addEventListener('input', () => { hex.value = picker.value; node.setCustomProperty(key, picker.value); });
+        hex.addEventListener('input',    () => { picker.value = hex.value; node.setCustomProperty(key, hex.value); });
+        row.appendChild(picker);
+        row.appendChild(hex);
+        group.appendChild(row);
         return;
 
       } else {
-        inputElement = this._createElement('input');
-        inputElement.type  = propertyDefinition.type === 'number' ? 'number' : 'text';
-        inputElement.value = currentValue ?? '';
-        if (propertyDefinition.min !== undefined) inputElement.min = propertyDefinition.min;
-        if (propertyDefinition.max !== undefined) inputElement.max = propertyDefinition.max;
+        input = this._makeElement('input');
+        input.type  = def.type === 'number' ? 'number' : 'text';
+        input.value = current ?? '';
+        if (def.min !== undefined) input.min = def.min;
+        if (def.max !== undefined) input.max = def.max;
       }
 
-      if (propertyDefinition.readonly) inputElement.disabled = true;
-      propertyGroup.appendChild(inputElement);
+      if (def.readonly) input.disabled = true;
+      group.appendChild(input);
 
-      inputElement.addEventListener(propertyDefinition.type === 'boolean' ? 'change' : 'input', () => {
-        const newValue = propertyDefinition.type === 'boolean' ? inputElement.checked
-          : propertyDefinition.type === 'number' ? parseFloat(inputElement.value)
-          : inputElement.value;
-        shape.setCustomProperty(propertyKey, newValue);
+      input.addEventListener(def.type === 'boolean' ? 'change' : 'input', () => {
+        const newVal = def.type === 'boolean' ? input.checked
+          : def.type === 'number' ? parseFloat(input.value)
+          : input.value;
+        node.setCustomProperty(key, newVal);
       });
     });
 
-    panel.appendChild(customPropsSection);
+    panel.appendChild(customSection);
   }
 
-  _populateConnectionPropertiesPanel(connection) {
-    const panel = this._connectionPropertiesPanel;
-    const setFieldValue = (propName, value) => { const el = panel.querySelector(`[data-prop="${propName}"]`); if (el) el.value = value ?? ''; };
+  _fillEdgeProperties(edge) {
+    const panel = this.edgePropertiesPanel;
+    const set   = (prop, val) => { const el = panel.querySelector(`[data-prop="${prop}"]`); if (el) el.value = val ?? ''; };
 
-    setFieldValue('label',         connection.label);
-    setFieldValue('labelFontSize', connection.labelFontSize);
-    setFieldValue('labelColor',    connection.labelColor);
-    setFieldValue('labelColorHex', connection.labelColor);
-    setFieldValue('lineColor',     connection.lineColor);
-    setFieldValue('lineColorHex',  connection.lineColor);
-    setFieldValue('lineStyle',     connection.lineStyle);
-    setFieldValue('connectorType', connection.connectorType);
-    setFieldValue('sourceArrow',   connection.sourceArrow);
-    setFieldValue('targetArrow',   connection.targetArrow);
-    setFieldValue('description',   connection.description);
+    set('label',         edge.label);
+    set('labelFontSize', edge.labelFontSize);
+    set('labelColor',    edge.labelColor);
+    set('labelColorHex', edge.labelColor);
+    set('lineColor',     edge.lineColor);
+    set('lineColorHex',  edge.lineColor);
+    set('lineStyle',     edge.lineStyle);
+    set('connectorType', edge.connectorType);
+    set('sourceArrow',   edge.sourceArrow);
+    set('targetArrow',   edge.targetArrow);
+    set('description',   edge.description);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: sidebar collapse/expand
+  // Internal: sidebar collapse / expand
   // ══════════════════════════════════════════════════════════════
-  _toggleSidebarCollapsed(sidebarElement) {
-    const isLeftSidebar = sidebarElement === this._leftSidebarElement;
-    const collapseIcon  = isLeftSidebar ? this._leftSidebarCollapseIcon : this._rightSidebarCollapseIcon;
-    const previousTranslation = this._jointPaper.translate();
-    const isNowCollapsed = sidebarElement.classList.toggle('wf-collapsed');
+  _toggleSidebar(sidebar) {
+    const isLeft     = sidebar === this.leftSidebar;
+    const icon       = isLeft ? this.leftCollapseIcon : this.rightCollapseIcon;
+    const prevTranslation = this.renderer.translate();
+    const isNowCollapsed  = sidebar.classList.toggle('wf-collapsed');
 
-    collapseIcon.style.transform = isNowCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-    sidebarElement.querySelector('.wf-collapsed-label').style.display = isNowCollapsed ? 'block' : 'none';
+    icon.style.transform = isNowCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+    sidebar.querySelector('.wf-collapsed-label').style.display = isNowCollapsed ? 'block' : 'none';
 
-    if (this._isMobileDevice() && !isNowCollapsed) {
-      const otherSidebar   = isLeftSidebar ? this._rightSidebarElement : this._leftSidebarElement;
-      const otherCollapseIcon = isLeftSidebar ? this._rightSidebarCollapseIcon : this._leftSidebarCollapseIcon;
-      if (!otherSidebar.classList.contains('wf-collapsed')) {
-        otherSidebar.classList.add('wf-collapsed');
-        otherCollapseIcon.style.transform = 'rotate(180deg)';
-        otherSidebar.querySelector('.wf-collapsed-label').style.display = 'block';
+    if (this._isMobile() && !isNowCollapsed) {
+      const other     = isLeft ? this.rightSidebar : this.leftSidebar;
+      const otherIcon = isLeft ? this.rightCollapseIcon : this.leftCollapseIcon;
+      if (!other.classList.contains('wf-collapsed')) {
+        other.classList.add('wf-collapsed');
+        otherIcon.style.transform = 'rotate(180deg)';
+        other.querySelector('.wf-collapsed-label').style.display = 'block';
       }
     }
 
-    const resizeInterval = setInterval(() => {
-      const container = this._canvasContainerElement;
-      this._jointPaper.setDimensions(container.clientWidth, container.clientHeight);
-      this._jointPaper.translate(previousTranslation.tx, previousTranslation.ty);
+    const interval = setInterval(() => {
+      const area = this.canvasArea;
+      this.renderer.setDimensions(area.clientWidth, area.clientHeight);
+      this.renderer.translate(prevTranslation.tx, prevTranslation.ty);
     }, 16);
-    setTimeout(() => clearInterval(resizeInterval), 350);
+    setTimeout(() => clearInterval(interval), 350);
     this._updateMobileButtonVisibility();
   }
 
-  _setSidebarCollapsedState(sidebarElement, shouldBeCollapsed) {
-    const isLeftSidebar = sidebarElement === this._leftSidebarElement;
-    const collapseIcon  = isLeftSidebar ? this._leftSidebarCollapseIcon : this._rightSidebarCollapseIcon;
-    sidebarElement.classList.toggle('wf-collapsed', shouldBeCollapsed);
-    collapseIcon.style.transform = shouldBeCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-    sidebarElement.querySelector('.wf-collapsed-label').style.display = shouldBeCollapsed ? 'block' : 'none';
+  _setSidebarCollapsed(sidebar, collapsed) {
+    const isLeft = sidebar === this.leftSidebar;
+    const icon   = isLeft ? this.leftCollapseIcon : this.rightCollapseIcon;
+    sidebar.classList.toggle('wf-collapsed', collapsed);
+    icon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+    sidebar.querySelector('.wf-collapsed-label').style.display = collapsed ? 'block' : 'none';
   }
 
   _collapseAllSidebarsOnMobile() {
-    if (!this._isMobileDevice()) return;
-    const previousTranslation = this._jointPaper.translate();
-    this._setSidebarCollapsedState(this._leftSidebarElement, true);
-    this._setSidebarCollapsedState(this._rightSidebarElement, true);
-    const resizeInterval = setInterval(() => {
-      const container = this._canvasContainerElement;
-      this._jointPaper.setDimensions(container.clientWidth, container.clientHeight);
-      this._jointPaper.translate(previousTranslation.tx, previousTranslation.ty);
+    if (!this._isMobile()) return;
+    const prevTranslation = this.renderer.translate();
+    this._setSidebarCollapsed(this.leftSidebar,  true);
+    this._setSidebarCollapsed(this.rightSidebar, true);
+    const interval = setInterval(() => {
+      const area = this.canvasArea;
+      this.renderer.setDimensions(area.clientWidth, area.clientHeight);
+      this.renderer.translate(prevTranslation.tx, prevTranslation.ty);
     }, 16);
-    setTimeout(() => clearInterval(resizeInterval), 350);
+    setTimeout(() => clearInterval(interval), 350);
     this._updateMobileButtonVisibility();
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: shape/connection actions
+  // Internal: duplicate / delete actions
   // ══════════════════════════════════════════════════════════════
-  _duplicateSelectedShape() {
-    if (!(this._selectedItem instanceof Shape)) return;
-    const originalBBox  = this._selectedItem._jointCell.getBBox();
-    const pastePosition = this._findNearestClearPosition(originalBBox.x + 40, originalBBox.y + 40, originalBBox.width, originalBBox.height);
-    const clonedCell = this._selectedItem._jointCell.clone();
-    clonedCell.translate(pastePosition.x - originalBBox.x, pastePosition.y - originalBBox.y);
-    clonedCell.addTo(this._jointGraph);
-    const clonedShape = new this._selectedItem.constructor(this._selectedItem.label);
-    clonedShape._jointCell    = clonedCell;
-    clonedShape._parentCanvas = this;
-    this._shapesByJointId.set(clonedCell.id, clonedShape);
-    this._selectCellOrConnection(clonedShape);
-    this.emit('shape:add', clonedShape);
+  _duplicateSelected() {
+    if (!(this.selection instanceof Node)) return;
+    const bbox    = this.selection.cell.getBBox();
+    const openPos = this._findOpenPosition(bbox.x + 40, bbox.y + 40, bbox.width, bbox.height);
+    const cloned  = this.selection.cell.clone();
+    cloned.translate(openPos.x - bbox.x, openPos.y - bbox.y);
+    cloned.addTo(this.graph);
+    const copy    = new this.selection.constructor(this.selection.label);
+    copy.cell     = cloned;
+    copy.editor   = this;
+    this.nodeMap.set(cloned.id, copy);
+    this._selectItem(copy);
+    this.emit('node:add', copy);
   }
 
-  _deleteSelectedItem() {
-    if (!this._selectedItem) return;
-    const itemToDelete = this._selectedItem;
+  _deleteSelected() {
+    if (!this.selection) return;
+    const item = this.selection;
     this._deselectAll();
-    itemToDelete.remove();
+    item.remove();
   }
 
-  _focusCameraOnSelected() {
-    if (!this._selectedItem) return;
-    const jointModel = this._selectedItem instanceof Shape ? this._selectedItem._jointCell : this._selectedItem._jointLink;
-    const centerPoint = jointModel.getBBox().center();
-    const paperSize   = this._jointPaper.getComputedSize();
-    this._jointPaper.scale(1, 1);
-    this._jointPaper.translate(paperSize.width / 2 - centerPoint.x, paperSize.height / 2 - centerPoint.y);
+  _focusCameraOnSelection() {
+    if (!this.selection) return;
+    const model  = this.selection instanceof Node ? this.selection.cell : this.selection.link;
+    const center = model.getBBox().center();
+    const size   = this.renderer.getComputedSize();
+    this.renderer.scale(1, 1);
+    this.renderer.translate(size.width / 2 - center.x, size.height / 2 - center.y);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: connection creation
+  // Internal: create an edge between two nodes
   // ══════════════════════════════════════════════════════════════
-  _createConnection(sourceShape, targetShape, sourcePortIndex, targetPortIndex) {
-    const reverseConnectionExists = [...this._connectionsByJointId.values()].some(
-      conn => conn.source === targetShape && conn.target === sourceShape
+  _createEdge(sourceNode, targetNode, sourcePortIndex, targetPortIndex) {
+    const reverseExists = [...this.edgeMap.values()].some(
+      e => e.source === targetNode && e.target === sourceNode
     );
-    if (reverseConnectionExists) return null;
+    if (reverseExists) return null;
 
-    const newLink = new joint.shapes.standard.Link({
+    const link = new joint.shapes.standard.Link({
       attrs: { line: { stroke: '#495057', strokeWidth: 2, targetMarker: ARROW_MARKERS.classic } }
     });
 
-    const sourcePorts = sourceShape._jointCell.getPorts();
-    const targetPorts = targetShape._jointCell.getPorts();
-    const sourcePortDefinition = sourcePortIndex !== null ? sourcePorts[sourcePortIndex - 1] : null;
-    const targetPortDefinition = targetPortIndex !== null ? targetPorts[targetPortIndex - 1] : null;
-    const sourcePortId = sourcePortDefinition ? sourcePortDefinition.id : undefined;
-    const targetPortId = targetPortDefinition ? targetPortDefinition.id : undefined;
+    const sourcePorts = sourceNode.cell.getPorts();
+    const targetPorts = targetNode.cell.getPorts();
+    const srcPort     = sourcePortIndex !== null ? sourcePorts[sourcePortIndex - 1] : null;
+    const tgtPort     = targetPortIndex !== null ? targetPorts[targetPortIndex - 1] : null;
 
-    newLink.source(sourcePortId ? { id: sourceShape._jointCell.id, port: sourcePortId } : { id: sourceShape._jointCell.id });
-    newLink.target(targetPortId ? { id: targetShape._jointCell.id, port: targetPortId } : { id: targetShape._jointCell.id });
+    link.source(srcPort ? { id: sourceNode.cell.id, port: srcPort.id } : { id: sourceNode.cell.id });
+    link.target(tgtPort ? { id: targetNode.cell.id, port: tgtPort.id } : { id: targetNode.cell.id });
 
-    if (sourcePortIndex !== null) newLink.set('sourcePort', sourcePortIndex);
-    if (targetPortIndex !== null) newLink.set('targetPort', targetPortIndex);
+    if (sourcePortIndex !== null) link.set('sourcePort', sourcePortIndex);
+    if (targetPortIndex !== null) link.set('targetPort', targetPortIndex);
 
-    this._jointGraph.startBatch('connection');
-    newLink.addTo(this._jointGraph);
-    this._jointGraph.stopBatch('connection');
-    this._jointPaper.updateViews();
+    this.graph.startBatch('edge');
+    link.addTo(this.graph);
+    this.graph.stopBatch('edge');
+    this.renderer.updateViews();
 
-    const newConnection = new Connection(newLink, sourceShape, targetShape, this);
-    this._connectionsByJointId.set(newLink.id, newConnection);
-    newConnection.on('change', updatedConnection => this.emit('connection:change', updatedConnection));
-    this.emit('connection:add', newConnection);
-    return newConnection;
+    const edge = new Edge(link, sourceNode, targetNode, this);
+    this.edgeMap.set(link.id, edge);
+    edge.on('change', e => this.emit('edge:change', e));
+    this.emit('edge:add', edge);
+    return edge;
   }
 
-  _getConnectionsForShape(shape) {
-    return [...this._connectionsByJointId.values()].filter(conn => conn.source === shape || conn.target === shape);
+  _getEdgesForNode(node) {
+    return [...this.edgeMap.values()].filter(e => e.source === node || e.target === node);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // Internal: auto port distribution
+  // Internal: auto port distribution along edges
   // ══════════════════════════════════════════════════════════════
-  _redistributePortsForElement(jointElement) {
-    if (!this._autoPortEnabled || this._isDeserializing) return;
+  _updateConnectionPorts(cell) {
+    if (!this.autoPortsOn || this.isLoading) return;
 
-    this._jointGraph.getConnectedLinks(jointElement).forEach(link => {
+    this.graph.getConnectedLinks(cell).forEach(link => {
       if (typeof link.get('sourcePort') === 'number') return;
       if (typeof link.get('targetPort') === 'number') return;
 
-      const sourceElement = link.getSourceElement();
-      const targetElement = link.getTargetElement();
-      if (!sourceElement || !targetElement) return;
+      const srcCell = link.getSourceElement();
+      const tgtCell = link.getTargetElement();
+      if (!srcCell || !tgtCell) return;
 
-      const getElementCenter = element => {
-        const position = element.position();
-        const size     = element.size();
-        return { x: position.x + size.width / 2, y: position.y + size.height / 2 };
+      const getCenter = el => {
+        const pos  = el.position();
+        const size = el.size();
+        return { x: pos.x + size.width / 2, y: pos.y + size.height / 2 };
       };
 
-      const getBestPortForDirection = (element, directionTargetCenter) => {
-        const elementCenter = getElementCenter(element);
-        const angleToTarget = Math.atan2(directionTargetCenter.y - elementCenter.y, directionTargetCenter.x - elementCenter.x);
-        const portPositions = element.getPortsPositions('all');
-        const elementSize   = element.size();
-        let bestPortId = null, smallestAngleDelta = Infinity;
+      const getBestPort = (el, towardPoint) => {
+        const center       = getCenter(el);
+        const angleToward  = Math.atan2(towardPoint.y - center.y, towardPoint.x - center.x);
+        const portPositions = el.getPortsPositions('all');
+        const size          = el.size();
+        let bestId = null, bestAngleDiff = Infinity;
 
-        element.getPorts().forEach(port => {
-          const portPosition = portPositions[port.id];
-          if (!portPosition) return;
-          const portAngle = Math.atan2(portPosition.y - elementSize.height / 2, portPosition.x - elementSize.width / 2);
-          let angleDelta = Math.abs(angleToTarget - portAngle);
-          if (angleDelta > Math.PI) angleDelta = 2 * Math.PI - angleDelta;
-          if (angleDelta < smallestAngleDelta) { smallestAngleDelta = angleDelta; bestPortId = port.id; }
+        el.getPorts().forEach(port => {
+          const pos = portPositions[port.id];
+          if (!pos) return;
+          const portAngle = Math.atan2(pos.y - size.height / 2, pos.x - size.width / 2);
+          let diff = Math.abs(angleToward - portAngle);
+          if (diff > Math.PI) diff = 2 * Math.PI - diff;
+          if (diff < bestAngleDiff) { bestAngleDiff = diff; bestId = port.id; }
         });
-        return bestPortId;
+        return bestId;
       };
 
-      const sourceCenter = getElementCenter(sourceElement);
-      const targetCenter = getElementCenter(targetElement);
-      const bestSourcePortId = getBestPortForDirection(sourceElement, targetCenter);
-      const bestTargetPortId = getBestPortForDirection(targetElement, sourceCenter);
+      const srcCenter    = getCenter(srcCell);
+      const tgtCenter    = getCenter(tgtCell);
+      const bestSrcPort  = getBestPort(srcCell, tgtCenter);
+      const bestTgtPort  = getBestPort(tgtCell, srcCenter);
 
-      if (link.source().port !== bestSourcePortId) { link.source({ id: sourceElement.id, port: bestSourcePortId }); link.unset('sourcePort'); }
-      if (link.target().port !== bestTargetPortId) { link.target({ id: targetElement.id, port: bestTargetPortId }); link.unset('targetPort'); }
+      if (link.source().port !== bestSrcPort) { link.source({ id: srcCell.id, port: bestSrcPort }); link.unset('sourcePort'); }
+      if (link.target().port !== bestTgtPort) { link.target({ id: tgtCell.id, port: bestTgtPort }); link.unset('targetPort'); }
     });
   }
 
   // ══════════════════════════════════════════════════════════════
   // Internal: cell rendering helpers
   // ══════════════════════════════════════════════════════════════
-  _waitForCellToRender(jointCell) {
+  _waitForRender(cell) {
     return new Promise(resolve => {
-      const cellView = this._jointPaper.findViewByModel(jointCell);
-      if (!cellView) { resolve(); return; }
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve(cellView)));
+      const view = this.renderer.findViewByModel(cell);
+      if (!view) { resolve(); return; }
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve(view)));
     });
   }
 
-  async _autoResizeCellAsync(jointCell) {
-    this._autoResizeCellToFitContent(jointCell);
-    await this._waitForCellToRender(jointCell);
-    this._jointPaper.updateViews();
+  async _resizeNodeAsync(cell) {
+    this._fitNodeToContent(cell);
+    await this._waitForRender(cell);
+    this.renderer.updateViews();
   }
 
-  _autoResizeCellToFitContent(jointCell) {
-    const cellView = this._jointPaper.findViewByModel(jointCell);
-    if (!cellView) return;
+  _fitNodeToContent(cell) {
+    const view = this.renderer.findViewByModel(cell);
+    if (!view) return;
 
-    const labelTextNode       = cellView.el.querySelector('.label');
-    const descriptionTextNode = cellView.el.querySelector('.descriptionLabel');
-    if (!labelTextNode || !descriptionTextNode) return;
+    const labelEl = view.el.querySelector('.label');
+    const descEl  = view.el.querySelector('.descriptionLabel');
+    if (!labelEl || !descEl) return;
 
-    const fontSizeScale = (jointCell.get('fontSizePercent') || 100) / 100;
-    jointCell.attr({ label: { fontSize: 13 * fontSizeScale }, descriptionLabel: { fontSize: 11 * fontSizeScale } });
+    const fontScale = (cell.get('fontSizePercent') || 100) / 100;
+    cell.attr({ label: { fontSize: 13 * fontScale }, descriptionLabel: { fontSize: 11 * fontScale } });
 
-    const imageUrl    = jointCell.get('imageUrl');
-    const shapeType   = jointCell.get('type');
-    const descText    = jointCell.attr('descriptionLabel/text') || '';
-    const imageWidth  = parseInt(jointCell.get('imageWidth')  || 32);
-    const imageHeight = parseInt(jointCell.get('imageHeight') || 32);
+    const imageUrl    = cell.get('imageUrl');
+    const shapeType   = cell.get('type');
+    const descText    = cell.attr('descriptionLabel/text') || '';
+    const imgW        = parseInt(cell.get('imageWidth')  || 32);
+    const imgH        = parseInt(cell.get('imageHeight') || 32);
     const padding     = 15;
-    const imageSpacing = imageUrl ? 10 : 0;
+    const imgSpacing  = imageUrl ? 10 : 0;
 
-    const labelBBox = labelTextNode.getBBox();
-    const descBBox  = descriptionTextNode.getBBox();
-    const textWidth = Math.max(labelBBox.width, descBBox.width);
-    const totalContentWidth = (imageUrl ? imageWidth : 0) + imageSpacing + textWidth;
+    const labelBBox = labelEl.getBBox();
+    const descBBox  = descEl.getBBox();
+    const textW     = Math.max(labelBBox.width, descBBox.width);
+    const totalW    = (imageUrl ? imgW : 0) + imgSpacing + textW;
 
-    let newWidth  = Math.max(140, padding + totalContentWidth + padding);
-    const totalTextHeight = descText ? labelBBox.height + descBBox.height : labelBBox.height;
-    let newHeight = Math.max(50, padding + Math.max(imageUrl ? imageHeight : 0, totalTextHeight) + padding);
+    let w = Math.max(140, padding + totalW + padding);
+    const totalTextH = descText ? labelBBox.height + descBBox.height : labelBBox.height;
+    let h = Math.max(50, padding + Math.max(imageUrl ? imgH : 0, totalTextH) + padding);
 
     if (shapeType === 'diamond' || shapeType === 'circle') {
-      newWidth = newHeight = Math.max(newWidth, newHeight);
+      w = h = Math.max(w, h);
     } else if (['triangle', 'hexagon', 'pentagon', 'octagon'].includes(shapeType)) {
-      if (newWidth / newHeight > 1.2) newHeight = newWidth / 1.2;
-      else newWidth = newHeight * 1.2;
-      if (shapeType === 'triangle') { newWidth *= 1.25; newHeight *= 1.25; }
+      if (w / h > 1.2) h = w / 1.2;
+      else w = h * 1.2;
+      if (shapeType === 'triangle') { w *= 1.25; h *= 1.25; }
     }
 
-    const contentStartX = (newWidth - totalContentWidth) / 2;
-    const textCenterX   = contentStartX + (imageUrl ? imageWidth : 0) + imageSpacing + textWidth / 2;
+    const contentStartX = (w - totalW) / 2;
+    const textCenterX   = contentStartX + (imageUrl ? imgW : 0) + imgSpacing + textW / 2;
 
-    jointCell.attr('image', { refX: 0, refX2: contentStartX, refY: 0.5, y: -imageHeight / 2, width: imageWidth, height: imageHeight });
+    cell.attr('image', { refX: 0, refX2: contentStartX, refY: 0.5, y: -imgH / 2, width: imgW, height: imgH });
 
     if (descText) {
-      const contentStartY = (newHeight - totalTextHeight) / 2;
-      jointCell.attr('label',            { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height / 2,                     textAnchor: 'middle', textVerticalAnchor: 'middle' });
-      jointCell.attr('descriptionLabel', { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height + descBBox.height / 2,    textAnchor: 'middle', textVerticalAnchor: 'middle' });
+      const contentStartY = (h - totalTextH) / 2;
+      cell.attr('label',            { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height / 2,                textAnchor: 'middle', textVerticalAnchor: 'middle' });
+      cell.attr('descriptionLabel', { refX: 0, refX2: textCenterX, refY: 0, refY2: contentStartY + labelBBox.height + descBBox.height / 2, textAnchor: 'middle', textVerticalAnchor: 'middle' });
     } else {
-      jointCell.attr('label', { refX: 0, refX2: textCenterX, refY: 0.5, refY2: 0, textAnchor: 'middle', textVerticalAnchor: 'middle' });
+      cell.attr('label', { refX: 0, refX2: textCenterX, refY: 0.5, refY2: 0, textAnchor: 'middle', textVerticalAnchor: 'middle' });
     }
 
-    jointCell.resize(newWidth, newHeight);
+    cell.resize(w, h);
   }
 
   // ══════════════════════════════════════════════════════════════
   // Internal: utility helpers
   // ══════════════════════════════════════════════════════════════
-  _isMobileDevice() {
+  _isMobile() {
     return window.matchMedia('(pointer:coarse) and (max-width:767px)').matches;
   }
 
-  _createElement(tagName, className = '') {
-    const element = document.createElement(tagName);
-    if (className) element.className = className;
-    return element;
+  _makeElement(tag, className = '') {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    return el;
   }
 
-  _createZoomButton(parentElement, tooltipTitle, innerHTMLContent) {
-    const button = parentElement.appendChild(this._createElement('button', 'wf-ctrl-btn'));
-    button.title     = tooltipTitle;
-    button.innerHTML = innerHTMLContent;
-    return button;
+  _makeZoomButton(parent, title, html) {
+    const btn = parent.appendChild(this._makeElement('button', 'wf-ctrl-btn'));
+    btn.title     = title;
+    btn.innerHTML = html;
+    return btn;
   }
 
-  _zoomAroundPoint(zoomFactor, clientX, clientY) {
-    const currentScale = this._jointPaper.scale().sx;
-    const newScale     = Math.max(0.1, Math.min(10, currentScale * zoomFactor));
-    const paperRect    = this._jointPaper.el.getBoundingClientRect();
-    const viewportX    = clientX - paperRect.left;
-    const viewportY    = clientY - paperRect.top;
-    const translation  = this._jointPaper.translate();
-    const originX      = (viewportX - translation.tx) / currentScale;
-    const originY      = (viewportY - translation.ty) / currentScale;
-    this._jointPaper.scale(newScale, newScale);
-    this._jointPaper.translate(viewportX - originX * newScale, viewportY - originY * newScale);
+  _zoomAtPoint(factor, clientX, clientY) {
+    const current    = this.renderer.scale().sx;
+    const newScale   = Math.max(0.1, Math.min(10, current * factor));
+    const rect       = this.renderer.el.getBoundingClientRect();
+    const vpX        = clientX - rect.left;
+    const vpY        = clientY - rect.top;
+    const translation = this.renderer.translate();
+    const originX    = (vpX - translation.tx) / current;
+    const originY    = (vpY - translation.ty) / current;
+    this.renderer.scale(newScale, newScale);
+    this.renderer.translate(vpX - originX * newScale, vpY - originY * newScale);
   }
 
-  _zoomAroundCenter(zoomFactor) {
-    const paperRect = this._jointPaper.el.getBoundingClientRect();
-    this._zoomAroundPoint(zoomFactor, paperRect.left + paperRect.width / 2, paperRect.top + paperRect.height / 2);
+  _zoomAtCenter(factor) {
+    const rect = this.renderer.el.getBoundingClientRect();
+    this._zoomAtPoint(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
   }
 
-  _findNearestClearPosition(startX, startY, shapeWidth, shapeHeight, excludeCell = null) {
-    const clearanceDistance = this._shapeClearanceGridUnits * this._gridSize;
-    let snappedX = Math.round(startX / this._gridSize) * this._gridSize;
-    let snappedY = Math.round(startY / this._gridSize) * this._gridSize;
+  _findOpenPosition(startX, startY, w, h, excludeCell = null) {
+    const clearance = this.clearanceUnits * this.gridSize;
+    let x = Math.round(startX / this.gridSize) * this.gridSize;
+    let y = Math.round(startY / this.gridSize) * this.gridSize;
 
-    const isPositionObstructed = (testX, testY) => {
-      const testRect = new joint.g.Rect(testX, testY, shapeWidth, shapeHeight).inflate(clearanceDistance);
-      return this._jointGraph.getElements().some(element => {
-        if (excludeCell && element.id === excludeCell.id) return false;
-        return testRect.intersect(element.getBBox().clone().inflate(clearanceDistance));
+    const isBlocked = (testX, testY) => {
+      const testRect = new joint.g.Rect(testX, testY, w, h).inflate(clearance);
+      return this.graph.getElements().some(el => {
+        if (excludeCell && el.id === excludeCell.id) return false;
+        return testRect.intersect(el.getBBox().clone().inflate(clearance));
       });
     };
 
-    if (!isPositionObstructed(snappedX, snappedY)) return { x: snappedX, y: snappedY };
+    if (!isBlocked(x, y)) return { x, y };
 
-    for (let searchRadius = 1; searchRadius < 30; searchRadius++) {
-      for (let dx = -searchRadius; dx <= searchRadius; dx++) {
-        for (let dy = -searchRadius; dy <= searchRadius; dy++) {
-          if (Math.abs(dx) !== searchRadius && Math.abs(dy) !== searchRadius) continue;
-          const testX = snappedX + dx * this._gridSize;
-          const testY = snappedY + dy * this._gridSize;
-          if (!isPositionObstructed(testX, testY)) return { x: testX, y: testY };
+    for (let radius = 1; radius < 30; radius++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = -radius; dy <= radius; dy++) {
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          const tx = x + dx * this.gridSize;
+          const ty = y + dy * this.gridSize;
+          if (!isBlocked(tx, ty)) return { x: tx, y: ty };
         }
       }
     }
 
-    return { x: snappedX, y: snappedY };
+    return { x, y };
   }
 
-  _getTouchDistance(touch1, touch2) {
-    const dx = touch1.clientX - touch2.clientX;
-    const dy = touch1.clientY - touch2.clientY;
+  _touchDistance(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  _getTouchMidpoint(touch1, touch2) {
-    return { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
+  _touchMidpoint(t1, t2) {
+    return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Bootstrap — create the canvas and add demo shapes
+// Bootstrap — create the editor and add demo nodes
 // ═══════════════════════════════════════════════════════════════
-const canvas = new Canvas(document.body);
+const editor = new DiagramEditor(document.body);
 
-const TaskShape = Shape.define(
+const TaskNode = Node.define(
   Rectangle,
   { label: 'New Task', backgroundColor: '#f0f8ff' },
   {
@@ -1906,17 +1895,17 @@ const TaskShape = Shape.define(
     note:     { label: 'Note',     type: 'textarea', default: '' },
     accent:   { label: 'Accent',   type: 'color',    default: '#3498db' },
   },
-  shape => {
-    shape.backgroundColor = shape.getCustomProperty('done') ? '#d4edda' : '#f0f8ff';
-    shape.borderColor     = shape.getCustomProperty('done') ? '#28a745' : '#adb5bd';
+  node => {
+    node.backgroundColor = node.getCustomProperty('done') ? '#d4edda' : '#f0f8ff';
+    node.borderColor     = node.getCustomProperty('done') ? '#28a745' : '#adb5bd';
   }
 );
-canvas.registerShape('Task', TaskShape);
+editor.registerNodeType('Task', TaskNode);
 
 (async () => {
-  const startShape   = await canvas.addShape(new Ellipse({ label: 'START' }));
-  const processShape = await canvas.addShape(new Rectangle({ label: 'PROCESS' }));
-  const taskShape    = await canvas.addShape(new TaskShape({ label: 'My Task', assignee: 'Alice', effort: 3 }));
+  const start   = await editor.addNode(new Ellipse({ label: 'START' }));
+  const process = await editor.addNode(new Rectangle({ label: 'PROCESS' }));
+  const task    = await editor.addNode(new TaskNode({ label: 'My Task', assignee: 'Alice', effort: 3 }));
 })();
 </script>
 </body>
