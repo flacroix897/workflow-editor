@@ -386,3 +386,12 @@ html {
 .joint-paper.wf-dragging-link circle.joint-port-body:not(.available-magnet) {
     display: none;
 }
+
+@media (pointer: coarse) {
+  .joint-port-body {
+    r: 16px;
+    fill: #3498db;
+    stroke: #fff;
+    stroke-width: 2px;
+  }
+}
