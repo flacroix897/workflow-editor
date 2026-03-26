@@ -123,7 +123,9 @@ class EventBus {
   }
 
   public off(eventName: string, callback: (...args: any[]) => void): this {
-    if (!this.listeners[eventName]) return this;
+    if (!this.listeners[eventName]) {
+      return this;
+    }
     this.listeners[eventName] = this.listeners[eventName].filter(
       (fn) => fn !== callback,
     );
@@ -278,8 +280,12 @@ class Edge extends EventBus {
 
   public get lineStyle(): LineStyle {
     const dash: string = this.link.attr('line/strokeDasharray') || '';
-    if (dash === '5,5') return 'dashed';
-    if (dash === '1,5') return 'dotted';
+    if (dash === '5,5') {
+      return 'dashed';
+    }
+    if (dash === '1,5') {
+      return 'dotted';
+    }
     return 'solid';
   }
   public set lineStyle(value: LineStyle) {
@@ -312,8 +318,12 @@ class Edge extends EventBus {
   public get connectorType(): ConnectorType {
     const connector: string = this.link.connector()?.name;
     const router: string = this.link.router()?.name;
-    if (connector === 'smooth') return 'curved';
-    if (router === 'normal') return 'straight';
+    if (connector === 'smooth') {
+      return 'curved';
+    }
+    if (router === 'normal') {
+      return 'straight';
+    }
     return 'elbow';
   }
   public set connectorType(value: ConnectorType) {
@@ -409,9 +419,15 @@ class Edge extends EventBus {
   private _arrowNameFromDefinition(
     definition: ArrowMarker | null,
   ): ArrowMarkerName {
-    if (!definition) return 'none';
-    if (definition.d === ARROW_MARKERS.classic!.d) return 'classic';
-    if (definition.d === ARROW_MARKERS.block!.d) return 'block';
+    if (!definition) {
+      return 'none';
+    }
+    if (definition.d === ARROW_MARKERS.classic!.d) {
+      return 'classic';
+    }
+    if (definition.d === ARROW_MARKERS.block!.d) {
+      return 'block';
+    }
     return 'none';
   }
 
@@ -701,7 +717,9 @@ class DiagramNode extends EventBus {
   }
 
   public _resizeToFitContent(): void {
-    if (!this.editor || !this.cell) return;
+    if (!this.editor || !this.cell) {
+      return;
+    }
     this.editor._fitNodeToContent(this.cell);
   }
 
@@ -1203,7 +1221,9 @@ class DiagramEditor extends EventBus {
     item.dataset.nodeTypeLabel = label;
 
     item.addEventListener('click', () => {
-      if (!this._isMobile()) return;
+      if (!this._isMobile()) {
+        return;
+      }
       this.addNode(new NodeClass());
       if (!this._leftSidebar.classList.contains('wf-collapsed')) {
         this._toggleSidebar(this._leftSidebar);
@@ -1318,7 +1338,9 @@ class DiagramEditor extends EventBus {
 
   public centerContent(): this {
     const bbox = this._graph.getBBox();
-    if (!bbox) return this;
+    if (!bbox) {
+      return this;
+    }
     const size = this._renderer.getComputedSize();
     this._renderer.scale(1, 1);
     this._renderer.translate(
@@ -1398,7 +1420,9 @@ class DiagramEditor extends EventBus {
 
     this._graph.getElements().forEach((element: any) => {
       const layoutNode = dagreGraph.node(element.id);
-      if (!layoutNode) return;
+      if (!layoutNode) {
+        return;
+      }
       element.position(
         Math.round(layoutNode.x - layoutNode.width / 2),
         Math.round(layoutNode.y - layoutNode.height / 2),
@@ -1440,7 +1464,9 @@ class DiagramEditor extends EventBus {
     const edges: SerializedEdge[] = [...this._edgeMap.values()].map((edge) => {
       const resolvePort = (endpoint: any, node: DiagramNode): number | null => {
         const portId = endpoint?.port;
-        if (!portId) return null;
+        if (!portId) {
+          return null;
+        }
         const index = node.cell
           .getPorts()
           .findIndex((port: any) => port.id === portId);
@@ -1608,14 +1634,18 @@ class DiagramEditor extends EventBus {
 
     this._graph.getLinks().forEach((link: any) => {
       const edge = this._edgeMap.get(link.id);
-      if (!edge) return;
+      if (!edge) {
+        return;
+      }
 
       const savedEdge = edgeDataList.find(
         (data) =>
           oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
           oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id,
       );
-      if (!savedEdge) return;
+      if (!savedEdge) {
+        return;
+      }
 
       if (savedEdge.sourcePort != null)
         link.set('sourcePort', savedEdge.sourcePort);
@@ -1684,7 +1714,9 @@ class DiagramEditor extends EventBus {
     const reverseExists = [...this._edgeMap.values()].some(
       (edge) => edge.source === targetNode && edge.target === sourceNode,
     );
-    if (reverseExists) return null;
+    if (reverseExists) {
+      return null;
+    }
 
     const link = new joint.shapes.standard.Link({
       attrs: {
@@ -1733,7 +1765,9 @@ class DiagramEditor extends EventBus {
 
   public _fitNodeToContent(cell: any): void {
     const view = this._renderer.findViewByModel(cell);
-    if (!view) return;
+    if (!view) {
+      return;
+    }
 
     const labelElement = view.el.querySelector(
       '.label',
@@ -1741,7 +1775,9 @@ class DiagramEditor extends EventBus {
     const descriptionElement = view.el.querySelector(
       '.descriptionLabel',
     ) as SVGTextElement | null;
-    if (!labelElement || !descriptionElement) return;
+    if (!labelElement || !descriptionElement) {
+      return;
+    }
 
     const fontScale = (cell.get('fontSizePercent') || 100) / 100;
     cell.attr({
@@ -1836,7 +1872,9 @@ class DiagramEditor extends EventBus {
   // ── Private methods ──────────────────────────────────────────
 
   private _updateMobileButtonVisibility(): void {
-    if (!this._isMobile()) return;
+    if (!this._isMobile()) {
+      return;
+    }
     const shouldHide =
       this._selection !== null ||
       !this._leftSidebar.classList.contains('wf-collapsed') ||
@@ -2040,7 +2078,9 @@ class DiagramEditor extends EventBus {
         (event as DragEvent).dataTransfer!.setData('type', type),
       );
       item.addEventListener('click', () => {
-        if (!this._isMobile()) return;
+        if (!this._isMobile()) {
+          return;
+        }
         this.addNode(new cls({ label: label.toUpperCase() }));
         if (!this._leftSidebar.classList.contains('wf-collapsed')) {
           this._toggleSidebar(this._leftSidebar);
@@ -2260,7 +2300,9 @@ class DiagramEditor extends EventBus {
 
     this._importFileInput.addEventListener('change', (event) => {
       const file = (event.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (loadEvent) =>
         this.deserialize(
@@ -2328,7 +2370,9 @@ class DiagramEditor extends EventBus {
       const action = (event.target as Element)
         .closest('[data-action]')
         ?.getAttribute('data-action');
-      if (!action) return;
+      if (!action) {
+        return;
+      }
       if (action === 'focus') this._focusCameraOnSelection();
       if (action === 'duplicate') {
         this._duplicateSelected();
@@ -2418,7 +2462,9 @@ class DiagramEditor extends EventBus {
       ];
 
       const match = builtInShapes.find((shape) => shape.type === droppedType);
-      if (!match) return;
+      if (!match) {
+        return;
+      }
 
       const label = droppedType.charAt(0).toUpperCase() + droppedType.slice(1);
       const dropPosition: Point = this._renderer.clientToLocalPoint({
@@ -2479,7 +2525,9 @@ class DiagramEditor extends EventBus {
       ) as HTMLInputElement
     ).addEventListener('change', (event) => {
       const file = (event.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         (
@@ -2497,11 +2545,15 @@ class DiagramEditor extends EventBus {
   }
 
   private _handleNodePropertyChange(event: Event): void {
-    if (!(this._selection instanceof DiagramNode)) return;
+    if (!(this._selection instanceof DiagramNode)) {
+      return;
+    }
     const input = (event.target as Element).closest(
       '[data-prop]',
     ) as HTMLInputElement | null;
-    if (!input) return;
+    if (!input) {
+      return;
+    }
 
     const prop = input.dataset.prop!;
     const value =
@@ -2528,11 +2580,15 @@ class DiagramEditor extends EventBus {
   }
 
   private _handleEdgePropertyChange(event: Event): void {
-    if (!(this._selection instanceof Edge)) return;
+    if (!(this._selection instanceof Edge)) {
+      return;
+    }
     const input = (event.target as Element).closest(
       '[data-prop]',
     ) as HTMLInputElement | null;
-    if (!input) return;
+    if (!input) {
+      return;
+    }
 
     const prop = input.dataset.prop!;
     const value =
@@ -2574,7 +2630,9 @@ class DiagramEditor extends EventBus {
       'element:pointerdown',
       (view: any, event: PointerEvent) => {
         const node = this._nodeMap.get(view.model.id);
-        if (!node) return;
+        if (!node) {
+          return;
+        }
 
         this._pointerDownAt = { x: event.clientX, y: event.clientY };
         this._selectionWasAlreadyActive = this._selection === node;
@@ -2624,7 +2682,9 @@ class DiagramEditor extends EventBus {
     this._renderer.on('link:pointerdown', (view: any) => {
       this._renderer.el.classList.add('wf-dragging-link'); // add this
       const edge = this._edgeMap.get(view.model.id);
-      if (!edge) return;
+      if (!edge) {
+        return;
+      }
 
       this._deselectAll();
       view.model.toFront();
@@ -2705,11 +2765,15 @@ class DiagramEditor extends EventBus {
       const link = view.model;
       const sourceCell = link.getSourceElement();
       const targetCell = link.getTargetElement();
-      if (!sourceCell || !targetCell) return;
+      if (!sourceCell || !targetCell) {
+        return;
+      }
 
       const sourceNode = this._nodeMap.get(sourceCell.id);
       const targetNode = this._nodeMap.get(targetCell.id);
-      if (!sourceNode || !targetNode || this._edgeMap.has(link.id)) return;
+      if (!sourceNode || !targetNode || this._edgeMap.has(link.id)) {
+        return;
+      }
 
       const reverseExists = [...this._edgeMap.values()].some(
         (edge) => edge.source === targetNode && edge.target === sourceNode,
@@ -2801,7 +2865,9 @@ class DiagramEditor extends EventBus {
           return;
         }
 
-        if (isTyping) return;
+        if (isTyping) {
+          return;
+        }
 
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -2916,7 +2982,9 @@ class DiagramEditor extends EventBus {
     this._renderer.el.addEventListener(
       'touchstart',
       (event: TouchEvent) => {
-        if (!this._isMobile()) return;
+        if (!this._isMobile()) {
+          return;
+        }
 
         if (event.touches.length === 1) {
           const touch = event.touches[0];
@@ -2952,7 +3020,9 @@ class DiagramEditor extends EventBus {
     this._renderer.el.addEventListener(
       'touchmove',
       (event: TouchEvent) => {
-        if (!this._isMobile() || !this._touchState) return;
+        if (!this._isMobile() || !this._touchState) {
+          return;
+        }
         event.preventDefault();
         const state = this._touchState;
 
@@ -2994,7 +3064,9 @@ class DiagramEditor extends EventBus {
     this._renderer.el.addEventListener(
       'touchend',
       (event: TouchEvent) => {
-        if (!this._isMobile()) return;
+        if (!this._isMobile()) {
+          return;
+        }
         if (this._touchState?.type === 'pinch' && event.touches.length === 1) {
           const touch = event.touches[0];
           this._touchState = {
@@ -3064,7 +3136,9 @@ class DiagramEditor extends EventBus {
 
     panel.querySelector('.wf-custom-props')?.remove();
     const schema = node.getSchema?.() ?? {};
-    if (!Object.keys(schema).length) return;
+    if (!Object.keys(schema).length) {
+      return;
+    }
 
     const customSection = this._makeElement('div', 'wf-custom-props');
     const divider = customSection.appendChild(this._makeElement('div'));
@@ -3072,7 +3146,9 @@ class DiagramEditor extends EventBus {
 
     Object.entries(schema).forEach(([key, fieldDef]) => {
       const fieldDefinition = fieldDef as FieldDefinition;
-      if (fieldDefinition.visible === false) return;
+      if (fieldDefinition.visible === false) {
+        return;
+      }
 
       const group = customSection.appendChild(
         this._makeElement('div', 'wf-prop-group'),
@@ -3232,7 +3308,9 @@ class DiagramEditor extends EventBus {
   }
 
   private _collapseAllSidebarsOnMobile(): void {
-    if (!this._isMobile()) return;
+    if (!this._isMobile()) {
+      return;
+    }
     const previousTranslation = this._renderer.translate();
     this._setSidebarCollapsed(this._leftSidebar, true);
     this._setSidebarCollapsed(this._rightSidebar, true);
@@ -3246,7 +3324,9 @@ class DiagramEditor extends EventBus {
   }
 
   private _duplicateSelected(): void {
-    if (!(this._selection instanceof DiagramNode)) return;
+    if (!(this._selection instanceof DiagramNode)) {
+      return;
+    }
     const bbox = this._selection.cell.getBBox();
     const openPosition = this._findOpenPosition(
       bbox.x + 40,
@@ -3269,14 +3349,18 @@ class DiagramEditor extends EventBus {
   }
 
   private _deleteSelected(): void {
-    if (!this._selection) return;
+    if (!this._selection) {
+      return;
+    }
     const item = this._selection;
     this._deselectAll();
     item.remove();
   }
 
   private _focusCameraOnSelection(): void {
-    if (!this._selection) return;
+    if (!this._selection) {
+      return;
+    }
     const model =
       this._selection instanceof DiagramNode
         ? this._selection.cell
@@ -3291,15 +3375,23 @@ class DiagramEditor extends EventBus {
   }
 
   private _updateConnectionPorts(cell: any): void {
-    if (!this._autoPortsOn || this._isLoading) return;
+    if (!this._autoPortsOn || this._isLoading) {
+      return;
+    }
 
     this._graph.getConnectedLinks(cell).forEach((link: any) => {
-      if (typeof link.get('sourcePort') === 'number') return;
-      if (typeof link.get('targetPort') === 'number') return;
+      if (typeof link.get('sourcePort') === 'number') {
+        return;
+      }
+      if (typeof link.get('targetPort') === 'number') {
+        return;
+      }
 
       const sourceCell = link.getSourceElement();
       const targetCell = link.getTargetElement();
-      if (!sourceCell || !targetCell) return;
+      if (!sourceCell || !targetCell) {
+        return;
+      }
 
       const getCenterOf = (element: any): Point => {
         const position = element.position();
@@ -3326,7 +3418,9 @@ class DiagramEditor extends EventBus {
 
         element.getPorts().forEach((port: any) => {
           const position = portPositions[port.id];
-          if (!position) return;
+          if (!position) {
+            return;
+          }
           const portAngle = Math.atan2(
             position.y - size.height / 2,
             position.x - size.width / 2,
@@ -3441,12 +3535,16 @@ class DiagramEditor extends EventBus {
         clearance,
       );
       return this._graph.getElements().some((element: any) => {
-        if (excludeCell && element.id === excludeCell.id) return false;
+        if (excludeCell && element.id === excludeCell.id) {
+          return false;
+        }
         return testRect.intersect(element.getBBox().clone().inflate(clearance));
       });
     };
 
-    if (!isBlocked(x, y)) return { x, y };
+    if (!isBlocked(x, y)) {
+      return { x, y };
+    }
 
     for (let radius = 1; radius < 30; radius++) {
       for (let deltaX = -radius; deltaX <= radius; deltaX++) {
@@ -3455,7 +3553,9 @@ class DiagramEditor extends EventBus {
             continue;
           const testX = x + deltaX * this.gridSize;
           const testY = y + deltaY * this.gridSize;
-          if (!isBlocked(testX, testY)) return { x: testX, y: testY };
+          if (!isBlocked(testX, testY)) {
+            return { x: testX, y: testY };
+          }
         }
       }
     }
