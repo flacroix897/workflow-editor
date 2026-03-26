@@ -7,30 +7,28 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Diagram Editor</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.css"
-    />
     <link rel="stylesheet" href="./index.css" />
     <style></style>
   </head>
   <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone-min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
-    <script src="./index.js"></script>
-    <script>
+    <script type="module" src="./index.ts"></script>
+    <script type="module">
       // =============================================================
       // Bootstrap — create the editor and add demo nodes
       // =============================================================
 
+      import {
+        DiagramEditor,
+        DiagramNode,
+        RectangleNode,
+        EllipseNode,
+      } from "./index.ts";
+
       const editor = new DiagramEditor(document.body);
 
       // example custom node type with extra properties and a render callback
-      const TaskNode = Node.define(
-        Rectangle,
+      const TaskNode = DiagramNode.define(
+        RectangleNode,
         { label: "New Task", backgroundColor: "#f0f8ff" },
         {
           assignee: { label: "Assignee", type: "text", default: "" },
@@ -64,9 +62,9 @@
       editor.registerNodeType("Task", TaskNode);
 
       (async () => {
-        const start = await editor.addNode(new Ellipse({ label: "START" }));
+        const start = await editor.addNode(new EllipseNode({ label: "START" }));
         const process = await editor.addNode(
-          new Rectangle({ label: "PROCESS" }),
+          new RectangleNode({ label: "PROCESS" }),
         );
         const task = await editor.addNode(
           new TaskNode({ label: "My Task", assignee: "Alice", effort: 3 }),

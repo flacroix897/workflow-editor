@@ -360,6 +360,11 @@ html {
     pointer-events: none;
 }
 
+.joint-port-body {
+    pointer-events: all !important;
+    cursor: crosshair;
+}
+
 .joint-cell.wf-selected .joint-port {
     opacity: 1;
     pointer-events: all;

@@ -1,0 +1,34 @@
+{
+  "name": "workflow-editor",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/flacroix897/workflow-editor#readme",
+  "bugs": {
+    "url": "https://github.com/flacroix897/workflow-editor/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flacroix897/workflow-editor.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dagre": "^0.8.5",
+    "jointjs": "^3.7.7"
+  },
+  "devDependencies": {
+    "@types/backbone": "^1.4.15",
+    "@types/dagre": "^0.7.3",
+    "terser": "^5.46.1",
+    "typescript": "^5.4.0",
+    "vite": "^5.0.0",
+    "vite-plugin-singlefile": "^2.3.2"
+  }
+}
