@@ -2276,7 +2276,20 @@ class DiagramEditor extends EventBus {
         sourceMagnet: any,
         targetView: any,
         targetMagnet: any,
-      ) => sourceMagnet && targetMagnet && sourceView !== targetView,
+      ) => {
+        if (!sourceMagnet || !targetMagnet || sourceView === targetView) {
+          return false;
+        }
+        const sourceNode = this._nodeMap.get(sourceView.model.id);
+        const targetNode = this._nodeMap.get(targetView.model.id);
+        if (!sourceNode || !targetNode) return false;
+        const alreadyConnected = [...this._edgeMap.values()].some(
+          (edge) =>
+            (edge.source === sourceNode && edge.target === targetNode) ||
+            (edge.source === targetNode && edge.target === sourceNode),
+        );
+        return !alreadyConnected;
+      },
     });
   }
 

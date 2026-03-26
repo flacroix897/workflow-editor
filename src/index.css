@@ -382,3 +382,7 @@ html {
 .joint-port-body {
     pointer-events: all !important;
 }
+
+.joint-paper.wf-dragging-link circle.joint-port-body:not(.available-magnet) {
+    display: none;
+}
