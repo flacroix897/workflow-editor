@@ -39,7 +39,7 @@ jobs:
       - name: Build app
         run: npm run build:app
 
-      - name: Install Angular dependencies
+      - name: Install Angular component dependencies
         working-directory: lib/angular/
         run: npm ci
 
@@ -127,7 +127,8 @@ jobs:
         run: cp -f package.json dist/
 
       - name: Publish to npm
-        run: cd dist && npm publish --access public
+        working-directory: dist/
+        run: npm publish --access public
 
       - name: Commit version bump
         run: |
@@ -136,16 +137,15 @@ jobs:
           git push
 
       - name: Package dist for release
-        run: |
-          cd dist
-          zip -r ../workflow-editor-${{ steps.version.outputs.version }}.zip .
+        working-directory: dist/
+        run: zip -r ../workflow-editor-${{ steps.version.outputs.version }}.zip .
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
-          files: workflow-editor-${{ steps.version.outputs.version }}.zip
+          files: dist/workflow-editor-${{ steps.version.outputs.version }}.zip
           body: |
             ${{ steps.changelog.outputs.commits }}
 
