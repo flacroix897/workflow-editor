@@ -1,4 +1,4 @@
-name: Build & Deploy
+name: Build & Deploy JS
 
 on:
   workflow_dispatch:
@@ -39,6 +39,13 @@ jobs:
       - name: Build app
         run: npm run build:app
 
+      - name: Install Angular dependencies
+        working-directory: lib/angular/
+        run: npm ci
+
+      - name: Build Angular component
+        run: npm run build:angular
+
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -53,6 +60,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -92,6 +100,18 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Update package.json
+        run: cp -f package.json dist/
+
+      - name: Publish to npm
+        run: cd dist && npm publish --access public
+
       - name: Commit version bump
         run: |
           git add package.json package-lock.json
@@ -104,17 +124,3 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-
-      - name: Download dist artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
-      - name: Update package.json
-        run: cp -f package.json dist/
-
-      - name: Publish to npm
-        run: cd dist && npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
