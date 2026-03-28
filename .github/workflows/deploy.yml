@@ -47,11 +47,13 @@ jobs:
         run: npm run build:angular
 
       - name: Upload pages artifact
+        if: github.ref == 'refs/heads/develop'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
       - name: Upload dist artifact
+        if: github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -59,8 +61,8 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    needs: build
     if: github.ref == 'refs/heads/develop'
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -72,8 +74,8 @@ jobs:
 
   publish:
     name: Publish to npm
-    needs: build
     if: github.ref == 'refs/heads/master'
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -106,10 +108,10 @@ jobs:
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s" | head -20)
+            COMMITS=$(git log --pretty=format:"%s" | head -20 | grep -v "^chore:" | grep -v "^Revert" | awk '!seen[$0]++' | sed 's/^/- /')
             COMPARE_URL="https://github.com/${{ github.repository }}/commits/v${{ steps.version.outputs.version }}"
           else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s")
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" | grep -v "^chore:" | grep -v "^Revert" | awk '!seen[$0]++' | sed 's/^/- /')
             COMPARE_URL="https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.version.outputs.version }}"
           fi
           echo "commits<<EOF" >> $GITHUB_OUTPUT
@@ -145,7 +147,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
-          files: dist/workflow-editor-${{ steps.version.outputs.version }}.zip
+          files: workflow-editor-${{ steps.version.outputs.version }}.zip
           body: |
             ${{ steps.changelog.outputs.commits }}
 
