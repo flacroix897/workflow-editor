@@ -279,6 +279,50 @@ task.setCustomProperty("done", true);
 
 ---
 
+## Contributing
+
+### Prerequisites
+
+- Node.js 24+
+- npm
+
+### Setup
+
+```bash
+git clone https://github.com/relevance-io/workflow-editor.git
+cd workflow-editor
+npm run install:all  # for development
+npm run ci:all       # for CI
+```
+
+### Build
+
+```bash
+# Build everything (lib, demo app, Angular component)
+npm run build
+
+# Build individually
+npm run build:lib      # core library → dist/
+npm run build:app      # demo app → dist/
+npm run build:angular  # Angular component → dist/angular/
+```
+
+### Development Server
+
+```bash
+npm start
+```
+
+Opens the demo app at `http://localhost:5173` with hot reload.
+
+### Pull Requests
+
+1. Fork the repository
+2. Create a feature branch
+3. Push to your branch and open a pull request
+
+---
+
 ## License
 
 [MIT](https://opensource.org/licenses/MIT)
