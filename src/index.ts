@@ -49,8 +49,8 @@ export type Schema = Record<string, FieldDefinition>;
 export interface SerializedNode {
   id: string;
   nodeClass: string;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   props: Record<string, any>;
   customProps: Record<string, any>;
 }
@@ -134,7 +134,9 @@ export class EventBus {
   }
 
   public on(eventName: string, callback: (...args: any[]) => void): this {
-    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    if (!this.listeners[eventName]) {
+      this.listeners[eventName] = [];
+    }
     this.listeners[eventName].push(callback);
     return this;
   }
@@ -221,6 +223,20 @@ export class Edge extends EventBus {
   private _targetNode: DiagramNode;
   private _pathPoints: PathPoint[];
 
+  // headless backing fields
+  private _label: string = '';
+  private _labelColor: string = '#333333';
+  private _labelFontSize: number = 100;
+  private _lineColor: string = '#495057';
+  private _lineWidth: number = 2;
+  private _lineStyle: LineStyle = 'solid';
+  private _sourceArrow: ArrowMarkerName = 'none';
+  private _targetArrow: ArrowMarkerName = 'classic';
+  private _connectorType: ConnectorType = 'elbow';
+  private _sourcePort: number | null = null;
+  private _targetPort: number | null = null;
+  private _description: string = '';
+
   // public
   public link: any;
   public editor: DiagramEditor;
@@ -240,7 +256,7 @@ export class Edge extends EventBus {
   }
 
   public get id(): string {
-    return this.link.id;
+    return this.link?.id ?? `edge-${Math.random().toString(36).slice(2)}`;
   }
   public get source(): DiagramNode {
     return this._sourceNode;
@@ -252,50 +268,83 @@ export class Edge extends EventBus {
   // label
 
   public get label(): string {
+    if (!this.link) {
+      return this._label;
+    }
     return this.link.label(0)?.attrs?.text?.text || '';
   }
   public set label(value: string) {
-    this._applyLabel(value);
+    this._label = value;
+    if (this.link) {
+      this._applyLabel(value);
+    }
     this.emit('change', this);
   }
 
   public get labelColor(): string {
+    if (!this.link) {
+      return this._labelColor;
+    }
     return this.link.label(0)?.attrs?.text?.fill || '#333333';
   }
   public set labelColor(value: string) {
-    this.link.prop('labelColor', value);
-    this._applyLabel(this.label);
+    this._labelColor = value;
+    if (this.link) {
+      this.link.prop('labelColor', value);
+      this._applyLabel(this.label);
+    }
     this.emit('change', this);
   }
 
   public get labelFontSize(): number {
+    if (!this.link) {
+      return this._labelFontSize;
+    }
     return this.link.get('fontSizePercent') || 100;
   }
   public set labelFontSize(value: number) {
-    this.link.set('fontSizePercent', value);
-    this._applyLabel(this.label);
+    this._labelFontSize = value;
+    if (this.link) {
+      this.link.set('fontSizePercent', value);
+      this._applyLabel(this.label);
+    }
     this.emit('change', this);
   }
 
   // line appearance
 
   public get lineColor(): string {
+    if (!this.link) {
+      return this._lineColor;
+    }
     return this.link.attr('line/stroke') || '#495057';
   }
   public set lineColor(value: string) {
-    this.link.attr('line/stroke', value);
+    this._lineColor = value;
+    if (this.link) {
+      this.link.attr('line/stroke', value);
+    }
     this.emit('change', this);
   }
 
   public get lineWidth(): number {
+    if (!this.link) {
+      return this._lineWidth;
+    }
     return this.link.attr('line/strokeWidth') || 2;
   }
   public set lineWidth(value: number) {
-    this.link.attr('line/strokeWidth', value);
+    this._lineWidth = value;
+    if (this.link) {
+      this.link.attr('line/strokeWidth', value);
+    }
     this.emit('change', this);
   }
 
   public get lineStyle(): LineStyle {
+    if (!this.link) {
+      return this._lineStyle;
+    }
     const dash: string = this.link.attr('line/strokeDasharray') || '';
     if (dash === '5,5') {
       return 'dashed';
@@ -306,33 +355,55 @@ export class Edge extends EventBus {
     return 'solid';
   }
   public set lineStyle(value: LineStyle) {
-    if (value === 'dashed') this.link.attr('line/strokeDasharray', '5,5');
-    else if (value === 'dotted') this.link.attr('line/strokeDasharray', '1,5');
-    else this.link.attr('line/strokeDasharray', '');
+    this._lineStyle = value;
+    if (this.link) {
+      if (value === 'dashed') {
+        this.link.attr('line/strokeDasharray', '5,5');
+      } else if (value === 'dotted') {
+        this.link.attr('line/strokeDasharray', '1,5');
+      } else {
+        this.link.attr('line/strokeDasharray', '');
+      }
+    }
     this.emit('change', this);
   }
 
   // arrows
 
   public get sourceArrow(): ArrowMarkerName {
+    if (!this.link) {
+      return this._sourceArrow;
+    }
     return this._arrowNameFromDefinition(this.link.attr('line/sourceMarker'));
   }
   public set sourceArrow(value: ArrowMarkerName) {
-    this.link.attr('line/sourceMarker', ARROW_MARKERS[value] || null);
+    this._sourceArrow = value;
+    if (this.link) {
+      this.link.attr('line/sourceMarker', ARROW_MARKERS[value] || null);
+    }
     this.emit('change', this);
   }
 
   public get targetArrow(): ArrowMarkerName {
+    if (!this.link) {
+      return this._targetArrow;
+    }
     return this._arrowNameFromDefinition(this.link.attr('line/targetMarker'));
   }
   public set targetArrow(value: ArrowMarkerName) {
-    this.link.attr('line/targetMarker', ARROW_MARKERS[value] || null);
+    this._targetArrow = value;
+    if (this.link) {
+      this.link.attr('line/targetMarker', ARROW_MARKERS[value] || null);
+    }
     this.emit('change', this);
   }
 
   // connector routing
 
   public get connectorType(): ConnectorType {
+    if (!this.link) {
+      return this._connectorType;
+    }
     const connector: string = this.link.connector()?.name;
     const router: string = this.link.router()?.name;
     if (connector === 'smooth') {
@@ -344,16 +415,19 @@ export class Edge extends EventBus {
     return 'elbow';
   }
   public set connectorType(value: ConnectorType) {
-    const gridSize = this.editor.gridSize;
-    if (value === 'elbow') {
-      this.link.router('manhattan', { step: gridSize, padding: 20 });
-      this.link.connector('rounded');
-    } else if (value === 'straight') {
-      this.link.router('normal');
-      this.link.connector('normal');
-    } else {
-      this.link.router('normal');
-      this.link.connector('smooth');
+    this._connectorType = value;
+    if (this.link) {
+      const gridSize = this.editor.gridSize;
+      if (value === 'elbow') {
+        this.link.router('manhattan', { step: gridSize, padding: 20 });
+        this.link.connector('rounded');
+      } else if (value === 'straight') {
+        this.link.router('normal');
+        this.link.connector('normal');
+      } else {
+        this.link.router('normal');
+        this.link.connector('smooth');
+      }
     }
     this.emit('change', this);
   }
@@ -361,26 +435,44 @@ export class Edge extends EventBus {
   // port pinning
 
   public get sourcePort(): number | null {
+    if (!this.link) {
+      return this._sourcePort;
+    }
     return this.link.get('sourcePort') ?? null;
   }
   public set sourcePort(value: number | null) {
-    this._setPort('source', value);
+    this._sourcePort = value;
+    if (this.link) {
+      this._setPort('source', value);
+    }
   }
 
   public get targetPort(): number | null {
+    if (!this.link) {
+      return this._targetPort;
+    }
     return this.link.get('targetPort') ?? null;
   }
   public set targetPort(value: number | null) {
-    this._setPort('target', value);
+    this._targetPort = value;
+    if (this.link) {
+      this._setPort('target', value);
+    }
   }
 
   // description
 
   public get description(): string {
+    if (!this.link) {
+      return this._description;
+    }
     return this.link.get('description') || '';
   }
   public set description(value: string) {
-    this.link.set('description', value);
+    this._description = value;
+    if (this.link) {
+      this.link.set('description', value);
+    }
     this.emit('change', this);
   }
 
@@ -409,7 +501,9 @@ export class Edge extends EventBus {
     return this;
   }
   public remove(): void {
-    this.link.remove();
+    if (this.link) {
+      this.link.remove();
+    }
     this.emit('remove', this);
   }
 
@@ -455,7 +549,9 @@ export class Edge extends EventBus {
       this.link[side]({ id: node.cell.id });
     } else {
       const port = node.cell.getPorts()[portIndex - 1];
-      if (port) this.link[side]({ id: node.cell.id, port: port.id });
+      if (port) {
+        this.link[side]({ id: node.cell.id, port: port.id });
+      }
     }
     this.emit('change', this);
   }
@@ -466,11 +562,8 @@ export class Edge extends EventBus {
 // =============================================================
 
 export class DiagramNode extends EventBus {
-  // FIX: stable static string, immune to minification.
-  // Every concrete subclass declares its own. The deserializer keys on this.
   public static nodeClass: string = 'DiagramNode';
 
-  // internal (used by subclasses / editor — not strictly private due to the Node.define factory pattern)
   public _label: string;
   public _initOptions: NodeOptions;
   public cell: any;
@@ -480,6 +573,22 @@ export class DiagramNode extends EventBus {
   public renderFn: ((node: DiagramNode) => void) | null;
   public _defaultOptions?: NodeOptions;
   [key: `_init_${string}`]: any;
+
+  // headless backing fields
+  private _headlessX?: number;
+  private _headlessY?: number;
+  private _labelColor: string = '#212529';
+  private _labelFontSize: number = 100;
+  private _description: string = '';
+  private _descriptionColor: string = '#6c757d';
+  private _backgroundColor: string = '#ffffff';
+  private _borderColor: string = '#adb5bd';
+  private _borderWidth: number = 2;
+  private _imageUrl: string = '';
+  private _imageWidth: number = 32;
+  private _imageHeight: number = 32;
+  private _status: string = 'pending';
+  private _priority: number = 1;
 
   constructor(options: NodeOptions | string = {}) {
     super();
@@ -501,7 +610,9 @@ export class DiagramNode extends EventBus {
   public setCustomProperty(key: string, value: any): void {
     this.customProps[key] = value;
     this.cell?.set(`custom_${key}`, value);
-    if (this.renderFn) this.renderFn(this);
+    if (this.renderFn) {
+      this.renderFn(this);
+    }
     this.emit('change', this);
   }
 
@@ -515,19 +626,33 @@ export class DiagramNode extends EventBus {
     return this.cell?.id ?? null;
   }
 
-  public get x(): number {
-    return this.cell?.position().x ?? 0;
+  public get x(): number | undefined {
+    if (!this.cell) {
+      return this._headlessX;
+    }
+    return this.cell.position().x;
   }
   public set x(value: number) {
-    this.cell?.position(value, this.y);
+    if (!this.cell) {
+      this._headlessX = value;
+      return;
+    }
+    this.cell.position(value, this.y as number);
     this.emit('change', this);
   }
 
-  public get y(): number {
-    return this.cell?.position().y ?? 0;
+  public get y(): number | undefined {
+    if (!this.cell) {
+      return this._headlessY;
+    }
+    return this.cell.position().y;
   }
   public set y(value: number) {
-    this.cell?.position(this.x, value);
+    if (!this.cell) {
+      this._headlessY = value;
+      return;
+    }
+    this.cell.position(this.x as number, value);
     this.emit('change', this);
   }
 
@@ -547,134 +672,178 @@ export class DiagramNode extends EventBus {
     return this.cell?.attr('label/text') ?? this._label;
   }
   public set label(value: string) {
-    this.cell?.attr('label/text', value);
     this._label = value;
-    this._resizeToFitContent();
+    if (this.cell) {
+      this.cell.attr('label/text', value);
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   public get labelColor(): string {
-    return this.cell?.attr('label/fill') ?? '#212529';
+    return this.cell?.attr('label/fill') ?? this._labelColor;
   }
   public set labelColor(value: string) {
-    this.cell?.attr('label/fill', value);
+    this._labelColor = value;
+    if (this.cell) {
+      this.cell.attr('label/fill', value);
+    }
     this.emit('change', this);
   }
 
   public get labelFontSize(): number {
-    return this.cell?.get('fontSizePercent') ?? 100;
+    return this.cell?.get('fontSizePercent') ?? this._labelFontSize;
   }
   public set labelFontSize(value: number) {
-    this.cell?.set('fontSizePercent', value);
-    this._resizeToFitContent();
+    this._labelFontSize = value;
+    if (this.cell) {
+      this.cell.set('fontSizePercent', value);
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   // description
 
   public get description(): string {
-    return this.cell?.get('description') ?? '';
+    return this.cell?.get('description') ?? this._description;
   }
   public set description(value: string) {
-    this.cell?.set('description', value);
-    this.cell?.attr('descriptionLabel/text', value);
-    this._resizeToFitContent();
+    this._description = value;
+    if (this.cell) {
+      this.cell.set('description', value);
+      this.cell.attr('descriptionLabel/text', value);
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   public get descriptionColor(): string {
-    return this.cell?.attr('descriptionLabel/fill') ?? '#6c757d';
+    return this.cell?.attr('descriptionLabel/fill') ?? this._descriptionColor;
   }
   public set descriptionColor(value: string) {
-    this.cell?.attr('descriptionLabel/fill', value);
+    this._descriptionColor = value;
+    if (this.cell) {
+      this.cell.attr('descriptionLabel/fill', value);
+    }
     this.emit('change', this);
   }
 
   // appearance
 
   public get backgroundColor(): string {
-    return this.cell?.attr('body/fill') ?? '#ffffff';
+    return this.cell?.attr('body/fill') ?? this._backgroundColor;
   }
   public set backgroundColor(value: string) {
-    this.cell?.attr('body/fill', value);
+    this._backgroundColor = value;
+    if (this.cell) {
+      this.cell.attr('body/fill', value);
+    }
     this.emit('change', this);
   }
 
   public get borderColor(): string {
-    return this.cell?.attr('body/stroke') ?? '#adb5bd';
+    return this.cell?.attr('body/stroke') ?? this._borderColor;
   }
   public set borderColor(value: string) {
-    this.cell?.attr('body/stroke', value);
+    this._borderColor = value;
+    if (this.cell) {
+      this.cell.attr('body/stroke', value);
+    }
     this.emit('change', this);
   }
 
   public get borderWidth(): number {
-    return this.cell?.attr('body/strokeWidth') ?? 2;
+    return this.cell?.attr('body/strokeWidth') ?? this._borderWidth;
   }
   public set borderWidth(value: number) {
-    this.cell?.attr('body/strokeWidth', value);
+    this._borderWidth = value;
+    if (this.cell) {
+      this.cell.attr('body/strokeWidth', value);
+    }
     this.emit('change', this);
   }
 
   // image
 
   public get imageUrl(): string {
-    return this.cell?.get('imageUrl') ?? '';
+    return this.cell?.get('imageUrl') ?? this._imageUrl;
   }
   public set imageUrl(value: string) {
-    this.cell?.set('imageUrl', value);
-    this.cell?.attr('image/xlink:href', value);
-    this.cell?.attr('image/display', value ? 'block' : 'none');
-    this._resizeToFitContent();
+    this._imageUrl = value;
+    if (this.cell) {
+      this.cell.set('imageUrl', value);
+      this.cell.attr('image/xlink:href', value);
+      this.cell.attr('image/display', value ? 'block' : 'none');
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   public get imageWidth(): number {
-    return this.cell?.get('imageWidth') ?? 32;
+    return this.cell?.get('imageWidth') ?? this._imageWidth;
   }
   public set imageWidth(value: number) {
-    this.cell?.set('imageWidth', value);
-    this._resizeToFitContent();
+    this._imageWidth = value;
+    if (this.cell) {
+      this.cell.set('imageWidth', value);
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   public get imageHeight(): number {
-    return this.cell?.get('imageHeight') ?? 32;
+    return this.cell?.get('imageHeight') ?? this._imageHeight;
   }
   public set imageHeight(value: number) {
-    this.cell?.set('imageHeight', value);
-    this._resizeToFitContent();
+    this._imageHeight = value;
+    if (this.cell) {
+      this.cell.set('imageHeight', value);
+      this._resizeToFitContent();
+    }
     this.emit('change', this);
   }
 
   // status and priority
 
   public get status(): string {
-    return this.cell?.get('status') ?? 'pending';
+    return this.cell?.get('status') ?? this._status;
   }
   public set status(value: string) {
-    this.cell?.set('status', value);
+    this._status = value;
+    if (this.cell) {
+      this.cell.set('status', value);
+    }
     this.emit('change', this);
   }
 
   public get priority(): number {
-    return this.cell?.get('priority') ?? 1;
+    return this.cell?.get('priority') ?? this._priority;
   }
   public set priority(value: number) {
-    this.cell?.set('priority', value);
+    this._priority = value;
+    if (this.cell) {
+      this.cell.set('priority', value);
+    }
     this.emit('change', this);
   }
 
   // movement
 
   public moveTo(x: number, y: number): this {
-    this.cell?.position(x, y);
+    if (!this.cell) {
+      this._headlessX = x;
+      this._headlessY = y;
+      this.emit('move', this);
+      return this;
+    }
+    this.cell.position(x, y);
     this.emit('move', this);
     return this;
   }
 
   public moveBy(deltaX: number, deltaY: number): this {
-    return this.moveTo(this.x + deltaX, this.y + deltaY);
+    return this.moveTo((this.x ?? 0) + deltaX, (this.y ?? 0) + deltaY);
   }
 
   public toFront(): this {
@@ -714,8 +883,9 @@ export class DiagramNode extends EventBus {
     sourcePortIndex: number | null = null,
     targetPortIndex: number | null = null,
   ): Edge | null {
-    if (targetNode === this)
+    if (targetNode === this) {
       throw new Error('A node cannot connect to itself.');
+    }
     return (
       this.editor?._createEdge(
         this,
@@ -791,8 +961,9 @@ export type NodeConstructor = new (options?: NodeOptions) => DiagramNode;
         'priority',
       ];
       builtIns.forEach((key) => {
-        if (merged[key] !== undefined)
+        if (merged[key] !== undefined) {
           (this as any)[`_init_${key}`] = merged[key];
+        }
       });
       this._label = merged.label ?? defaultOptions.label ?? '';
 
@@ -809,11 +980,14 @@ export type NodeConstructor = new (options?: NodeOptions) => DiagramNode;
     }
 
     setCustomProperty(key: string, value: any): void {
-      if (!(key in this.schema))
+      if (!(key in this.schema)) {
         throw new Error(`Unknown custom property: ${key}`);
+      }
       this.customProps[key] = value;
       this.cell?.set(`custom_${key}`, value);
-      if (this.renderFn) this.renderFn(this);
+      if (this.renderFn) {
+        this.renderFn(this);
+      }
       this.emit('change', this);
     }
 
@@ -843,8 +1017,6 @@ export type NodeConstructor = new (options?: NodeOptions) => DiagramNode;
 
 // =============================================================
 // Concrete node shape subclasses
-// FIX: each class declares a stable static nodeClass string so
-//      serialize/deserialize works even after minification.
 // =============================================================
 
 export class RectangleNode extends DiagramNode {
@@ -1276,6 +1448,11 @@ export class DiagramEditor extends EventBus {
   // private fields
   private _nodeMap: Map<string, DiagramNode>;
   private _edgeMap: Map<string, Edge>;
+  private _headlessEdges: Array<{
+    source: DiagramNode;
+    target: DiagramNode;
+    props: Partial<SerializedEdge>;
+  }>;
   private _selection: DiagramNode | Edge | null;
   private _autoPortsOn: boolean;
   private _isLoading: boolean;
@@ -1285,6 +1462,7 @@ export class DiagramEditor extends EventBus {
   private _registeredNodeTypes: Record<string, NodeConstructor>;
   private _nodeClassLabels: WeakMap<DiagramNode, string>;
   private _clipboard: DiagramNode | null;
+  private _isHeadless: boolean;
 
   // private DOM elements
   private _leftSidebar!: HTMLElement;
@@ -1320,17 +1498,18 @@ export class DiagramEditor extends EventBus {
   private _renderer!: any;
 
   // public fields
-  public container: HTMLElement;
+  public container: HTMLElement | null;
   public gridSize: number;
   public clearanceUnits: number;
 
-  constructor(container: HTMLElement) {
+  constructor(container?: HTMLElement) {
     super();
-    this.container = container;
+    this.container = container ?? null;
     this.gridSize = 10;
     this.clearanceUnits = 4;
     this._nodeMap = new Map();
     this._edgeMap = new Map();
+    this._headlessEdges = [];
     this._selection = null;
     this._autoPortsOn = true;
     this._isLoading = false;
@@ -1340,9 +1519,76 @@ export class DiagramEditor extends EventBus {
     this._registeredNodeTypes = {};
     this._nodeClassLabels = new WeakMap();
     this._clipboard = null;
+    this._isHeadless = !container;
+
+    [
+      'node:add',
+      'node:remove',
+      'node:change',
+      'node:move',
+      'edge:add',
+      'edge:remove',
+      'edge:change',
+    ].forEach((event) => {
+      this.on(event, () => {
+        if (!this._isLoading) {
+          this.emit('change');
+        }
+      });
+    });
+
+    if (!this._isHeadless) {
+      this._buildLayout();
+      this._setupRenderer();
+      this._attachButtonListeners();
+      this._attachDiagramListeners();
+      this._attachTouchListeners();
+      this._attachKeyboardShortcuts();
+
+      if (this._isMobile()) {
+        this._setSidebarCollapsed(this._leftSidebar, true);
+        this._setSidebarCollapsed(this._rightSidebar, true);
+      }
+    }
+  }
+
+  // ── Public API ──────────────────────────────────────────────
+
+  public async render(container: HTMLElement): Promise<this> {
+    if (!this._isHeadless) {
+      throw new Error(
+        'DiagramEditor.render() can only be called in headless mode.',
+      );
+    }
+
+    this.container = container;
 
     this._buildLayout();
     this._setupRenderer();
+
+    // Backfill library items for node types registered while headless
+    Object.entries(this._registeredNodeTypes).forEach(([label, NodeClass]) => {
+      const item = this._shapeLibrary.appendChild(
+        this._makeElement('div', 'wf-node-template'),
+      ) as HTMLElement;
+      item.textContent = label;
+      item.draggable = true;
+      item.dataset.nodeTypeLabel = label;
+
+      item.addEventListener('click', () => {
+        if (!this._isMobile()) {
+          return;
+        }
+        this.addNode(new NodeClass());
+        if (!this._leftSidebar.classList.contains('wf-collapsed')) {
+          this._toggleSidebar(this._leftSidebar);
+        }
+      });
+
+      item.addEventListener('dragstart', (event) =>
+        (event as DragEvent).dataTransfer!.setData('customNode', label),
+      );
+    });
     this._attachButtonListeners();
     this._attachDiagramListeners();
     this._attachTouchListeners();
@@ -1358,7 +1604,9 @@ export class DiagramEditor extends EventBus {
       'edge:change',
     ].forEach((event) => {
       this.on(event, () => {
-        if (!this._isLoading) this.emit('change');
+        if (!this._isLoading) {
+          this.emit('change');
+        }
       });
     });
 
@@ -1366,31 +1614,69 @@ export class DiagramEditor extends EventBus {
       this._setSidebarCollapsed(this._leftSidebar, true);
       this._setSidebarCollapsed(this._rightSidebar, true);
     }
+
+    // Determine positioning policy
+    const nodes = [...this._nodeMap.values()];
+    const positioned = nodes.filter(
+      (n) => n.x !== undefined && n.y !== undefined,
+    );
+    const unpositioned = nodes.filter(
+      (n) => n.x === undefined || n.y === undefined,
+    );
+    const hasPartialPositioning =
+      positioned.length > 0 && unpositioned.length > 0;
+    const shouldAutoArrange = unpositioned.length > 0;
+
+    if (hasPartialPositioning) {
+      console.warn(
+        `DiagramEditor.render(): ${positioned.length} node(s) have explicit positions and ` +
+          `${unpositioned.length} do not. Ignoring all positions and falling back to auto-arrange.`,
+      );
+    }
+
+    // Serialize while still headless so the headless branch is used,
+    // then flip the flag before deserializing into the live renderer.
+    const serialized = JSON.parse(this.serialize()) as SerializedDiagram;
+    this._isHeadless = false;
+
+    if (shouldAutoArrange) {
+      serialized.nodes.forEach((n) => {
+        delete n.x;
+        delete n.y;
+      });
+    }
+    await this.deserialize(serialized);
+
+    if (shouldAutoArrange) {
+      this.autoArrange();
+    }
+
+    return this;
   }
 
-  // ── Public API ──────────────────────────────────────────────
-
   public registerNodeType(label: string, NodeClass: NodeConstructor): void {
-    const item = this._shapeLibrary.appendChild(
-      this._makeElement('div', 'wf-node-template'),
-    ) as HTMLElement;
-    item.textContent = label;
-    item.draggable = true;
-    item.dataset.nodeTypeLabel = label;
+    if (!this._isHeadless) {
+      const item = this._shapeLibrary.appendChild(
+        this._makeElement('div', 'wf-node-template'),
+      ) as HTMLElement;
+      item.textContent = label;
+      item.draggable = true;
+      item.dataset.nodeTypeLabel = label;
 
-    item.addEventListener('click', () => {
-      if (!this._isMobile()) {
-        return;
-      }
-      this.addNode(new NodeClass());
-      if (!this._leftSidebar.classList.contains('wf-collapsed')) {
-        this._toggleSidebar(this._leftSidebar);
-      }
-    });
+      item.addEventListener('click', () => {
+        if (!this._isMobile()) {
+          return;
+        }
+        this.addNode(new NodeClass());
+        if (!this._leftSidebar.classList.contains('wf-collapsed')) {
+          this._toggleSidebar(this._leftSidebar);
+        }
+      });
 
-    item.addEventListener('dragstart', (event) =>
-      (event as DragEvent).dataTransfer!.setData('customNode', label),
-    );
+      item.addEventListener('dragstart', (event) =>
+        (event as DragEvent).dataTransfer!.setData('customNode', label),
+      );
+    }
 
     (NodeClass as any).__nodeLabel = label;
     this._registeredNodeTypes[label] = NodeClass;
@@ -1413,6 +1699,23 @@ export class DiagramEditor extends EventBus {
     canvasX?: number,
     canvasY?: number,
   ): Promise<DiagramNode> {
+    // Stamp a stable nodeClass on the instance
+    if (!(node as any)._nodeClass) {
+      (node as any)._nodeClass = (node.constructor as any).nodeClass;
+    }
+
+    // Headless: just store the node and return
+    if (this._isHeadless) {
+      const id = `node-${Math.random().toString(36).slice(2)}`;
+      (node as any)._headlessId = id;
+      node.editor = this;
+      this._nodeMap.set(id, node);
+      node.on('change', (n: DiagramNode) => this.emit('node:change', n));
+      node.on('move', (n: DiagramNode) => this.emit('node:move', n));
+      this.emit('node:add', node);
+      return Promise.resolve(node);
+    }
+
     const namespace = joint.shapes;
     const area = this._canvasArea;
 
@@ -1438,17 +1741,13 @@ export class DiagramEditor extends EventBus {
       height,
     );
 
-    // Stamp a stable _nodeClass on the instance if not already set
-    if (!(node as any)._nodeClass) {
-      (node as any)._nodeClass = (node.constructor as any).nodeClass;
-    }
-
     const portRadius = this._isMobile() ? 14 : 6;
     const cell = node._buildCell(openPosition, namespace, portRadius);
     cell.attr('label/text', node._label);
-    // Registration label always wins over whatever _buildCell stamped.
     const customLabel = (node.constructor as any).__nodeLabel;
-    if (customLabel) cell.set('nodeClass', customLabel);
+    if (customLabel) {
+      cell.set('nodeClass', customLabel);
+    }
     node.cell = cell;
     node.editor = this;
 
@@ -1470,7 +1769,9 @@ export class DiagramEditor extends EventBus {
     const initOptions: NodeOptions = node._initOptions || {};
     builtIns.forEach((key) => {
       const value = initOptions[key] ?? (node as any)[`_init_${key}`];
-      if (value !== undefined) (node as any)[key] = value;
+      if (value !== undefined) {
+        (node as any)[key] = value;
+      }
     });
 
     Object.entries(node.customProps).forEach(([key, value]) =>
@@ -1484,7 +1785,9 @@ export class DiagramEditor extends EventBus {
     const ready = (async () => {
       await this._waitForRender(cell);
       await this._resizeNodeAsync(cell);
-      if (node.renderFn) node.renderFn(node);
+      if (node.renderFn) {
+        node.renderFn(node);
+      }
       await this._waitForRender(cell);
       node.on('change', (changedNode: DiagramNode) =>
         this.emit('node:change', changedNode),
@@ -1499,9 +1802,29 @@ export class DiagramEditor extends EventBus {
     return ready;
   }
 
+  public clear(): this {
+    if (!this._isHeadless) {
+      this._deselectAll();
+      this._graph.clear();
+    }
+    this._nodeMap.clear();
+    this._edgeMap.clear();
+    this._headlessEdges = [];
+    this.emit('change');
+    return this;
+  }
+
+  public clearRegisteredNodes(): this {
+    this._registeredNodeTypes = {};
+    if (!this._isHeadless) {
+      this._shapeLibrary.innerHTML = '';
+    }
+    return this;
+  }
+
   public removeNode(node: DiagramNode): void {
     node.remove();
-    this._nodeMap.delete(node.id!);
+    this._nodeMap.delete(node.id ?? (node as any)._headlessId);
     this.emit('node:remove', node);
   }
 
@@ -1513,11 +1836,16 @@ export class DiagramEditor extends EventBus {
   }
 
   public panTo(x: number, y: number): this {
-    this._renderer.translate(x, y);
+    if (!this._isHeadless) {
+      this._renderer.translate(x, y);
+    }
     return this;
   }
 
   public centerContent(): this {
+    if (this._isHeadless) {
+      return this;
+    }
     const bbox = this._graph.getBBox();
     if (!bbox) {
       return this;
@@ -1532,50 +1860,69 @@ export class DiagramEditor extends EventBus {
   }
 
   public zoomIn(factor: number = 1.25): this {
-    this._zoomAtCenter(factor);
+    if (!this._isHeadless) {
+      this._zoomAtCenter(factor);
+    }
     return this;
   }
   public zoomOut(factor: number = 0.8): this {
-    this._zoomAtCenter(factor);
+    if (!this._isHeadless) {
+      this._zoomAtCenter(factor);
+    }
     return this;
   }
   public zoomReset(): this {
-    this._zoomAtCenter(1 / this._renderer.scale().sx);
+    if (!this._isHeadless) {
+      this._zoomAtCenter(1 / this._renderer.scale().sx);
+    }
     return this;
   }
 
   public zoomToFit(): this {
-    this._renderer.scaleContentToFit({
-      padding: 50,
-      minScale: 0.2,
-      maxScale: 2,
-    });
+    if (!this._isHeadless) {
+      this._renderer.scaleContentToFit({
+        padding: 50,
+        minScale: 0.2,
+        maxScale: 2,
+      });
+    }
     return this;
   }
 
   public getZoomLevel(): number {
+    if (this._isHeadless) {
+      return 1;
+    }
     return this._renderer.scale().sx;
   }
   public getSelectedItem(): DiagramNode | Edge | null {
     return this._selection;
   }
   public clearSelection(): this {
-    this._deselectAll();
+    if (!this._isHeadless) {
+      this._deselectAll();
+    }
     return this;
   }
 
   public setAutoPortSwitching(enabled: boolean): this {
     this._autoPortsOn = enabled;
-    this._autoPortToggleButton.classList.toggle('active', enabled);
-    if (enabled) {
-      this._graph
-        .getElements()
-        .forEach((element: any) => this._updateConnectionPorts(element));
+    if (!this._isHeadless) {
+      this._autoPortToggleButton.classList.toggle('active', enabled);
+      if (enabled) {
+        this._graph
+          .getElements()
+          .forEach((el: any) => this._updateConnectionPorts(el));
+      }
     }
     return this;
   }
 
   public autoArrange(): this {
+    if (this._isHeadless) {
+      return this;
+    }
+
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setGraph({
       rankdir: 'TB',
@@ -1594,7 +1941,9 @@ export class DiagramEditor extends EventBus {
     this._graph.getLinks().forEach((link: any) => {
       const source = link.getSourceElement();
       const target = link.getTargetElement();
-      if (source && target) dagreGraph.setEdge(source.id, target.id);
+      if (source && target) {
+        dagreGraph.setEdge(source.id, target.id);
+      }
     });
 
     dagre.layout(dagreGraph);
@@ -1613,7 +1962,7 @@ export class DiagramEditor extends EventBus {
     if (this._autoPortsOn) {
       this._graph
         .getElements()
-        .forEach((element: any) => this._updateConnectionPorts(element));
+        .forEach((el: any) => this._updateConnectionPorts(el));
     }
 
     this.centerContent();
@@ -1621,9 +1970,57 @@ export class DiagramEditor extends EventBus {
   }
 
   public serialize(): string {
+    // Headless: build from stored nodes/edges directly
+    if (this._isHeadless) {
+      const nodes: SerializedNode[] = [...this._nodeMap.values()].map(
+        (node) => ({
+          id: (node as any)._headlessId,
+          nodeClass:
+            (node.constructor as any).nodeClass ?? (node as any)._nodeClass,
+          x: node.x,
+          y: node.y,
+          props: {
+            label: node.label,
+            labelColor: node.labelColor,
+            labelFontSize: node.labelFontSize,
+            description: node.description,
+            descriptionColor: node.descriptionColor,
+            backgroundColor: node.backgroundColor,
+            borderColor: node.borderColor,
+            borderWidth: node.borderWidth,
+            imageUrl: node.imageUrl,
+            imageWidth: node.imageWidth,
+            imageHeight: node.imageHeight,
+          },
+          customProps: { ...node.customProps },
+        }),
+      );
+
+      const edges: SerializedEdge[] = this._headlessEdges.map((e) => ({
+        sourceId: (e.source as any)._headlessId,
+        targetId: (e.target as any)._headlessId,
+        sourcePort: e.props.sourcePort ?? null,
+        targetPort: e.props.targetPort ?? null,
+        label: e.props.label ?? '',
+        labelColor: e.props.labelColor ?? '#333333',
+        labelFontSize: e.props.labelFontSize ?? 100,
+        lineColor: e.props.lineColor ?? '#495057',
+        lineWidth: e.props.lineWidth ?? 2,
+        lineStyle: e.props.lineStyle ?? 'solid',
+        sourceArrow: e.props.sourceArrow ?? 'none',
+        targetArrow: e.props.targetArrow ?? 'classic',
+        connectorType: e.props.connectorType ?? 'elbow',
+        description: e.props.description ?? '',
+        vertices: e.props.vertices ?? [],
+      }));
+
+      return JSON.stringify({ nodes, edges });
+    }
+
+    // Rendered: read from JointJS as before
     const nodes: SerializedNode[] = [...this._nodeMap.values()].map((node) => ({
       id: node.cell.id,
-      nodeClass: node.cell.get('nodeClass') ?? (node as any)._nodeClass,
+      nodeClass: node.cell.get('nodeClass') ?? (node.constructor as any).nodeClass ?? (node as any)._nodeClass,
       x: node.x,
       y: node.y,
       props: {
@@ -1678,22 +2075,26 @@ export class DiagramEditor extends EventBus {
   public async deserialize(json: string | SerializedDiagram): Promise<this> {
     const { nodes: nodeDataList, edges: edgeDataList }: SerializedDiagram =
       typeof json === 'string' ? JSON.parse(json) : json;
-    if (!Array.isArray(nodeDataList))
+    if (!Array.isArray(nodeDataList)) {
       throw new Error('Invalid diagram file format.');
+    }
 
-    this._deselectAll();
+    if (!this._isHeadless) {
+      this._deselectAll();
+    }
     this._nodeMap.clear();
     this._edgeMap.clear();
-    this._graph.clear();
+    this._headlessEdges = [];
+    if (!this._isHeadless) {
+      this._graph.clear();
+    }
 
-    const nodeClassMap: Record<string, NodeConstructor> = {
-      ...Object.fromEntries(
-        Object.entries(this._registeredNodeTypes).map(([label, cls]) => [
-          label,
-          cls,
-        ]),
-      ),
-    };
+    const nodeClassMap: Record<string, NodeConstructor> = Object.fromEntries(
+      Object.values(this._registeredNodeTypes).map((cls) => [
+        (cls as any).nodeClass,
+        cls,
+      ]),
+    );
 
     const autoPortsOn = this._autoPortsOn;
     this._autoPortsOn = false;
@@ -1711,16 +2112,30 @@ export class DiagramEditor extends EventBus {
         ...nodeData.props,
         ...nodeData.customProps,
       });
+      node.editor = this;
+
+      if (this._isHeadless) {
+        const id = nodeData.id ?? `node-${Math.random().toString(36).slice(2)}`;
+        (node as any)._headlessId = id;
+        if (nodeData.x !== undefined) {
+          node.x = nodeData.x;
+        }
+        if (nodeData.y !== undefined) {
+          node.y = nodeData.y;
+        }
+        this._nodeMap.set(id, node);
+        node.on('change', (n: DiagramNode) => this.emit('node:change', n));
+        node.on('move', (n: DiagramNode) => this.emit('node:move', n));
+        oldIdToNode[nodeData.id] = node;
+        continue;
+      }
+
       const portRadius = this._isMobile() ? 14 : 6;
-      const cell = node._buildCell(
-        { x: nodeData.x, y: nodeData.y },
-        joint.shapes,
-        portRadius,
-      );
+      const position: Point = { x: nodeData.x ?? 0, y: nodeData.y ?? 0 };
+      const cell = node._buildCell(position, joint.shapes, portRadius);
       cell.attr('label/text', node._label);
       cell.set('nodeClass', nodeData.nodeClass);
       node.cell = cell;
-      node.editor = this;
 
       const builtIns: (keyof NodeOptions)[] = [
         'label',
@@ -1740,7 +2155,9 @@ export class DiagramEditor extends EventBus {
       const initOptions: NodeOptions = node._initOptions || {};
       builtIns.forEach((key) => {
         const value = initOptions[key] ?? (node as any)[`_init_${key}`];
-        if (value !== undefined) (node as any)[key] = value;
+        if (value !== undefined) {
+          (node as any)[key] = value;
+        }
       });
 
       Object.entries(node.customProps).forEach(([key, value]) =>
@@ -1759,13 +2176,11 @@ export class DiagramEditor extends EventBus {
       );
       this._renderer.updateViews();
 
-      if (node.renderFn) node.renderFn(node);
-      node.on('change', (changedNode: DiagramNode) =>
-        this.emit('node:change', changedNode),
-      );
-      node.on('move', (movedNode: DiagramNode) =>
-        this.emit('node:move', movedNode),
-      );
+      if (node.renderFn) {
+        node.renderFn(node);
+      }
+      node.on('change', (n: DiagramNode) => this.emit('node:change', n));
+      node.on('move', (n: DiagramNode) => this.emit('node:move', n));
 
       oldIdToNode[nodeData.id] = node;
     }
@@ -1773,74 +2188,113 @@ export class DiagramEditor extends EventBus {
     for (const edgeData of edgeDataList) {
       const sourceNode = oldIdToNode[edgeData.sourceId];
       const targetNode = oldIdToNode[edgeData.targetId];
-      if (!sourceNode || !targetNode) continue;
+      if (!sourceNode || !targetNode) {
+        continue;
+      }
+
+      if (this._isHeadless) {
+        this._headlessEdges.push({
+          source: sourceNode,
+          target: targetNode,
+          props: { ...edgeData },
+        });
+        continue;
+      }
 
       const edge = sourceNode.connect(
         targetNode,
         edgeData.sourcePort,
         edgeData.targetPort,
       );
-      if (!edge) continue;
+      if (!edge) {
+        continue;
+      }
 
-      if (edgeData.label) edge.label = edgeData.label;
-      if (edgeData.labelColor) edge.labelColor = edgeData.labelColor;
-      if (edgeData.labelFontSize) edge.labelFontSize = edgeData.labelFontSize;
-
+      if (edgeData.label) {
+        edge.label = edgeData.label;
+      }
+      if (edgeData.labelColor) {
+        edge.labelColor = edgeData.labelColor;
+      }
+      if (edgeData.labelFontSize) {
+        edge.labelFontSize = edgeData.labelFontSize;
+      }
       edge.lineColor = edgeData.lineColor;
       edge.lineWidth = edgeData.lineWidth;
       edge.lineStyle = edgeData.lineStyle;
       edge.sourceArrow = edgeData.sourceArrow;
       edge.targetArrow = edgeData.targetArrow;
       edge.connectorType = edgeData.connectorType;
-
-      if (edgeData.description) edge.description = edgeData.description;
-      if (edgeData.vertices?.length) edge.link.vertices(edgeData.vertices);
+      if (edgeData.description) {
+        edge.description = edgeData.description;
+      }
+      if (edgeData.vertices?.length) {
+        edge.link.vertices(edgeData.vertices);
+      }
     }
 
     this._autoPortsOn = autoPortsOn;
     this._isLoading = false;
 
-    const allCells = this._graph.getCells();
-    this._graph.resetCells(allCells);
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-    );
-
-    this._graph.getLinks().forEach((link: any) => {
-      const edge = this._edgeMap.get(link.id);
-      if (!edge) {
-        return;
-      }
-
-      const savedEdge = edgeDataList.find(
-        (data) =>
-          oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
-          oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id,
+    if (!this._isHeadless) {
+      const allCells = this._graph.getCells();
+      this._graph.resetCells(allCells);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
-      if (!savedEdge) {
-        return;
-      }
 
-      if (savedEdge.sourcePort != null)
-        link.set('sourcePort', savedEdge.sourcePort);
-      if (savedEdge.targetPort != null)
-        link.set('targetPort', savedEdge.targetPort);
-    });
-
-    if (this._autoPortsOn) {
       this._graph.getLinks().forEach((link: any) => {
-        link.unset('sourcePort');
-        link.unset('targetPort');
+        const edge = this._edgeMap.get(link.id);
+        if (!edge) {
+          return;
+        }
+        const savedEdge = edgeDataList.find(
+          (data) =>
+            oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
+            oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id,
+        );
+        if (!savedEdge) {
+          return;
+        }
+        if (savedEdge.sourcePort != null) {
+          link.set('sourcePort', savedEdge.sourcePort);
+        }
+        if (savedEdge.targetPort != null) {
+          link.set('targetPort', savedEdge.targetPort);
+        }
       });
+
+      if (this._autoPortsOn) {
+        this._graph.getLinks().forEach((link: any) => {
+          const edge = this._edgeMap.get(link.id);
+          if (!edge) {
+            return;
+          }
+          const savedEdge = edgeDataList.find(
+            (data) =>
+              oldIdToNode[data.sourceId]?.cell.id === edge.source.cell.id &&
+              oldIdToNode[data.targetId]?.cell.id === edge.target.cell.id,
+          );
+          if (savedEdge?.sourcePort == null) {
+            link.unset('sourcePort');
+          }
+          if (savedEdge?.targetPort == null) {
+            link.unset('targetPort');
+          }
+        });
+      }
     }
 
     this.emit('change');
     return this;
   }
 
-  // ── Internal methods (called from DiagramNode/Edge, public due to cross-class access) ──
+  // ── Internal methods ──────────────────────────────────────────
 
   public _selectItem(item: DiagramNode | Edge): void {
+    if (this._isHeadless) {
+      return;
+    }
     this._selection = item;
     const isNode = item instanceof DiagramNode;
     const model = isNode ? (item as DiagramNode).cell : (item as Edge).link;
@@ -1874,6 +2328,15 @@ export class DiagramEditor extends EventBus {
   }
 
   public _getEdgesForNode(node: DiagramNode): Edge[] {
+    if (this._isHeadless) {
+      return this._headlessEdges
+        .filter((e) => e.source === node || e.target === node)
+        .map((e) => {
+          const edge = new Edge(null, e.source, e.target, this);
+          Object.assign(edge, e.props);
+          return edge;
+        });
+    }
     return [...this._edgeMap.values()].filter(
       (edge) => edge.source === node || edge.target === node,
     );
@@ -1885,14 +2348,40 @@ export class DiagramEditor extends EventBus {
     sourcePortIndex: number | null,
     targetPortIndex: number | null,
   ): Edge | null {
-    const reverseExists = [...this._edgeMap.values()].some(
-      (edge) => edge.source === targetNode && edge.target === sourceNode,
-    );
-    const duplicateExists = [...this._edgeMap.values()].some(
-      (edge) => edge.source === sourceNode && edge.target === targetNode,
-    );
-    if (reverseExists || duplicateExists) {
+    const alreadyConnected = (src: DiagramNode, tgt: DiagramNode) => {
+      if (this._isHeadless) {
+        return this._headlessEdges.some(
+          (e) =>
+            (e.source === src && e.target === tgt) ||
+            (e.source === tgt && e.target === src),
+        );
+      }
+      return [...this._edgeMap.values()].some(
+        (edge) =>
+          (edge.source === src && edge.target === tgt) ||
+          (edge.source === tgt && edge.target === src),
+      );
+    };
+
+    if (alreadyConnected(sourceNode, targetNode)) {
       return null;
+    }
+
+    if (this._isHeadless) {
+      const edge = new Edge(null, sourceNode, targetNode, this);
+      edge.sourcePort = sourcePortIndex;
+      edge.targetPort = targetPortIndex;
+      this._headlessEdges.push({
+        source: sourceNode,
+        target: targetNode,
+        props: {
+          sourcePort: sourcePortIndex,
+          targetPort: targetPortIndex,
+        },
+      });
+      edge.on('change', (e: Edge) => this.emit('edge:change', e));
+      this.emit('edge:add', edge);
+      return edge;
     }
 
     const link = new joint.shapes.standard.Link({
@@ -1923,8 +2412,12 @@ export class DiagramEditor extends EventBus {
         : { id: targetNode.cell.id },
     );
 
-    if (sourcePortIndex !== null) link.set('sourcePort', sourcePortIndex);
-    if (targetPortIndex !== null) link.set('targetPort', targetPortIndex);
+    if (sourcePortIndex !== null) {
+      link.set('sourcePort', sourcePortIndex);
+    }
+    if (targetPortIndex !== null) {
+      link.set('targetPort', targetPortIndex);
+    }
 
     this._graph.startBatch('edge');
     link.addTo(this._graph);
@@ -1933,9 +2426,7 @@ export class DiagramEditor extends EventBus {
 
     const edge = new Edge(link, sourceNode, targetNode, this);
     this._edgeMap.set(link.id.toString(), edge);
-    edge.on('change', (changedEdge: Edge) =>
-      this.emit('edge:change', changedEdge),
-    );
+    edge.on('change', (e: Edge) => this.emit('edge:change', e));
     this.emit('edge:add', edge);
     return edge;
   }
@@ -1990,8 +2481,11 @@ export class DiagramEditor extends EventBus {
     } else if (
       ['triangle', 'hexagon', 'pentagon', 'octagon'].includes(shapeType)
     ) {
-      if (width / height > 1.2) height = width / 1.2;
-      else width = height * 1.2;
+      if (width / height > 1.2) {
+        height = width / 1.2;
+      } else {
+        width = height * 1.2;
+      }
       if (shapeType === 'triangle') {
         width *= 1.25;
         height *= 1.25;
@@ -2063,11 +2557,11 @@ export class DiagramEditor extends EventBus {
   }
 
   private _buildLayout(): void {
-    this.container.innerHTML = '';
-    this.container.style.cssText =
+    this.container!.innerHTML = '';
+    this.container!.style.cssText =
       'display:flex; height:100%; overflow:hidden;';
 
-    this._leftSidebar = this.container.appendChild(
+    this._leftSidebar = this.container!.appendChild(
       this._makeElement('div', 'wf-sidebar wf-sidebar-left'),
     );
     const leftHeader = this._leftSidebar.appendChild(
@@ -2088,9 +2582,8 @@ export class DiagramEditor extends EventBus {
     this._shapeLibrary = this._leftSidebar.appendChild(
       this._makeElement('div', 'wf-library wf-sidebar-body'),
     );
-    // Sidebar starts empty — populate via registerNodeType() or registerBuiltInNodes()
 
-    this._canvasArea = this.container.appendChild(
+    this._canvasArea = this.container!.appendChild(
       this._makeElement('div', 'wf-canvas-container'),
     );
     this._paperElement = this._canvasArea.appendChild(
@@ -2182,7 +2675,7 @@ export class DiagramEditor extends EventBus {
         Delete
       </div>`;
 
-    this._rightSidebar = this.container.appendChild(
+    this._rightSidebar = this.container!.appendChild(
       this._makeElement('div', 'wf-sidebar wf-sidebar-right'),
     );
     const rightHeader = this._rightSidebar.appendChild(
@@ -2415,7 +2908,9 @@ export class DiagramEditor extends EventBus {
         }
         const sourceNode = this._nodeMap.get(sourceView.model.id);
         const targetNode = this._nodeMap.get(targetView.model.id);
-        if (!sourceNode || !targetNode) return false;
+        if (!sourceNode || !targetNode) {
+          return false;
+        }
         const alreadyConnected = [...this._edgeMap.values()].some(
           (edge) =>
             (edge.source === sourceNode && edge.target === targetNode) ||
@@ -2505,8 +3000,12 @@ export class DiagramEditor extends EventBus {
       const action = (event.target as Element)
         .closest('[data-action]')
         ?.getAttribute('data-action');
-      if (action === 'duplicate') this._duplicateSelected();
-      if (action === 'delete') this._deleteSelected();
+      if (action === 'duplicate') {
+        this._duplicateSelected();
+      }
+      if (action === 'delete') {
+        this._deleteSelected();
+      }
       this._contextMenu.style.display = 'none';
     });
 
@@ -2523,14 +3022,20 @@ export class DiagramEditor extends EventBus {
       if (!action) {
         return;
       }
-      if (action === 'focus') this._focusCameraOnSelection();
+      if (action === 'focus') {
+        this._focusCameraOnSelection();
+      }
       if (action === 'duplicate') {
         this._duplicateSelected();
-        if (this._isMobile()) this._toggleSidebar(this._rightSidebar);
+        if (this._isMobile()) {
+          this._toggleSidebar(this._rightSidebar);
+        }
       }
       if (action === 'delete') {
         this._deleteSelected();
-        if (this._isMobile()) this._toggleSidebar(this._rightSidebar);
+        if (this._isMobile()) {
+          this._toggleSidebar(this._rightSidebar);
+        }
       }
     });
 
@@ -2583,14 +3088,12 @@ export class DiagramEditor extends EventBus {
         (async () => {
           await this._waitForRender(cell);
           await this._resizeNodeAsync(cell);
-          if (node.renderFn) node.renderFn(node);
+          if (node.renderFn) {
+            node.renderFn(node);
+          }
           await this._waitForRender(cell);
-          node.on('change', (changedNode: DiagramNode) =>
-            this.emit('node:change', changedNode),
-          );
-          node.on('move', (movedNode: DiagramNode) =>
-            this.emit('node:move', movedNode),
-          );
+          node.on('change', (n: DiagramNode) => this.emit('node:change', n));
+          node.on('move', (n: DiagramNode) => this.emit('node:move', n));
           this._selectItem(node);
         })();
 
@@ -2645,12 +3148,8 @@ export class DiagramEditor extends EventBus {
         await this._waitForRender(cell);
         await this._resizeNodeAsync(cell);
         await this._waitForRender(cell);
-        node.on('change', (changedNode: DiagramNode) =>
-          this.emit('node:change', changedNode),
-        );
-        node.on('move', (movedNode: DiagramNode) =>
-          this.emit('node:move', movedNode),
-        );
+        node.on('change', (n: DiagramNode) => this.emit('node:change', n));
+        node.on('move', (n: DiagramNode) => this.emit('node:move', n));
         this._selectItem(node);
       })();
 
@@ -2725,8 +3224,9 @@ export class DiagramEditor extends EventBus {
     }
 
     const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (resolvedProp in this._selection)
+    if (resolvedProp in this._selection) {
       (this._selection as any)[resolvedProp] = value;
+    }
   }
 
   private _handleEdgePropertyChange(event: Event): void {
@@ -2760,8 +3260,9 @@ export class DiagramEditor extends EventBus {
     }
 
     const resolvedProp = prop.endsWith('Hex') ? prop.slice(0, -3) : prop;
-    if (resolvedProp in this._selection)
+    if (resolvedProp in this._selection) {
       (this._selection as any)[resolvedProp] = value;
+    }
   }
 
   private _attachDiagramListeners(): void {
@@ -2788,7 +3289,9 @@ export class DiagramEditor extends EventBus {
         this._selectionWasAlreadyActive = this._selection === node;
         this._deselectAll();
 
-        if (!this._isMobile()) node.cell.toFront();
+        if (!this._isMobile()) {
+          node.cell.toFront();
+        }
         this._selectItem(node);
       },
     );
@@ -2939,22 +3442,19 @@ export class DiagramEditor extends EventBus {
         return;
       }
 
-      const reverseExists = [...this._edgeMap.values()].some(
-        (edge) => edge.source === targetNode && edge.target === sourceNode,
+      const alreadyConnected = [...this._edgeMap.values()].some(
+        (edge) =>
+          (edge.source === sourceNode && edge.target === targetNode) ||
+          (edge.source === targetNode && edge.target === sourceNode),
       );
-      const duplicateExists = [...this._edgeMap.values()].some(
-        (edge) => edge.source === sourceNode && edge.target === targetNode,
-      );
-      if (reverseExists || duplicateExists) {
+      if (alreadyConnected) {
         link.remove();
         return;
       }
 
       const edge = new Edge(link, sourceNode, targetNode, this);
       this._edgeMap.set(link.id, edge);
-      edge.on('change', (changedEdge: Edge) =>
-        this.emit('edge:change', changedEdge),
-      );
+      edge.on('change', (e: Edge) => this.emit('edge:change', e));
       this.emit('edge:add', edge);
     });
 
@@ -2992,8 +3492,9 @@ export class DiagramEditor extends EventBus {
 
     this._canvasArea.addEventListener('mousedown', () => {
       const tag = document.activeElement?.tagName;
-      if (tag !== 'INPUT' && tag !== 'TEXTAREA')
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
         (this._canvasArea as HTMLElement).focus();
+      }
     });
 
     this._canvasArea.addEventListener(
@@ -3041,19 +3542,16 @@ export class DiagramEditor extends EventBus {
           this._deselectAll();
           return;
         }
-
         if (event.key === 'Delete' || event.key === 'Backspace') {
           event.preventDefault();
           this._deleteSelected();
           return;
         }
-
         if (event.key === '-' && !event.ctrlKey && !event.metaKey) {
           event.preventDefault();
           this.zoomOut();
           return;
         }
-
         if (
           (event.key === '=' || event.key === '+') &&
           !event.ctrlKey &&
@@ -3098,12 +3596,10 @@ export class DiagramEditor extends EventBus {
               await this._waitForRender(clonedCell);
               await this._resizeNodeAsync(clonedCell);
               await this._waitForRender(clonedCell);
-              copy.on('change', (changedNode: DiagramNode) =>
-                this.emit('node:change', changedNode),
+              copy.on('change', (n: DiagramNode) =>
+                this.emit('node:change', n),
               );
-              copy.on('move', (movedNode: DiagramNode) =>
-                this.emit('node:move', movedNode),
-              );
+              copy.on('move', (n: DiagramNode) => this.emit('node:move', n));
               this._selectItem(copy);
             })();
 
@@ -3159,8 +3655,9 @@ export class DiagramEditor extends EventBus {
             document
               .elementFromPoint(touch.clientX, touch.clientY)
               ?.closest('.joint-cell')
-          )
+          ) {
             return;
+          }
           event.stopPropagation();
           this._touchState = {
             type: 'pan',
@@ -3283,7 +3780,9 @@ export class DiagramEditor extends EventBus {
       const element = panel.querySelector(
         `[data-prop="${prop}"]`,
       ) as HTMLInputElement | null;
-      if (element) element.value = value ?? '';
+      if (element) {
+        element.value = value ?? '';
+      }
     };
 
     setField('label', node.label);
@@ -3377,24 +3876,30 @@ export class DiagramEditor extends EventBus {
         (input as HTMLInputElement).type =
           fieldDefinition.type === 'number' ? 'number' : 'text';
         (input as HTMLInputElement).value = currentValue ?? '';
-        if (fieldDefinition.min !== undefined)
+        if (fieldDefinition.min !== undefined) {
           (input as HTMLInputElement).min = String(fieldDefinition.min);
-        if (fieldDefinition.max !== undefined)
+        }
+        if (fieldDefinition.max !== undefined) {
           (input as HTMLInputElement).max = String(fieldDefinition.max);
+        }
       }
 
-      if (fieldDefinition.readonly) (input as HTMLInputElement).disabled = true;
+      if (fieldDefinition.readonly) {
+        (input as HTMLInputElement).disabled = true;
+      }
       group.appendChild(input);
 
       input.addEventListener(
         fieldDefinition.type === 'boolean' ? 'change' : 'input',
         () => {
           let newValue: any;
-          if (fieldDefinition.type === 'boolean')
+          if (fieldDefinition.type === 'boolean') {
             newValue = (input as HTMLInputElement).checked;
-          else if (fieldDefinition.type === 'number')
+          } else if (fieldDefinition.type === 'number') {
             newValue = parseFloat((input as HTMLInputElement).value);
-          else newValue = input.value;
+          } else {
+            newValue = input.value;
+          }
           node.setCustomProperty(key, newValue);
         },
       );
@@ -3409,7 +3914,9 @@ export class DiagramEditor extends EventBus {
       const element = panel.querySelector(
         `[data-prop="${prop}"]`,
       ) as HTMLInputElement | null;
-      if (element) element.value = value ?? '';
+      if (element) {
+        element.value = value ?? '';
+      }
     };
 
     setField('label', edge.label);
@@ -3593,7 +4100,9 @@ export class DiagramEditor extends EventBus {
             position.x - size.width / 2,
           );
           let angleDiff = Math.abs(angleToward - portAngle);
-          if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+          if (angleDiff > Math.PI) {
+            angleDiff = 2 * Math.PI - angleDiff;
+          }
           if (angleDiff < bestAngleDiff) {
             bestAngleDiff = angleDiff;
             bestPortId = port.id;
@@ -3644,7 +4153,9 @@ export class DiagramEditor extends EventBus {
     className: string = '',
   ): HTMLElementTagNameMap[K] {
     const element = document.createElement(tag);
-    if (className) element.className = className;
+    if (className) {
+      element.className = className;
+    }
     return element;
   }
 
@@ -3716,8 +4227,9 @@ export class DiagramEditor extends EventBus {
     for (let radius = 1; radius < 30; radius++) {
       for (let deltaX = -radius; deltaX <= radius; deltaX++) {
         for (let deltaY = -radius; deltaY <= radius; deltaY++) {
-          if (Math.abs(deltaX) !== radius && Math.abs(deltaY) !== radius)
+          if (Math.abs(deltaX) !== radius && Math.abs(deltaY) !== radius) {
             continue;
+          }
           const testX = x + deltaX * this.gridSize;
           const testY = y + deltaY * this.gridSize;
           if (!isBlocked(testX, testY)) {
