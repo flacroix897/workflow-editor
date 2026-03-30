@@ -4157,9 +4157,36 @@ export class DiagramEditor extends EventBus {
         };
       };
 
+      // Collect port IDs already used as SOURCE on a given element
+      const getUsedSourcePortIds = (element: any): Set<string> => {
+        const used = new Set<string>();
+        this._graph
+          .getConnectedLinks(element, { outbound: true })
+          .forEach((l: any) => {
+            if (l.id === link.id) return;
+            const portId = l.source()?.port;
+            if (portId) used.add(portId);
+          });
+        return used;
+      };
+
+      // Collect port IDs already used as TARGET on a given element
+      const getUsedTargetPortIds = (element: any): Set<string> => {
+        const used = new Set<string>();
+        this._graph
+          .getConnectedLinks(element, { inbound: true })
+          .forEach((l: any) => {
+            if (l.id === link.id) return;
+            const portId = l.target()?.port;
+            if (portId) used.add(portId);
+          });
+        return used;
+      };
+
       const getBestPortFacing = (
         element: any,
         towardPoint: Point,
+        avoidPortIds: Set<string>,
       ): string | null => {
         const center = getCenterOf(element);
         const angleToward = Math.atan2(
@@ -4168,14 +4195,16 @@ export class DiagramEditor extends EventBus {
         );
         const portPositions = element.getPortsPositions('all');
         const size = element.size();
+
         let bestPortId: string | null = null;
         let bestAngleDiff = Infinity;
+        let bestPortIdFallback: string | null = null;
+        let bestAngleDiffFallback = Infinity;
 
         element.getPorts().forEach((port: any) => {
           const position = portPositions[port.id];
-          if (!position) {
-            return;
-          }
+          if (!position) return;
+
           const portAngle = Math.atan2(
             position.y - size.height / 2,
             position.x - size.width / 2,
@@ -4184,18 +4213,43 @@ export class DiagramEditor extends EventBus {
           if (angleDiff > Math.PI) {
             angleDiff = 2 * Math.PI - angleDiff;
           }
-          if (angleDiff < bestAngleDiff) {
+
+          // Always track the best unconstrained port (fallback)
+          if (angleDiff < bestAngleDiffFallback) {
+            bestAngleDiffFallback = angleDiff;
+            bestPortIdFallback = port.id;
+          }
+
+          // Prefer ports not in the avoid set
+          if (!avoidPortIds.has(port.id) && angleDiff < bestAngleDiff) {
             bestAngleDiff = angleDiff;
             bestPortId = port.id;
           }
         });
-        return bestPortId;
+
+        // If every port is in the avoid set, fall back to the geometrically best one
+        return bestPortId ?? bestPortIdFallback;
       };
 
       const sourceCenter = getCenterOf(sourceCell);
       const targetCenter = getCenterOf(targetCell);
-      const bestSourcePort = getBestPortFacing(sourceCell, targetCenter);
-      const bestTargetPort = getBestPortFacing(targetCell, sourceCenter);
+
+      // For the source end: avoid ports already used as TARGET on sourceCell
+      // (a port used as target shouldn't also be used as source in another direction)
+      const sourceAvoid = getUsedTargetPortIds(sourceCell);
+      // For the target end: avoid ports already used as SOURCE on targetCell
+      const targetAvoid = getUsedSourcePortIds(targetCell);
+
+      const bestSourcePort = getBestPortFacing(
+        sourceCell,
+        targetCenter,
+        sourceAvoid,
+      );
+      const bestTargetPort = getBestPortFacing(
+        targetCell,
+        sourceCenter,
+        targetAvoid,
+      );
 
       if (link.source().port !== bestSourcePort) {
         link.source({ id: sourceCell.id, port: bestSourcePort });
