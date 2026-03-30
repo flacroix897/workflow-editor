@@ -101,8 +101,6 @@ export interface NodeOptions {
   imageUrl?: string;
   imageWidth?: number;
   imageHeight?: number;
-  status?: string;
-  priority?: number;
   [key: string]: any;
 }
 
@@ -598,8 +596,6 @@ export class DiagramNode extends EventBus {
   private _imageUrl: string = '';
   private _imageWidth: number = 32;
   private _imageHeight: number = 32;
-  private _status: string = 'pending';
-  private _priority: number = 1;
 
   constructor(options: NodeOptions | string = {}) {
     super();
@@ -815,30 +811,6 @@ export class DiagramNode extends EventBus {
     this.emit('change', this);
   }
 
-  // status and priority
-
-  public get status(): string {
-    return this.cell?.get('status') ?? this._status;
-  }
-  public set status(value: string) {
-    this._status = value;
-    if (this.cell) {
-      this.cell.set('status', value);
-    }
-    this.emit('change', this);
-  }
-
-  public get priority(): number {
-    return this.cell?.get('priority') ?? this._priority;
-  }
-  public set priority(value: number) {
-    this._priority = value;
-    if (this.cell) {
-      this.cell.set('priority', value);
-    }
-    this.emit('change', this);
-  }
-
   // movement
 
   public moveTo(x: number, y: number): this {
@@ -968,8 +940,6 @@ export type NodeConstructor = new (options?: NodeOptions) => DiagramNode;
         'imageUrl',
         'imageWidth',
         'imageHeight',
-        'status',
-        'priority',
       ];
       builtIns.forEach((key) => {
         if (merged[key] !== undefined) {
@@ -1337,8 +1307,6 @@ const SHARED_CELL_ATTRS = {
 
 const SHARED_CELL_DEFAULTS = {
   description: '',
-  status: 'pending',
-  priority: 1,
   imageUrl: '',
   imageWidth: 32,
   imageHeight: 32,
@@ -1498,7 +1466,6 @@ export class DiagramEditor extends EventBus {
   private _pointerDownAt: Point | null;
   private _selectionWasAlreadyActive: boolean;
   private _registeredNodeTypes: Record<string, NodeConstructor>;
-  private _nodeClassLabels: WeakMap<DiagramNode, string>;
   private _clipboard: DiagramNode | null;
   private _isHeadless: boolean;
 
@@ -1555,7 +1522,6 @@ export class DiagramEditor extends EventBus {
     this._pointerDownAt = null;
     this._selectionWasAlreadyActive = false;
     this._registeredNodeTypes = {};
-    this._nodeClassLabels = new WeakMap();
     this._clipboard = null;
     this._isHeadless = !container;
 
@@ -1708,7 +1674,7 @@ export class DiagramEditor extends EventBus {
   }
 
   public registerBuiltInNodes(): void {
-    for (const { type, cls, name } of builtInShapes) {
+    for (const { cls, name } of builtInShapes) {
       this.registerNodeType(cls.name, cls, name);
     }
   }
@@ -1783,8 +1749,6 @@ export class DiagramEditor extends EventBus {
       'imageUrl',
       'imageWidth',
       'imageHeight',
-      'status',
-      'priority',
     ];
     const initOptions: NodeOptions = node._initOptions || {};
     builtIns.forEach((key) => {
@@ -2279,8 +2243,6 @@ export class DiagramEditor extends EventBus {
         'imageUrl',
         'imageWidth',
         'imageHeight',
-        'status',
-        'priority',
       ];
       const initOptions: NodeOptions = node._initOptions || {};
       builtIns.forEach((key) => {
