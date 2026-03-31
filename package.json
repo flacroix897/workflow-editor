@@ -44,7 +44,7 @@
     "start": "vite",
     "install:all": "npm install && cd lib/angular/ && npm install",
     "ci:all": "npm ci && cd lib/angular/ && npm ci",
-    "clean": "rm -Rf dist/",
+    "clean": "rm -Rf dist/ ; find . -name node_modules -exec rm -Rf {} \\; ; find . -name package-lock.json -exec rm -f {} \\;",
     "build:app": "vite build && cp -f README.md dist/",
     "build:lib": "BUILD_TARGET=lib vite build && tsc --project tsconfig.lib.json && cp -f src/index.css dist/ && cp -f package.json dist/",
     "build:angular": "cd lib/angular/ && npm run build",
