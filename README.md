@@ -28,6 +28,19 @@ A lightweight, framework-agnostic diagram editor built on JointJS. Supports vani
     - **Headless mode** — build diagrams programmatically without a DOM, then render later
     - **Import / export** — download and re-upload diagrams as JSON files
 
+### Roadmap
+
+- Language SDKs: add additional language support to be able to export/import diagrams in various languages
+    - Python
+    - PHP
+    - Java
+- Additional validators (min, max, choices, etc.)
+- Node trees: be able to programmatically go through the workflow in any language
+    - Circular trees: support iteration through circular node trees
+- More keyboard shortcuts
+- Path finding improvements
+- UX Improvements
+
 ## Installation
 
 ### npm

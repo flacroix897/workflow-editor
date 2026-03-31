@@ -23,6 +23,43 @@
         const ICON_UNDONE = "https://upload.wikimedia.org/wikipedia/commons/5/57/Check_mark_%28blue%29.svg";
         const ICON_DONE = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Eo_circle_green_checkmark.svg/960px-Eo_circle_green_checkmark.svg.png?_=20200417132424";
 
+        const taskColor = (node) => {
+          const done = node.getCustomProperty("done");
+          const effort = node.getCustomProperty("effort");
+
+          if (done) {
+            node.backgroundColor = "#d4edda";
+            node.borderColor = "#28a745";
+            node.imageUrl = ICON_DONE;
+            return;
+          } else {
+            node.imageUrl = ICON_UNDONE;
+          }
+
+          switch (effort) {
+            case 1:
+              node.backgroundColor = "#E1F5FE";
+              node.borderColor = "#03A9F4";
+              break;
+            case 2:
+              node.backgroundColor = "#E8EAF6";
+              node.borderColor = "#3F51B5";
+              break;
+            case 3:
+              node.backgroundColor = "#FFF9C4";
+              node.borderColor = "#FBC02D";
+              break;
+            case 4:
+              node.backgroundColor = "#FFE0B2";
+              node.borderColor = "#FB8C00";
+              break;
+            case 5:
+              node.backgroundColor = "#FFEBEE";
+              node.borderColor = "#E53935";
+              break;
+          }
+        };
+
         const TaskNode = DiagramNode.define(RectangleNode, {
           defaults: { label: "New Task", backgroundColor: "#f0f8ff", imageUrl: ICON_UNDONE, imageWidth: 20, imageHeight: 20 },
           schema: {
@@ -42,16 +79,19 @@
                 node.description = val ? `@${val}` : "";
               },
             },
-            effort: { label: "Effort", type: "number", default: 1, min: 1, max: 10 },
+            effort: {
+              label: "Effort",
+              type: "number",
+              default: 1,
+              min: 1,
+              max: 5,
+              onChange: taskColor,
+            },
             done: {
               label: "Done",
               type: "boolean",
               default: false,
-              onChange: (node, val) => {
-                node.backgroundColor = val ? "#d4edda" : "#f0f8ff";
-                node.borderColor = val ? "#28a745" : "#adb5bd";
-                node.imageUrl = val ? ICON_DONE : ICON_UNDONE;
-              },
+              onChange: taskColor,
             },
             mode: {
               label: "Mode",
