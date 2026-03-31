@@ -6,6 +6,75 @@ import * as joint from 'jointjs';
 import * as dagre from 'dagre';
 
 // =============================================================
+// Constants
+// =============================================================
+
+// Colors
+const COLOR_NODE_BACKGROUND = '#ffffff';
+const COLOR_NODE_BORDER = '#adb5bd';
+const COLOR_LABEL = '#212529';
+const COLOR_DESCRIPTION = '#6c757d';
+const COLOR_EDGE_LINE = '#495057';
+const COLOR_EDGE_LABEL = '#333333';
+const COLOR_ACCENT = '#3498db';
+const COLOR_GRID_DOT = '#e9ecef';
+const COLOR_DIVIDER = '#dee2e6';
+const COLOR_EDGE_LABEL_BG = 'white';
+const OPACITY_EDGE_LABEL_BG = 0.9;
+
+// Default node sizes
+const NODE_DEFAULT_WIDTH = 140;
+const NODE_DEFAULT_HEIGHT = 50;
+const NODE_SQUARISH_SIZE = 80;
+const NODE_MIN_WIDTH = 140;
+const NODE_MIN_HEIGHT = 50;
+const NODE_MIN_SQUARISH_SIZE = 80;
+
+// Default image dimensions
+const IMAGE_DEFAULT_WIDTH = 32;
+const IMAGE_DEFAULT_HEIGHT = 32;
+
+// Font sizes
+const FONT_SIZE_LABEL = 13;
+const FONT_SIZE_DESCRIPTION = 11;
+const FONT_SIZE_EDGE_LABEL = 12;
+const FONT_SIZE_PERCENT_DEFAULT = 100;
+
+// UI measurements
+const PORT_RADIUS = 6;
+const PORT_STROKE_WIDTH = 2;
+const NODE_PADDING = 15;
+const IMAGE_SPACING = 10;
+const SELECTION_PADDING = 5;
+const SELECTION_STROKE_WIDTH = 3;
+const EDGE_REMOVE_DISTANCE = 20;
+const EDGE_ELBOW_PADDING = 20;
+const SNAP_RADIUS = 25;
+const ROUTER_PADDING = 30;
+const ROUTER_MAX_ITER = 200;
+const DUPLICATE_OFFSET = 40;
+const ZOOM_FIT_PADDING = 50;
+const SPIRAL_SEARCH_LIMIT = 30;
+
+// Polygon shape ratios
+const POLYGON_ASPECT_RATIO = 1.2;
+const TRIANGLE_SCALE = 1.25;
+
+// Zoom
+const ZOOM_MIN = 0.1;
+const ZOOM_MAX = 10;
+const ZOOM_IN_FACTOR = 1.25;
+const ZOOM_OUT_FACTOR = 0.8;
+const ZOOM_FIT_MIN_SCALE = 0.2;
+const ZOOM_FIT_MAX_SCALE = 2;
+const ZOOM_WHEEL_SENSITIVITY = 0.0015;
+
+// Timing (ms)
+const SIDEBAR_RESIZE_INTERVAL = 16;
+const SIDEBAR_ANIM_DURATION = 350;
+const BLOB_URL_REVOKE_DELAY = 1000;
+
+// =============================================================
 // Shared types
 // =============================================================
 
@@ -247,9 +316,9 @@ export class Edge extends EventBus {
 
   // headless backing fields
   private _label: string = '';
-  private _labelColor: string = '#333333';
-  private _labelFontSize: number = 100;
-  private _lineColor: string = '#495057';
+  private _labelColor: string = COLOR_EDGE_LABEL;
+  private _labelFontSize: number = FONT_SIZE_PERCENT_DEFAULT;
+  private _lineColor: string = COLOR_EDGE_LINE;
   private _lineWidth: number = 2;
   private _lineStyle: LineStyle = 'solid';
   private _sourceArrow: ArrowMarkerName = 'none';
@@ -307,7 +376,7 @@ export class Edge extends EventBus {
     if (!this.link) {
       return this._labelColor;
     }
-    return this.link.label(0)?.attrs?.text?.fill || '#333333';
+    return this.link.label(0)?.attrs?.text?.fill || COLOR_EDGE_LABEL;
   }
   public set labelColor(value: string) {
     this._labelColor = value;
@@ -322,7 +391,7 @@ export class Edge extends EventBus {
     if (!this.link) {
       return this._labelFontSize;
     }
-    return this.link.get('fontSizePercent') || 100;
+    return this.link.get('fontSizePercent') || FONT_SIZE_PERCENT_DEFAULT;
   }
   public set labelFontSize(value: number) {
     this._labelFontSize = value;
@@ -339,7 +408,7 @@ export class Edge extends EventBus {
     if (!this.link) {
       return this._lineColor;
     }
-    return this.link.attr('line/stroke') || '#495057';
+    return this.link.attr('line/stroke') || COLOR_EDGE_LINE;
   }
   public set lineColor(value: string) {
     this._lineColor = value;
@@ -441,7 +510,10 @@ export class Edge extends EventBus {
     if (this.link) {
       const gridSize = this.editor.gridSize;
       if (value === 'elbow') {
-        this.link.router('manhattan', { step: gridSize, padding: 20 });
+        this.link.router('manhattan', {
+          step: gridSize,
+          padding: EDGE_ELBOW_PADDING,
+        });
         this.link.connector('rounded');
       } else if (value === 'straight') {
         this.link.router('normal');
@@ -532,14 +604,17 @@ export class Edge extends EventBus {
   // private helpers
 
   private _applyLabel(text: string): void {
-    const fontSize = 12 * ((this.link.get('fontSizePercent') || 100) / 100);
-    const color = this.link.get('labelColor') || '#333333';
+    const fontSize =
+      FONT_SIZE_EDGE_LABEL *
+      ((this.link.get('fontSizePercent') || FONT_SIZE_PERCENT_DEFAULT) /
+        FONT_SIZE_PERCENT_DEFAULT);
+    const color = this.link.get('labelColor') || COLOR_EDGE_LABEL;
     if (text) {
       this.link.labels([
         {
           attrs: {
             text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' },
-            rect: { fill: 'white', opacity: 0.9 },
+            rect: { fill: COLOR_EDGE_LABEL_BG, opacity: OPACITY_EDGE_LABEL_BG },
           },
           position: { distance: 0.5 },
         },
@@ -598,16 +673,16 @@ export class DiagramNode extends EventBus {
   // headless backing fields
   private _headlessX?: number;
   private _headlessY?: number;
-  private _labelColor: string = '#212529';
-  private _labelFontSize: number = 100;
+  private _labelColor: string = COLOR_LABEL;
+  private _labelFontSize: number = FONT_SIZE_PERCENT_DEFAULT;
   private _description: string = '';
-  private _descriptionColor: string = '#6c757d';
-  private _backgroundColor: string = '#ffffff';
-  private _borderColor: string = '#adb5bd';
+  private _descriptionColor: string = COLOR_DESCRIPTION;
+  private _backgroundColor: string = COLOR_NODE_BACKGROUND;
+  private _borderColor: string = COLOR_NODE_BORDER;
   private _borderWidth: number = 2;
   private _imageUrl: string = '';
-  private _imageWidth: number = 32;
-  private _imageHeight: number = 32;
+  private _imageWidth: number = IMAGE_DEFAULT_WIDTH;
+  private _imageHeight: number = IMAGE_DEFAULT_HEIGHT;
 
   constructor(options: NodeOptions | string = {}) {
     super();
@@ -897,7 +972,7 @@ export class DiagramNode extends EventBus {
   public _buildCell(
     position: Point,
     jointNamespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     throw new Error('_buildCell must be implemented by subclass');
   }
@@ -1071,14 +1146,14 @@ export class RectangleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildRectangleCell(
       position,
       namespace,
       'rect',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       portRadius,
     );
     cell.set('nodeClass', 'RectangleNode');
@@ -1097,14 +1172,14 @@ export class SquareNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildRectangleCell(
       position,
       namespace,
       'square',
-      80,
-      80,
+      NODE_SQUARISH_SIZE,
+      NODE_SQUARISH_SIZE,
       portRadius,
     );
     cell.set('nodeClass', 'SquareNode');
@@ -1123,14 +1198,14 @@ export class EllipseNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildEllipseCell(
       position,
       namespace,
       'ellipse',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       portRadius,
     );
     cell.set('nodeClass', 'EllipseNode');
@@ -1149,14 +1224,14 @@ export class CircleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildEllipseCell(
       position,
       namespace,
       'circle',
-      80,
-      80,
+      NODE_SQUARISH_SIZE,
+      NODE_SQUARISH_SIZE,
       portRadius,
     );
     cell.set('nodeClass', 'CircleNode');
@@ -1175,14 +1250,14 @@ export class DiamondNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'diamond',
-      80,
-      80,
+      NODE_SQUARISH_SIZE,
+      NODE_SQUARISH_SIZE,
       [
         [0, 10],
         [10, 0],
@@ -1207,14 +1282,14 @@ export class TriangleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'triangle',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       [
         [10, 0],
         [20, 20],
@@ -1238,14 +1313,14 @@ export class HexagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'hexagon',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       [
         [5, 0],
         [15, 0],
@@ -1272,14 +1347,14 @@ export class PentagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'pentagon',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       [
         [10, 0],
         [20, 7],
@@ -1305,14 +1380,14 @@ export class OctagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = 6,
+    portRadius: number = PORT_RADIUS,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'octagon',
-      140,
-      50,
+      NODE_DEFAULT_WIDTH,
+      NODE_DEFAULT_HEIGHT,
       [
         [6, 0],
         [14, 0],
@@ -1347,15 +1422,15 @@ const SHARED_CELL_MARKUP = [
 const SHARED_CELL_ATTRS = {
   image: { display: 'none' },
   label: {
-    fill: '#212529',
-    fontSize: 13,
+    fill: COLOR_LABEL,
+    fontSize: FONT_SIZE_LABEL,
     fontWeight: 'bold',
     pointerEvents: 'none',
   },
   descriptionLabel: {
     text: '',
-    fill: '#6c757d',
-    fontSize: 11,
+    fill: COLOR_DESCRIPTION,
+    fontSize: FONT_SIZE_DESCRIPTION,
     pointerEvents: 'none',
   },
 };
@@ -1363,9 +1438,9 @@ const SHARED_CELL_ATTRS = {
 const SHARED_CELL_DEFAULTS = {
   description: '',
   imageUrl: '',
-  imageWidth: 32,
-  imageHeight: 32,
-  fontSizePercent: 100,
+  imageWidth: IMAGE_DEFAULT_WIDTH,
+  imageHeight: IMAGE_DEFAULT_HEIGHT,
+  fontSizePercent: FONT_SIZE_PERCENT_DEFAULT,
 };
 
 function _attachPortsToCell(
@@ -1379,10 +1454,10 @@ function _attachPortsToCell(
       attrs: {
         circle: {
           r: portRadius,
-          fill: '#3498db',
+          fill: COLOR_ACCENT,
           magnet: true,
-          stroke: '#fff',
-          strokeWidth: 2,
+          stroke: COLOR_NODE_BACKGROUND,
+          strokeWidth: PORT_STROKE_WIDTH,
           pointerEvents: 'all',
         },
         text: { display: 'none' },
@@ -1428,7 +1503,13 @@ function _buildRectangleCell(
   ];
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
-    body: { fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2, rx: 5, ry: 5 },
+    body: {
+      fill: COLOR_NODE_BACKGROUND,
+      stroke: COLOR_NODE_BORDER,
+      strokeWidth: 2,
+      rx: 5,
+      ry: 5,
+    },
     ...SHARED_CELL_ATTRS,
   });
   cell.set({ type: shapeType, ...SHARED_CELL_DEFAULTS });
@@ -1451,7 +1532,11 @@ function _buildEllipseCell(
   ];
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
-    body: { fill: '#ffffff', stroke: '#adb5bd', strokeWidth: 2 },
+    body: {
+      fill: COLOR_NODE_BACKGROUND,
+      stroke: COLOR_NODE_BORDER,
+      strokeWidth: 2,
+    },
     ...SHARED_CELL_ATTRS,
   });
   cell.set({ type: shapeType, ...SHARED_CELL_DEFAULTS });
@@ -1477,8 +1562,8 @@ function _buildPolygonCell(
   cell.attr({
     body: {
       refPoints: points.map((point) => point.join(',')).join(' '),
-      fill: '#ffffff',
-      stroke: '#adb5bd',
+      fill: COLOR_NODE_BACKGROUND,
+      stroke: COLOR_NODE_BORDER,
       strokeWidth: 2,
     },
     ...SHARED_CELL_ATTRS,
@@ -1774,8 +1859,8 @@ export class DiagramEditor extends EventBus {
       node instanceof SquareNode ||
       node instanceof CircleNode ||
       node instanceof DiamondNode;
-    const width = isSquarish ? 80 : 140;
-    const height = isSquarish ? 80 : 50;
+    const width = isSquarish ? NODE_SQUARISH_SIZE : NODE_DEFAULT_WIDTH;
+    const height = isSquarish ? NODE_SQUARISH_SIZE : NODE_DEFAULT_HEIGHT;
 
     const openPosition = this._findOpenPosition(
       localPosition.x - width / 2,
@@ -1784,7 +1869,7 @@ export class DiagramEditor extends EventBus {
       height,
     );
 
-    const portRadius = 6;
+    const portRadius = PORT_RADIUS;
     const cell = node._buildCell(openPosition, namespace, portRadius);
     cell.attr('label/text', node._label);
     const customLabel = (node.constructor as any).__nodeLabel;
@@ -1919,13 +2004,13 @@ export class DiagramEditor extends EventBus {
     return this;
   }
 
-  public zoomIn(factor: number = 1.25): this {
+  public zoomIn(factor: number = ZOOM_IN_FACTOR): this {
     if (!this._isHeadless) {
       this._zoomAtCenter(factor);
     }
     return this;
   }
-  public zoomOut(factor: number = 0.8): this {
+  public zoomOut(factor: number = ZOOM_OUT_FACTOR): this {
     if (!this._isHeadless) {
       this._zoomAtCenter(factor);
     }
@@ -1941,9 +2026,9 @@ export class DiagramEditor extends EventBus {
   public zoomToFit(): this {
     if (!this._isHeadless) {
       this._renderer.scaleContentToFit({
-        padding: 50,
-        minScale: 0.2,
-        maxScale: 2,
+        padding: ZOOM_FIT_PADDING,
+        minScale: ZOOM_FIT_MIN_SCALE,
+        maxScale: ZOOM_FIT_MAX_SCALE,
       });
     }
     return this;
@@ -2112,9 +2197,10 @@ export class DiagramEditor extends EventBus {
           sourcePort: headlessEdge.props.sourcePort ?? null,
           targetPort: headlessEdge.props.targetPort ?? null,
           label: headlessEdge.props.label ?? '',
-          labelColor: headlessEdge.props.labelColor ?? '#333333',
-          labelFontSize: headlessEdge.props.labelFontSize ?? 100,
-          lineColor: headlessEdge.props.lineColor ?? '#495057',
+          labelColor: headlessEdge.props.labelColor ?? COLOR_EDGE_LABEL,
+          labelFontSize:
+            headlessEdge.props.labelFontSize ?? FONT_SIZE_PERCENT_DEFAULT,
+          lineColor: headlessEdge.props.lineColor ?? COLOR_EDGE_LINE,
           lineWidth: headlessEdge.props.lineWidth ?? 2,
           lineStyle: headlessEdge.props.lineStyle ?? 'solid',
           sourceArrow: headlessEdge.props.sourceArrow ?? 'none',
@@ -2349,7 +2435,7 @@ export class DiagramEditor extends EventBus {
         continue;
       }
 
-      const portRadius = 6;
+      const portRadius = PORT_RADIUS;
       const position: Point = { x: nodeData.x ?? 0, y: nodeData.y ?? 0 };
       const cell = node._buildCell(position, joint.shapes, portRadius);
       cell.attr('label/text', node._label);
@@ -2534,8 +2620,8 @@ export class DiagramEditor extends EventBus {
     if (view) {
       view.el.classList.add('wf-selected');
       joint.highlighters.stroke.add(view, 'root', 'selection', {
-        padding: 5,
-        attrs: { stroke: '#3498db', 'stroke-width': 3 },
+        padding: SELECTION_PADDING,
+        attrs: { stroke: COLOR_ACCENT, 'stroke-width': SELECTION_STROKE_WIDTH },
       });
     }
 
@@ -2628,7 +2714,7 @@ export class DiagramEditor extends EventBus {
     const link = new joint.shapes.standard.Link({
       attrs: {
         line: {
-          stroke: '#495057',
+          stroke: COLOR_EDGE_LINE,
           strokeWidth: 2,
           targetMarker: ARROW_MARKERS.classic as any,
         },
@@ -2690,21 +2776,22 @@ export class DiagramEditor extends EventBus {
       return;
     }
 
-    const fontScale = (cell.get('fontSizePercent') || 100) / 100;
+    const fontScale =
+      (cell.get('fontSizePercent') || FONT_SIZE_PERCENT_DEFAULT) /
+      FONT_SIZE_PERCENT_DEFAULT;
     // TODO: Consolidate these sequential cell.attr() calls into a single call
     // to reduce JointJS change events and unnecessary reflows during load/resize.
     cell.attr({
-      label: { fontSize: 13 * fontScale },
-      descriptionLabel: { fontSize: 11 * fontScale },
+      label: { fontSize: FONT_SIZE_LABEL * fontScale },
+      descriptionLabel: { fontSize: FONT_SIZE_DESCRIPTION * fontScale },
     });
 
     const imageUrl: string = cell.get('imageUrl');
     const shapeType: ShapeType = cell.get('type');
     const descriptionText: string = cell.attr('descriptionLabel/text') || '';
-    const imageWidth: number = cell.get('imageWidth') || 32;
-    const imageHeight: number = cell.get('imageHeight') || 32;
-    const padding = 15;
-    const imageSpacing = imageUrl ? 10 : 0;
+    const imageWidth: number = cell.get('imageWidth') || IMAGE_DEFAULT_WIDTH;
+    const imageHeight: number = cell.get('imageHeight') || IMAGE_DEFAULT_HEIGHT;
+    const imageSpacing = imageUrl ? IMAGE_SPACING : 0;
 
     const labelBBox = labelElement.getBBox();
     const descriptionBBox = descriptionElement.getBBox();
@@ -2712,28 +2799,33 @@ export class DiagramEditor extends EventBus {
     const totalContentWidth =
       (imageUrl ? imageWidth : 0) + imageSpacing + textWidth;
 
-    let width = Math.max(140, padding + totalContentWidth + padding);
+    let width = Math.max(
+      NODE_MIN_WIDTH,
+      NODE_PADDING + totalContentWidth + NODE_PADDING,
+    );
     const totalTextHeight = descriptionText
       ? labelBBox.height + descriptionBBox.height
       : labelBBox.height;
     let height = Math.max(
-      50,
-      padding + Math.max(imageUrl ? imageHeight : 0, totalTextHeight) + padding,
+      NODE_MIN_HEIGHT,
+      NODE_PADDING +
+        Math.max(imageUrl ? imageHeight : 0, totalTextHeight) +
+        NODE_PADDING,
     );
 
     if (shapeType === 'diamond' || shapeType === 'circle') {
-      width = height = Math.max(width, height);
+      width = height = Math.max(width, height, NODE_MIN_SQUARISH_SIZE);
     } else if (
       ['triangle', 'hexagon', 'pentagon', 'octagon'].includes(shapeType)
     ) {
-      if (width / height > 1.2) {
-        height = width / 1.2;
+      if (width / height > POLYGON_ASPECT_RATIO) {
+        height = width / POLYGON_ASPECT_RATIO;
       } else {
-        width = height * 1.2;
+        width = height * POLYGON_ASPECT_RATIO;
       }
       if (shapeType === 'triangle') {
-        width *= 1.25;
-        height *= 1.25;
+        width *= TRIANGLE_SCALE;
+        height *= TRIANGLE_SCALE;
       }
     }
 
@@ -3116,13 +3208,17 @@ export class DiagramEditor extends EventBus {
       width: '100%',
       height: '100%',
       gridSize: this.gridSize,
-      drawGrid: { name: 'dot', color: '#e9ecef' },
-      background: { color: '#ffffff' },
+      drawGrid: { name: 'dot', color: COLOR_GRID_DOT },
+      background: { color: COLOR_NODE_BACKGROUND },
       cellNamespace: joint.shapes,
       defaultConnector: { name: 'rounded' },
       defaultRouter: {
         name: 'manhattan',
-        args: { step: this.gridSize, padding: 30, maxIter: 200 },
+        args: {
+          step: this.gridSize,
+          padding: ROUTER_PADDING,
+          maxIter: ROUTER_MAX_ITER,
+        },
       },
       interactive: {
         linkMove: true,
@@ -3132,13 +3228,13 @@ export class DiagramEditor extends EventBus {
       },
       preventDefaultBlankAction: false,
       linkPinning: false,
-      snapLinks: { radius: 25 },
+      snapLinks: { radius: SNAP_RADIUS },
       markAvailable: true,
       defaultLink: () =>
         new joint.shapes.standard.Link({
           attrs: {
             line: {
-              stroke: '#495057',
+              stroke: COLOR_EDGE_LINE,
               strokeWidth: 2,
               targetMarker: ARROW_MARKERS.classic as any,
             },
@@ -3185,7 +3281,7 @@ export class DiagramEditor extends EventBus {
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY);
       } catch (error: any) {
         alert('Export failed: ' + error.message);
       }
@@ -3233,7 +3329,7 @@ export class DiagramEditor extends EventBus {
         event.preventDefault();
         if (event.ctrlKey) {
           this._zoomAtPoint(
-            Math.exp(-event.deltaY * 0.0015),
+            Math.exp(-event.deltaY * ZOOM_WHEEL_SENSITIVITY),
             event.clientX,
             event.clientY,
           );
@@ -3328,12 +3424,12 @@ export class DiagramEditor extends EventBus {
         // Refactor to call addNode() with the computed drop coordinates instead.
         const node = new NodeClass();
         const openPosition = this._findOpenPosition(
-          dropPosition.x - 70,
-          dropPosition.y - 25,
-          140,
-          50,
+          dropPosition.x - NODE_DEFAULT_WIDTH / 2,
+          dropPosition.y - NODE_DEFAULT_HEIGHT / 2,
+          NODE_DEFAULT_WIDTH,
+          NODE_DEFAULT_HEIGHT,
         );
-        const portRadius = 6;
+        const portRadius = PORT_RADIUS;
         const cell = node._buildCell(openPosition, joint.shapes, portRadius);
         cell.attr('label/text', node._label);
         node.cell = cell;
@@ -3391,8 +3487,8 @@ export class DiagramEditor extends EventBus {
       // custom-node drop path above. Refactor to call addNode() with drop coordinates.
       const node = new match.cls({ label: label.toUpperCase() });
       const isSquarish = ['square', 'circle', 'diamond'].includes(droppedType);
-      const width = isSquarish ? 80 : 140;
-      const height = isSquarish ? 80 : 50;
+      const width = isSquarish ? NODE_SQUARISH_SIZE : NODE_DEFAULT_WIDTH;
+      const height = isSquarish ? NODE_SQUARISH_SIZE : NODE_DEFAULT_HEIGHT;
 
       const openPosition = this._findOpenPosition(
         dropPosition.x - width / 2,
@@ -3400,8 +3496,8 @@ export class DiagramEditor extends EventBus {
         width,
         height,
       );
-      const portRadius = 6;
-      const cell = node._buildCell(openPosition, joint.shapes);
+      const portRadius = PORT_RADIUS;
+      const cell = node._buildCell(openPosition, joint.shapes, portRadius);
       cell.attr('label/text', node._label);
       node.cell = cell;
       node.editor = this;
@@ -3540,10 +3636,10 @@ export class DiagramEditor extends EventBus {
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
       tagName: 'circle',
       attributes: {
-        r: 6,
-        fill: '#3498db',
-        stroke: '#fff',
-        'stroke-width': 2,
+        r: PORT_RADIUS,
+        fill: COLOR_ACCENT,
+        stroke: COLOR_NODE_BACKGROUND,
+        'stroke-width': PORT_STROKE_WIDTH,
         cursor: 'move',
       },
     });
@@ -3621,7 +3717,7 @@ export class DiagramEditor extends EventBus {
             new joint.linkTools.Vertices(),
             new CustomSourceArrowhead(),
             new joint.linkTools.TargetArrowhead({ offset: -1 }),
-            new joint.linkTools.Remove({ distance: 20 }),
+            new joint.linkTools.Remove({ distance: EDGE_REMOVE_DISTANCE }),
           ],
         }),
       );
@@ -3854,8 +3950,8 @@ export class DiagramEditor extends EventBus {
             event.preventDefault();
             const bbox = this._clipboard.cell.getBBox();
             const openPosition = this._findOpenPosition(
-              bbox.x + 40,
-              bbox.y + 40,
+              bbox.x + DUPLICATE_OFFSET,
+              bbox.y + DUPLICATE_OFFSET,
               bbox.width,
               bbox.height,
             );
@@ -3981,9 +4077,9 @@ export class DiagramEditor extends EventBus {
           const touch1 = event.touches[0];
           const touch2 = event.touches[1];
           const newScale = Math.max(
-            0.1,
+            ZOOM_MIN,
             Math.min(
-              10,
+              ZOOM_MAX,
               (state.initialScale! * this._touchDistance(touch1, touch2)) /
                 state.initialDistance!,
             ),
@@ -4102,7 +4198,7 @@ export class DiagramEditor extends EventBus {
 
     const customSection = this._makeElement('div', 'wf-custom-props');
     const divider = customSection.appendChild(this._makeElement('div'));
-    divider.style.cssText = 'border-top:1px solid #dee2e6; margin:4px 0;';
+    divider.style.cssText = `border-top:1px solid ${COLOR_DIVIDER}; margin:4px 0;`;
 
     Object.entries(schema).forEach(([key, fieldDef]) => {
       const fieldDefinition = fieldDef as FieldDefinition;
@@ -4263,8 +4359,8 @@ export class DiagramEditor extends EventBus {
       const area = this._canvasArea;
       this._renderer.setDimensions(area.clientWidth, area.clientHeight);
       this._renderer.translate(previousTranslation.tx, previousTranslation.ty);
-    }, 16);
-    setTimeout(() => clearInterval(interval), 350);
+    }, SIDEBAR_RESIZE_INTERVAL);
+    setTimeout(() => clearInterval(interval), SIDEBAR_ANIM_DURATION);
 
     this._updateMobileButtonVisibility();
   }
@@ -4292,8 +4388,8 @@ export class DiagramEditor extends EventBus {
       const area = this._canvasArea;
       this._renderer.setDimensions(area.clientWidth, area.clientHeight);
       this._renderer.translate(previousTranslation.tx, previousTranslation.ty);
-    }, 16);
-    setTimeout(() => clearInterval(interval), 350);
+    }, SIDEBAR_RESIZE_INTERVAL);
+    setTimeout(() => clearInterval(interval), SIDEBAR_ANIM_DURATION);
     this._updateMobileButtonVisibility();
   }
 
@@ -4303,8 +4399,8 @@ export class DiagramEditor extends EventBus {
     }
     const bbox = this._selection.cell.getBBox();
     const openPosition = this._findOpenPosition(
-      bbox.x + 40,
-      bbox.y + 40,
+      bbox.x + DUPLICATE_OFFSET,
+      bbox.y + DUPLICATE_OFFSET,
       bbox.width,
       bbox.height,
     );
@@ -4523,7 +4619,10 @@ export class DiagramEditor extends EventBus {
 
   private _zoomAtPoint(factor: number, clientX: number, clientY: number): void {
     const currentScale: number = this._renderer.scale().sx;
-    const newScale = Math.max(0.1, Math.min(10, currentScale * factor));
+    const newScale = Math.max(
+      ZOOM_MIN,
+      Math.min(ZOOM_MAX, currentScale * factor),
+    );
     const rect = this._renderer.el.getBoundingClientRect();
     const viewportX = clientX - rect.left;
     const viewportY = clientY - rect.top;
@@ -4575,7 +4674,7 @@ export class DiagramEditor extends EventBus {
       return { x, y };
     }
 
-    for (let radius = 1; radius < 30; radius++) {
+    for (let radius = 1; radius < SPIRAL_SEARCH_LIMIT; radius++) {
       for (let deltaX = -radius; deltaX <= radius; deltaX++) {
         for (let deltaY = -radius; deltaY <= radius; deltaY++) {
           if (Math.abs(deltaX) !== radius && Math.abs(deltaY) !== radius) {
