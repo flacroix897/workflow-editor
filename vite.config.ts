@@ -32,6 +32,7 @@ export default defineConfig(
     ? {
         // ── Library build ──────────────────────────────────────────
         build: {
+          emptyOutDir: false,
           outDir: 'dist/',
           sourcemap: true,
           minify: 'terser',
@@ -51,6 +52,7 @@ export default defineConfig(
         root: 'src',
         plugins: [viteSingleFile()],
         build: {
+          emptyOutDir: false,
           minify: 'terser',
           terserOptions,
           outDir: '../dist',

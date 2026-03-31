@@ -53,6 +53,7 @@
         const start = await editor.addNode(new EllipseNode({ label: "START" }));
         const process = await editor.addNode(new RectangleNode({ label: "PROCESS" }));
         const task = await editor.addNode(new TaskNode({ label: "My Task", assignee: "Alice", effort: 3 }));
+
         start.connectTo(process);
         process.connectTo(task);
         task.connectTo(start);
