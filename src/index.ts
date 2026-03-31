@@ -83,6 +83,8 @@ export interface SerializedEdge {
   vertices: Point[];
 }
 
+// TODO: Replace ad-hoc __schema, __defaultOptions, __baseClass, __visibleProps,
+// __nodeLabel, __nodeName constructor stamps with a typed TypeRegistry map.
 export type SerializedNodeType =
   | string
   | {
@@ -1019,6 +1021,8 @@ export type BuiltInNodeProp =
     }
   }
 
+  // TODO: Replace these ad-hoc constructor stamps with a typed TypeRegistry map
+  // keyed by nodeClass string to avoid (cls as any).__x casts throughout the codebase.
   (CustomNode as any).__defaultOptions = defaultOptions;
   (CustomNode as any).__schema = schema;
   (CustomNode as any).__baseClass = (BaseNodeClass as any).nodeClass;
@@ -1537,6 +1541,7 @@ export class DiagramEditor extends EventBus {
   private _noSelectionMessage!: HTMLElement;
 
   // private JointJS objects
+  // TODO: Replace `any` with specific internal interfaces for JointJS graph and paper.
   private _graph!: any;
   private _renderer!: any;
 
@@ -1700,6 +1705,7 @@ export class DiagramEditor extends EventBus {
       );
     }
 
+    // TODO: Replace these ad-hoc constructor stamps with a typed TypeRegistry map.
     (NodeClass as any).__nodeLabel = label;
     (NodeClass as any).__nodeName = displayName;
     if (!Object.prototype.hasOwnProperty.call(NodeClass, 'nodeClass')) {
@@ -1828,6 +1834,10 @@ export class DiagramEditor extends EventBus {
     return ready;
   }
 
+  // TODO: Add a public destroy() method that removes all window/document event
+  // listeners, calls graph.clear() and paper.remove(), and clears _nodeMap and _edgeMap.
+  // The Angular component's ngOnDestroy should delegate to this instead of clearing innerHTML.
+
   public clear(): this {
     if (!this._isHeadless) {
       this._deselectAll();
@@ -1849,6 +1859,8 @@ export class DiagramEditor extends EventBus {
   }
 
   public removeNode(node: DiagramNode): void {
+    // TODO: Cache the id before removal — node.id reads from cell?.id, which
+    // returns null after cell.remove(), causing _nodeMap.delete(null) to silently fail.
     node.remove();
     this._nodeMap.delete(node.id ?? (node as any)._headlessId);
     this.emit('node:remove', node);
@@ -1943,6 +1955,9 @@ export class DiagramEditor extends EventBus {
     }
     return this;
   }
+
+  // TODO: Add a public batchUpdate(fn: () => void) method wrapping
+  // graph.startBatch / graph.stopBatch for callers applying bulk mutations.
 
   public autoArrange(): this {
     if (this._isHeadless) {
@@ -2160,6 +2175,8 @@ export class DiagramEditor extends EventBus {
   }
 
   public async deserialize(json: string | SerializedDiagram): Promise<this> {
+    // TODO: Wrap JSON.parse in a try/catch and re-throw as a descriptive Error
+    // to align with the UnknownNodeTypeError pattern — a raw SyntaxError gives no context.
     const {
       nodes: nodeDataList,
       edges: edgeDataList,
@@ -2466,6 +2483,7 @@ export class DiagramEditor extends EventBus {
 
   // ── Internal methods ──────────────────────────────────────────
 
+  // TODO: Replace `any` with specific internal interfaces for JointJS view and model types.
   public _selectItem(item: DiagramNode | Edge): void {
     if (this._isHeadless) {
       return;
@@ -2623,6 +2641,8 @@ export class DiagramEditor extends EventBus {
     }
 
     const fontScale = (cell.get('fontSizePercent') || 100) / 100;
+    // TODO: Consolidate these sequential cell.attr() calls into a single call
+    // to reduce JointJS change events and unnecessary reflows during load/resize.
     cell.attr({
       label: { fontSize: 13 * fontScale },
       descriptionLabel: { fontSize: 11 * fontScale },
@@ -2674,6 +2694,8 @@ export class DiagramEditor extends EventBus {
       imageSpacing +
       textWidth / 2;
 
+    // TODO: Merge image, label, and descriptionLabel attr updates into a single
+    // cell.attr({}) call below to avoid triggering multiple JointJS change events.
     cell.attr('image', {
       refX: 0,
       refX2: contentStartX,
@@ -3072,6 +3094,7 @@ export class DiagramEditor extends EventBus {
             },
           },
         }),
+      // TODO: Replace `any` with specific internal interfaces for JointJS view types.
       validateConnection: (
         sourceView: any,
         sourceMagnet: any,
@@ -3162,6 +3185,8 @@ export class DiagramEditor extends EventBus {
           );
         } else {
           const translation = this._renderer.translate();
+          // TODO: Wrap this translate call in requestAnimationFrame (with a dirty flag)
+          // to sync panning with the display refresh rate on large diagrams.
           this._renderer.translate(
             translation.tx - event.deltaX,
             translation.ty - event.deltaY,
@@ -3184,6 +3209,8 @@ export class DiagramEditor extends EventBus {
       this._contextMenu.style.display = 'none';
     });
 
+    // TODO: Store this handler reference so destroy() can remove it via
+    // window.removeEventListener — currently leaks on teardown.
     window.addEventListener('click', (event) => {
       if (!(event.target as Element).closest('.wf-context-menu')) {
         this._contextMenu.style.display = 'none';
@@ -3445,6 +3472,7 @@ export class DiagramEditor extends EventBus {
       },
     });
 
+    // TODO: Replace `any` with specific internal interfaces for JointJS view and event types.
     this._renderer.on(
       'element:pointerdown',
       (view: any, event: PointerEvent) => {
@@ -3575,6 +3603,11 @@ export class DiagramEditor extends EventBus {
         return;
       }
 
+      // TODO: Wrap translate in requestAnimationFrame (with a dirty flag) to sync
+      // panning with the display refresh rate on large diagrams.
+      // TODO: Store onMove/onUp references so destroy() can remove them via
+      // document.removeEventListener — currently leaks if the editor is torn down
+      // while a pan gesture is in progress.
       const onMove = (moveEvent: MouseEvent) =>
         this._renderer.translate(
           initialTranslation.tx + (moveEvent.clientX - startX),
@@ -3879,6 +3912,9 @@ export class DiagramEditor extends EventBus {
           const rect = this._renderer.el.getBoundingClientRect();
           const viewportX = midpoint.x - rect.left;
           const viewportY = midpoint.y - rect.top;
+          // TODO: originX/Y should divide by the renderer's current scale at the time
+          // of this move event, not state.initialScale — if the gesture starts while
+          // the canvas is already mid-zoom the origin is wrong and the content jumps.
           const originX =
             (viewportX - state.initialTranslation!.tx) / state.initialScale!;
           const originY =
@@ -4424,6 +4460,8 @@ export class DiagramEditor extends EventBus {
     );
   }
 
+  // TODO: Snapshot element bboxes before the spiral loop to avoid calling
+  // graph.getElements() on every candidate position check — currently O(N) per candidate.
   private _findOpenPosition(
     startX: number,
     startY: number,
