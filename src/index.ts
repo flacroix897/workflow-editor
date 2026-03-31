@@ -35,7 +35,14 @@ export interface ArrowMarker {
 
 export interface FieldDefinition {
   label?: string;
-  type?: 'text' | 'number' | 'textarea' | 'boolean' | 'choice' | 'color' | 'object';
+  type?:
+    | 'text'
+    | 'number'
+    | 'textarea'
+    | 'boolean'
+    | 'choice'
+    | 'color'
+    | 'object';
   default?: any;
   choices?: Record<string, string>;
   min?: number;
@@ -583,7 +590,6 @@ export class DiagramNode extends EventBus {
   public editor: DiagramEditor | null;
   public schema: Schema;
   public customProps: Record<string, any>;
-  public renderFn: ((node: DiagramNode) => void) | null;
   public _defaultOptions?: NodeOptions;
   [key: `_init_${string}`]: any;
 
@@ -609,7 +615,6 @@ export class DiagramNode extends EventBus {
     this.editor = null;
     this.schema = {};
     this.customProps = {};
-    this.renderFn = null;
   }
 
   // custom properties
@@ -621,9 +626,6 @@ export class DiagramNode extends EventBus {
   public setCustomProperty(key: string, value: any): void {
     this.customProps[key] = value;
     this.cell?.set(`custom_${key}`, value);
-    if (this.renderFn) {
-      this.renderFn(this);
-    }
     this.emit('change', this);
   }
 
@@ -919,7 +921,6 @@ export type NodeConstructor = new (options?: NodeOptions) => DiagramNode;
 export interface DefineOptions {
   defaults?: NodeOptions;
   schema?: Schema;
-  renderFn?: ((node: DiagramNode) => void) | null;
   visibleProps?: BuiltInNodeProp[];
 }
 
@@ -941,7 +942,6 @@ export type BuiltInNodeProp =
 ): NodeConstructor {
   const defaultOptions: NodeOptions = options.defaults ?? {};
   const schema: Schema = options.schema ?? {};
-  const renderFn: ((node: DiagramNode) => void) | null = options.renderFn ?? null;
   const visibleProps: BuiltInNodeProp[] | undefined = options.visibleProps;
 
   class CustomNode extends (BaseNodeClass as any) {
@@ -949,7 +949,6 @@ export type BuiltInNodeProp =
       super();
       this.schema = schema;
       this.customProps = {};
-      this.renderFn = renderFn;
       this._defaultOptions = defaultOptions;
 
       const merged: NodeOptions = { ...defaultOptions, ...options };
@@ -985,7 +984,11 @@ export type BuiltInNodeProp =
       // Pass 2: fire onChange for each prop after all are initialized
       Object.entries(schema).forEach(([key, fieldDef]) => {
         const fd = fieldDef as FieldDefinition;
-        fd.onChange?.(this as unknown as DiagramNode, this.customProps[key], undefined);
+        fd.onChange?.(
+          this as unknown as DiagramNode,
+          this.customProps[key],
+          undefined,
+        );
       });
     }
 
@@ -995,7 +998,6 @@ export type BuiltInNodeProp =
 
     setCustomProperty(key: string, value: any): void {
       if (!(key in this.schema)) {
-        // silently ignore — may be called before schema is fully initialized
         return;
       }
       const fieldDef = this.schema[key] as FieldDefinition;
@@ -1003,9 +1005,6 @@ export type BuiltInNodeProp =
       this.customProps[key] = value;
       if (fieldDef.type !== 'object') {
         this.cell?.set(`custom_${key}`, value);
-      }
-      if (this.renderFn) {
-        this.renderFn(this as unknown as DiagramNode);
       }
       fieldDef.onChange?.(this as unknown as DiagramNode, value, oldValue);
       this.emit('change', this);
@@ -1020,7 +1019,6 @@ export type BuiltInNodeProp =
     }
   }
 
-  (CustomNode as any).__renderFn = renderFn;
   (CustomNode as any).__defaultOptions = defaultOptions;
   (CustomNode as any).__schema = schema;
   (CustomNode as any).__baseClass = (BaseNodeClass as any).nodeClass;
@@ -1805,14 +1803,17 @@ export class DiagramEditor extends EventBus {
     const ready = (async () => {
       await this._waitForRender(cell);
       await this._resizeNodeAsync(cell);
-      if (node.renderFn) {
-        node.renderFn(node);
-      }
+
       // Fire onChange for all custom props after cell is attached and
       // builtIns are applied, so onChange always wins over defaults
       Object.entries(node.schema as Schema).forEach(([key, fieldDef]) => {
-        (fieldDef as FieldDefinition).onChange?.(node, node.customProps[key], undefined);
+        (fieldDef as FieldDefinition).onChange?.(
+          node,
+          node.customProps[key],
+          undefined,
+        );
       });
+
       await this._waitForRender(cell);
       node.on('change', (changedNode: DiagramNode) =>
         this.emit('node:change', changedNode),
@@ -2003,7 +2004,12 @@ export class DiagramEditor extends EventBus {
         // Strip function fields — they live in code and must never be written into JSON
         const safeSchema: Schema = Object.fromEntries(
           Object.entries(schema as Schema).map(([key, fieldDef]) => {
-            const { serialize: _s, deserialize: _d, onChange: _o, ...rest } = fieldDef as FieldDefinition;
+            const {
+              serialize: _s,
+              deserialize: _d,
+              onChange: _o,
+              ...rest
+            } = fieldDef as FieldDefinition;
             return [key, rest];
           }),
         );
@@ -2014,7 +2020,9 @@ export class DiagramEditor extends EventBus {
           baseClass: (cls as any).__baseClass,
           defaultOptions: (cls as any).__defaultOptions ?? {},
           schema: safeSchema,
-          ...(visibleProps !== null && visibleProps !== undefined ? { visibleProps } : {}),
+          ...(visibleProps !== null && visibleProps !== undefined
+            ? { visibleProps }
+            : {}),
         };
       }
       return nodeClass as string;
@@ -2048,7 +2056,9 @@ export class DiagramEditor extends EventBus {
           },
           customProps: Object.fromEntries(
             Object.entries(node.customProps).map(([k, v]) => {
-              const fieldDef = (node.schema as Schema)[k] as FieldDefinition | undefined;
+              const fieldDef = (node.schema as Schema)[k] as
+                | FieldDefinition
+                | undefined;
               return [k, fieldDef?.serialize ? fieldDef.serialize(v, node) : v];
             }),
           ),
@@ -2099,7 +2109,9 @@ export class DiagramEditor extends EventBus {
       },
       customProps: Object.fromEntries(
         Object.entries(node.customProps).map(([k, v]) => {
-          const fieldDef = (node.schema as Schema)[k] as FieldDefinition | undefined;
+          const fieldDef = (node.schema as Schema)[k] as
+            | FieldDefinition
+            | undefined;
           return [k, fieldDef?.serialize ? fieldDef.serialize(v, node) : v];
         }),
       ),
@@ -2260,7 +2272,9 @@ export class DiagramEditor extends EventBus {
         Object.entries(n.schema as Schema).forEach(([key, fieldDef]) => {
           const fd = fieldDef as FieldDefinition;
           if (!(key in raw)) return;
-          const liveValue = fd.deserialize ? fd.deserialize(raw[key], n) : raw[key];
+          const liveValue = fd.deserialize
+            ? fd.deserialize(raw[key], n)
+            : raw[key];
           n.customProps[key] = liveValue;
         });
         Object.entries(n.schema as Schema).forEach(([key, fieldDef]) => {
@@ -2331,12 +2345,13 @@ export class DiagramEditor extends EventBus {
       );
       this._renderer.updateViews();
 
-      if (node.renderFn) {
-        node.renderFn(node);
-      }
       // Fire onChange after cell is attached and builtIns applied
       Object.entries(node.schema as Schema).forEach(([key, fieldDef]) => {
-        (fieldDef as FieldDefinition).onChange?.(node, node.customProps[key], undefined);
+        (fieldDef as FieldDefinition).onChange?.(
+          node,
+          node.customProps[key],
+          undefined,
+        );
       });
 
       node.on('change', (n: DiagramNode) => this.emit('node:change', n));
@@ -3248,11 +3263,12 @@ export class DiagramEditor extends EventBus {
         (async () => {
           await this._waitForRender(cell);
           await this._resizeNodeAsync(cell);
-          if (node.renderFn) {
-            node.renderFn(node);
-          }
           Object.entries(node.schema as Schema).forEach(([key, fieldDef]) => {
-            (fieldDef as FieldDefinition).onChange?.(node, node.customProps[key], undefined);
+            (fieldDef as FieldDefinition).onChange?.(
+              node,
+              node.customProps[key],
+              undefined,
+            );
           });
           await this._waitForRender(cell);
           node.on('change', (n: DiagramNode) => this.emit('node:change', n));
@@ -3974,7 +3990,10 @@ export class DiagramEditor extends EventBus {
 
     Object.entries(schema).forEach(([key, fieldDef]) => {
       const fieldDefinition = fieldDef as FieldDefinition;
-      if (fieldDefinition.visible === false || fieldDefinition.type === 'object') {
+      if (
+        fieldDefinition.visible === false ||
+        fieldDefinition.type === 'object'
+      ) {
         return;
       }
 
@@ -4313,8 +4332,16 @@ export class DiagramEditor extends EventBus {
       const sourceAvoid = getUsedTargetPortIds(sourceCell);
       const targetAvoid = getUsedSourcePortIds(targetCell);
 
-      const bestSourcePort = getBestPortFacing(sourceCell, targetCenter, sourceAvoid);
-      const bestTargetPort = getBestPortFacing(targetCell, sourceCenter, targetAvoid);
+      const bestSourcePort = getBestPortFacing(
+        sourceCell,
+        targetCenter,
+        sourceAvoid,
+      );
+      const bestTargetPort = getBestPortFacing(
+        targetCell,
+        sourceCenter,
+        targetAvoid,
+      );
 
       if (link.source().port !== bestSourcePort) {
         link.source({ id: sourceCell.id, port: bestSourcePort });
