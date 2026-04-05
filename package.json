@@ -44,13 +44,14 @@
     "start": "vite",
     "dev": "nodemon",
     "clean": "rm -Rf dist/",
+    "clean:all": "npm run clean ; find . -name node_modules -exec rm -Rf {} \\; ; find . -name package-lock.json -exec rm -f {} \\;",
     "install:all": "npm install && cd lib/angular/ && npm install",
     "ci:all": "npm ci && cd lib/angular/ && npm ci",
-    "clean:all": "npm run clean ; find . -name node_modules -exec rm -Rf {} \\; ; find . -name package-lock.json -exec rm -f {} \\;",
-    "build:app": "vite build && cp -f README.md dist/",
-    "build:lib": "BUILD_TARGET=lib vite build && tsc --project tsconfig.lib.json && cp -f src/index.css dist/ && cp -f package.json dist/",
+    "build:app": "vite build",
+    "build:lib": "BUILD_TARGET=lib vite build && tsc --project tsconfig.lib.json && cp -f src/index.css dist/",
     "build:angular": "cd lib/angular/ && npm run build",
-    "build": "npm run build:lib && npm run build:app && npm run build:angular"
+    "build:info": "cp -f README.md dist/ && cp -f package.json dist/",
+    "build": "npm run build:lib && npm run build:app && npm run build:angular && npm run build:info"
   },
   "dependencies": {
     "dagre": "^0.8.5",

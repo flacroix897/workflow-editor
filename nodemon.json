@@ -1,6 +1,8 @@
 {
-  "watch": ["src", "lib"],
+  "watch": [
+    "src"
+  ],
   "ext": "*",
-  "exec": "npm run build",
+  "exec": "npm run build:app -- --emptyOutDir",
   "args": []
 }
