@@ -1,4 +1,4 @@
-import * as config from './config';
+import { config } from './config';
 import { _buildPolygonCell } from './internals';
 import { _buildEllipseCell } from './internals';
 import { _buildRectangleCell } from './internals';
@@ -20,14 +20,14 @@ export class RectangleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildRectangleCell(
       position,
       namespace,
       'rect',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       portRadius,
     );
     cell.set('nodeClass', 'RectangleNode');
@@ -45,14 +45,14 @@ export class SquareNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildRectangleCell(
       position,
       namespace,
       'square',
-      config.NODE_SQUARISH_SIZE,
-      config.NODE_SQUARISH_SIZE,
+      config.node_sizes.squarish_size,
+      config.node_sizes.squarish_size,
       portRadius,
     );
     cell.set('nodeClass', 'SquareNode');
@@ -70,14 +70,14 @@ export class EllipseNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildEllipseCell(
       position,
       namespace,
       'ellipse',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       portRadius,
     );
     cell.set('nodeClass', 'EllipseNode');
@@ -95,14 +95,14 @@ export class CircleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildEllipseCell(
       position,
       namespace,
       'circle',
-      config.NODE_SQUARISH_SIZE,
-      config.NODE_SQUARISH_SIZE,
+      config.node_sizes.squarish_size,
+      config.node_sizes.squarish_size,
       portRadius,
     );
     cell.set('nodeClass', 'CircleNode');
@@ -120,14 +120,14 @@ export class DiamondNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'diamond',
-      config.NODE_SQUARISH_SIZE,
-      config.NODE_SQUARISH_SIZE,
+      config.node_sizes.squarish_size,
+      config.node_sizes.squarish_size,
       [
         [0, 10],
         [10, 0],
@@ -151,14 +151,14 @@ export class TriangleNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'triangle',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       [
         [10, 0],
         [20, 20],
@@ -181,14 +181,14 @@ export class HexagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'hexagon',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       [
         [5, 0],
         [15, 0],
@@ -214,14 +214,14 @@ export class PentagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'pentagon',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       [
         [10, 0],
         [20, 7],
@@ -246,14 +246,14 @@ export class OctagonNode extends DiagramNode {
   public _buildCell(
     position: Point,
     namespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     const cell = _buildPolygonCell(
       position,
       namespace,
       'octagon',
-      config.NODE_DEFAULT_WIDTH,
-      config.NODE_DEFAULT_HEIGHT,
+      config.node_sizes.default_width,
+      config.node_sizes.default_height,
       [
         [6, 0],
         [14, 0],

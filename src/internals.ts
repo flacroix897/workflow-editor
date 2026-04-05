@@ -1,4 +1,4 @@
-import * as config from './config';
+import { config } from './config';
 import { Point } from './types';
 
 export function _attachPortsToCell(
@@ -12,10 +12,10 @@ export function _attachPortsToCell(
       attrs: {
         circle: {
           r: portRadius,
-          fill: config.COLOR_ACCENT,
+          fill: config.colors.accent,
           magnet: true,
-          stroke: config.COLOR_NODE_BACKGROUND,
-          strokeWidth: config.PORT_STROKE_WIDTH,
+          stroke: config.colors.node_background,
+          strokeWidth: config.ui_measurements.port_stroke_width,
           pointerEvents: 'all',
         },
         text: { display: 'none' },
@@ -61,8 +61,8 @@ export function _buildRectangleCell(
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
     body: {
-      fill: config.COLOR_NODE_BACKGROUND,
-      stroke: config.COLOR_NODE_BORDER,
+      fill: config.colors.node_background,
+      stroke: config.colors.node_border,
       strokeWidth: 2,
       rx: 5,
       ry: 5,
@@ -89,8 +89,8 @@ export function _buildEllipseCell(
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
     body: {
-      fill: config.COLOR_NODE_BACKGROUND,
-      stroke: config.COLOR_NODE_BORDER,
+      fill: config.colors.node_background,
+      stroke: config.colors.node_border,
       strokeWidth: 2,
     },
     ...SHARED_CELL_ATTRS,
@@ -117,8 +117,8 @@ export function _buildPolygonCell(
   cell.attr({
     body: {
       refPoints: points.map((point) => point.join(',')).join(' '),
-      fill: config.COLOR_NODE_BACKGROUND,
-      stroke: config.COLOR_NODE_BORDER,
+      fill: config.colors.node_background,
+      stroke: config.colors.node_border,
       strokeWidth: 2,
     },
     ...SHARED_CELL_ATTRS,
@@ -130,22 +130,22 @@ export function _buildPolygonCell(
 export const SHARED_CELL_DEFAULTS = {
   description: '',
   imageUrl: '',
-  imageWidth: config.IMAGE_DEFAULT_WIDTH,
-  imageHeight: config.IMAGE_DEFAULT_HEIGHT,
-  fontSizePercent: config.FONT_SIZE_PERCENT_DEFAULT,
+  imageWidth: config.image_dimensions.default_width,
+  imageHeight: config.image_dimensions.default_height,
+  fontSizePercent: config.font_sizes.percent_default,
 };
 export const SHARED_CELL_ATTRS = {
   image: { display: 'none' },
   label: {
-    fill: config.COLOR_LABEL,
-    fontSize: config.FONT_SIZE_LABEL,
+    fill: config.colors.label,
+    fontSize: config.font_sizes.label,
     fontWeight: 'bold',
     pointerEvents: 'none',
   },
   descriptionLabel: {
     text: '',
-    fill: config.COLOR_DESCRIPTION,
-    fontSize: config.FONT_SIZE_DESCRIPTION,
+    fill: config.colors.description,
+    fontSize: config.font_sizes.description,
     pointerEvents: 'none',
   },
 }; // =============================================================

@@ -1,114 +1,81 @@
-// Colors
-export const COLOR_NODE_BACKGROUND = '#ffffff';
-export const COLOR_NODE_BORDER = '#adb5bd';
-export const COLOR_LABEL = '#212529';
-export const COLOR_DESCRIPTION = '#6c757d';
-export const COLOR_EDGE_LINE = '#495057';
-export const COLOR_EDGE_LABEL = '#333333';
-export const COLOR_ACCENT = '#3498db';
-export const COLOR_GRID_DOT = '#e9ecef';
-export const COLOR_DIVIDER = '#dee2e6';
-export const COLOR_EDGE_LABEL_BG = 'white';
-export const OPACITY_EDGE_LABEL_BG = 0.9;
+import * as defaultConfig from '../config.json';
 
-// Default node sizes
-export const NODE_DEFAULT_WIDTH = 140;
-export const NODE_DEFAULT_HEIGHT = 50;
-export const NODE_SQUARISH_SIZE = 80;
-export const NODE_MIN_WIDTH = 140;
-export const NODE_MIN_HEIGHT = 50;
-export const NODE_MIN_SQUARISH_SIZE = 80;
+export class Configuration {
+  colors!: {
+    node_background: string;
+    node_border: string;
+    label: string;
+    description: string;
+    edge_line: string;
+    edge_label: string;
+    accent: string;
+    grid_dot: string;
+    divider: string;
+    edge_label_bg: string;
+    opacity_edge_label_bg: number;
+  };
+  node_sizes!: {
+    default_width: number;
+    default_height: number;
+    squarish_size: number;
+    min_width: number;
+    min_height: number;
+    min_squarish_size: number;
+  };
+  image_dimensions!: {
+    default_width: number;
+    default_height: number;
+  };
+  font_sizes!: {
+    label: number;
+    description: number;
+    edge_label: number;
+    percent_default: number;
+  };
+  ui_measurements!: {
+    port_radius: number;
+    port_stroke_width: number;
+    node_padding: number;
+    image_spacing: number;
+    selection_padding: number;
+    selection_stroke_width: number;
+    edge_remove_distance: number;
+    edge_elbow_padding: number;
+    snap_radius: number;
+    router_padding: number;
+    router_max_iter: number;
+    duplicate_offset: number;
+    spiral_search_limit: number;
+  };
+  polygon_shape_ratios!: {
+    aspect_ratio: number;
+    triangle_scale: number;
+  };
+  zoom!: {
+    min: number;
+    max: number;
+    in_factor: number;
+    out_factor: number;
+    fit_min_scale: number;
+    fit_max_scale: number;
+    fit_padding: number;
+    wheel_sensitivity: number;
+  };
+  timing!: {
+    sidebar_resize_interval: number;
+    sidebar_anim_duration: number;
+    blob_url_revoke_delay: number;
+  };
 
-// Default image dimensions
-export const IMAGE_DEFAULT_WIDTH = 32;
-export const IMAGE_DEFAULT_HEIGHT = 32;
+  constructor(config?: Partial<Configuration>) {
+    Object.assign(this, defaultConfig);
 
-// Font sizes
-export const FONT_SIZE_LABEL = 13;
-export const FONT_SIZE_DESCRIPTION = 11;
-export const FONT_SIZE_EDGE_LABEL = 12;
-export const FONT_SIZE_PERCENT_DEFAULT = 100;
+    if (config) {
+      for (const key in config) {
+        Object.assign((this as any)[key], (config as any)[key]);
+      }
+    }
+  }
+}
 
-// UI measurements
-export const PORT_RADIUS = 6;
-export const PORT_STROKE_WIDTH = 2;
-export const NODE_PADDING = 15;
-export const IMAGE_SPACING = 10;
-export const SELECTION_PADDING = 5;
-export const SELECTION_STROKE_WIDTH = 3;
-export const EDGE_REMOVE_DISTANCE = 20;
-export const EDGE_ELBOW_PADDING = 20;
-export const SNAP_RADIUS = 25;
-export const ROUTER_PADDING = 30;
-export const ROUTER_MAX_ITER = 200;
-export const DUPLICATE_OFFSET = 40;
-export const ZOOM_FIT_PADDING = 50;
-export const SPIRAL_SEARCH_LIMIT = 30;
-
-// Polygon shape ratios
-export const POLYGON_ASPECT_RATIO = 1.2;
-export const TRIANGLE_SCALE = 1.25;
-
-// Zoom
-export const ZOOM_MIN = 0.1;
-export const ZOOM_MAX = 10;
-export const ZOOM_IN_FACTOR = 1.25;
-export const ZOOM_OUT_FACTOR = 0.8;
-export const ZOOM_FIT_MIN_SCALE = 0.2;
-export const ZOOM_FIT_MAX_SCALE = 2;
-export const ZOOM_WHEEL_SENSITIVITY = 0.0015;
-
-// Timing (ms)
-export const SIDEBAR_RESIZE_INTERVAL = 16;
-export const SIDEBAR_ANIM_DURATION = 350;
-export const BLOB_URL_REVOKE_DELAY = 1000;
-
-export default {
-  COLOR_NODE_BACKGROUND,
-  COLOR_NODE_BORDER,
-  COLOR_LABEL,
-  COLOR_DESCRIPTION,
-  COLOR_EDGE_LINE,
-  COLOR_EDGE_LABEL,
-  COLOR_ACCENT,
-  COLOR_GRID_DOT,
-  COLOR_DIVIDER,
-  COLOR_EDGE_LABEL_BG,
-  OPACITY_EDGE_LABEL_BG,
-  NODE_DEFAULT_WIDTH,
-  NODE_DEFAULT_HEIGHT,
-  NODE_SQUARISH_SIZE,
-  NODE_MIN_WIDTH,
-  NODE_MIN_HEIGHT,
-  NODE_MIN_SQUARISH_SIZE,
-  IMAGE_DEFAULT_WIDTH,
-  IMAGE_DEFAULT_HEIGHT,
-  FONT_SIZE_LABEL,
-  FONT_SIZE_DESCRIPTION,
-  FONT_SIZE_EDGE_LABEL,
-  FONT_SIZE_PERCENT_DEFAULT,
-  PORT_RADIUS,
-  PORT_STROKE_WIDTH,
-  NODE_PADDING,
-  IMAGE_SPACING,
-  SELECTION_PADDING,
-  SELECTION_STROKE_WIDTH,
-  EDGE_REMOVE_DISTANCE,
-  EDGE_ELBOW_PADDING,
-  SNAP_RADIUS,
-  ROUTER_PADDING,
-  ROUTER_MAX_ITER,
-  DUPLICATE_OFFSET,
-  ZOOM_FIT_MIN_SCALE,
-  ZOOM_FIT_MAX_SCALE,
-  ZOOM_FIT_PADDING,
-  ZOOM_MIN,
-  ZOOM_MAX,
-  ZOOM_IN_FACTOR,
-  ZOOM_OUT_FACTOR,
-  ZOOM_WHEEL_SENSITIVITY,
-  SIDEBAR_RESIZE_INTERVAL,
-  SIDEBAR_ANIM_DURATION,
-  SPIRAL_SEARCH_LIMIT,
-  BLOB_URL_REVOKE_DELAY,
-};
+export const config = new Configuration();

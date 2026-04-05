@@ -1,3 +1,4 @@
+import { config } from './config';
 import type { SerializedDiagram, SerializedNodeType } from './types';
 import { UnknownNodeTypeError } from './types';
 import { DiagramNode } from './node';
@@ -49,6 +50,7 @@ Object.assign(window, {
 });
 
 export {
+  config,
   DiagramEditor,
   DiagramNode,
   RectangleNode,

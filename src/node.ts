@@ -1,4 +1,4 @@
-import * as config from './config';
+import { config } from './config';
 import { DiagramEditor } from './editor';
 import { EventBus } from './eventbus';
 import { Edge } from './edges';
@@ -26,16 +26,16 @@ export class DiagramNode extends EventBus {
   // headless backing fields
   private _headlessX?: number;
   private _headlessY?: number;
-  private _labelColor: string = config.COLOR_LABEL;
-  private _labelFontSize: number = config.FONT_SIZE_PERCENT_DEFAULT;
+  private _labelColor: string = config.colors.label;
+  private _labelFontSize: number = config.font_sizes.percent_default;
   private _description: string = '';
-  private _descriptionColor: string = config.COLOR_DESCRIPTION;
-  private _backgroundColor: string = config.COLOR_NODE_BACKGROUND;
-  private _borderColor: string = config.COLOR_NODE_BORDER;
+  private _descriptionColor: string = config.colors.description;
+  private _backgroundColor: string = config.colors.node_background;
+  private _borderColor: string = config.colors.node_border;
   private _borderWidth: number = 2;
   private _imageUrl: string = '';
-  private _imageWidth: number = config.IMAGE_DEFAULT_WIDTH;
-  private _imageHeight: number = config.IMAGE_DEFAULT_HEIGHT;
+  private _imageWidth: number = config.image_dimensions.default_width;
+  private _imageHeight: number = config.image_dimensions.default_height;
 
   constructor(options: NodeOptions | string = {}) {
     super();
@@ -284,7 +284,7 @@ export class DiagramNode extends EventBus {
   public _buildCell(
     position: Point,
     jointNamespace: any,
-    portRadius: number = config.PORT_RADIUS,
+    portRadius: number = config.ui_measurements.port_radius,
   ): any {
     throw new Error('_buildCell must be implemented by subclass');
   }
