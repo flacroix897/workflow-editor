@@ -99,8 +99,12 @@ export class DiagramEditorComponent implements AfterViewInit, OnDestroy {
     return this._editor.serializeTypes();
   }
 
-  deserialize(json: string | SerializedDiagram): Promise<DiagramEditor> {
-    return this._editor.deserialize(json);
+  deserialize(
+    json: string | SerializedDiagram,
+    autoArrange: boolean = false,
+    center: boolean | 'fit' = true,
+  ): Promise<DiagramEditor> {
+    return this._editor.deserialize(json, autoArrange, center);
   }
 
   registerNodeType(label: string, NodeClass: NodeConstructor, name?: string): void {

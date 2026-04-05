@@ -114,7 +114,11 @@ export class DiagramEditor extends EventBus {
   }
 
   // ── Public API ──────────────────────────────────────────────
-  public async render(container: HTMLElement): Promise<this> {
+  public async render(
+    container: HTMLElement,
+    autoArrange: boolean | null = null,
+    center: boolean | 'fit' = true,
+  ): Promise<this> {
     if (this._graph)
       throw new Error('DiagramEditor.render() can only be called once.');
 
@@ -177,8 +181,11 @@ export class DiagramEditor extends EventBus {
           delete n.y;
         });
       }
-      await this.deserialize(serialized);
-      if (shouldAutoArrange) await this.autoArrange();
+      await this.deserialize(
+        serialized,
+        autoArrange === true || (autoArrange === null && shouldAutoArrange),
+        center,
+      );
     }
 
     return this;
@@ -654,7 +661,11 @@ export class DiagramEditor extends EventBus {
     return JSON.stringify(result);
   }
 
-  public async deserialize(json: string | SerializedDiagram): Promise<this> {
+  public async deserialize(
+    json: string | SerializedDiagram,
+    autoArrange: boolean = false,
+    center: boolean | 'fit' = true,
+  ): Promise<this> {
     let parsedDiagram: SerializedDiagram;
     try {
       parsedDiagram = typeof json === 'string' ? JSON.parse(json) : json;
@@ -788,6 +799,16 @@ export class DiagramEditor extends EventBus {
     }
 
     this.emit('change');
+    if (autoArrange) {
+      await this.autoArrange();
+    }
+    if (center) {
+      if (center === 'fit') {
+        this.zoomToFit();
+      } else {
+        this.centerContent();
+      }
+    }
     return this;
   }
 
@@ -2145,6 +2166,7 @@ export class DiagramEditor extends EventBus {
               bbox.y + bbox.height / 2 + config.DUPLICATE_OFFSET,
             );
             copy.select();
+            this._focusCameraOnSelection();
           }
           return;
         }
@@ -2582,6 +2604,7 @@ export class DiagramEditor extends EventBus {
       bbox.y + bbox.height / 2 + config.DUPLICATE_OFFSET,
     );
     copy.select();
+    this._focusCameraOnSelection();
   }
 
   private _deleteSelected(): void {
@@ -2591,6 +2614,7 @@ export class DiagramEditor extends EventBus {
     item.remove();
   }
 
+  // TODO: should be a public method in node
   private _focusCameraOnSelection(): void {
     if (!this._selection) return;
     // TODO: For nodes, use node.x, node.y, node.width, node.height instead of
