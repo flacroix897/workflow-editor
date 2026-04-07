@@ -67,6 +67,12 @@ class NodeOptions:
     imageWidth:       int   = cfg.IMAGE_DEFAULT_WIDTH
     imageHeight:      int   = cfg.IMAGE_DEFAULT_HEIGHT
 
+    def __init__(self, data: dict | None = None, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        for k, v in data.items() if data else {}.items():
+            setattr(self, k, v)
+
     def to_dict(self) -> dict:
         return {
             "label":            self.label,
@@ -106,8 +112,9 @@ class DiagramNode:
 
     node_class: str = "DiagramNode"
 
-    def __init__(self, options: NodeOptions | str | None = None):
+    def __init__(self, options: NodeOptions | str | None = None, *, _editor: DiagramEditor | None = None):
         self.id: str = f"node-{uuid.uuid4().hex[:10]}"
+        self._editor = _editor
 
         if isinstance(options, str):
             opts = NodeOptions(label=options)
@@ -207,6 +214,12 @@ class DiagramNode:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id!r} label={self.label!r}>"
+
+    def connect_to(self, node: DiagramNode, **kwargs) -> None:
+        self._editor.connect_to(self, node, **kwargs)
+
+    def remove(self) -> None:
+        self._editor.remove_node(self)
 
 
 # ── Built-in concrete node classes ────────────────────────────────────────────
@@ -310,6 +323,7 @@ class Edge:
         source_port:    Optional[int] = None,
         target_port:    Optional[int] = None,
         vertices:       list[Point]   | None = None,
+        _editor:        DiagramEditor | None = None,
     ):
         self.id            = f"edge-{uuid.uuid4().hex[:10]}"
         self.source        = source
@@ -327,6 +341,7 @@ class Edge:
         self.source_port   = source_port
         self.target_port   = target_port
         self.vertices: list[Point] = vertices or []
+        self._editor = _editor
 
     def add_path_point(self, x: float, y: float) -> Point:
         pt = Point(x, y)
@@ -359,6 +374,9 @@ class Edge:
         return (f"<Edge id={self.id!r} "
                 f"{self.source.label!r} → {self.target.label!r}>")
 
+    def remove(self) -> None:
+        self._editor.remove_edge(self)
+
 
 # ── DiagramEditor ─────────────────────────────────────────────────────────────
 
@@ -375,7 +393,7 @@ class DiagramEditor:
 
         a = editor.add_node(RectangleNode("Start"))
         b = editor.add_node(RectangleNode("End"), x=300, y=0)
-        editor.connect(a, b)
+        editor.connect_to(a, b)
 
         json_str = editor.serialize()
         editor2 = DiagramEditor()
@@ -423,6 +441,7 @@ class DiagramEditor:
         if y is not None:
             node.y = y
         self._nodes[node.id] = node
+        node._editor = self
         return node
 
     def remove_node(self, node: DiagramNode) -> None:
@@ -438,7 +457,7 @@ class DiagramEditor:
 
     # ── Edge management ───────────────────────────────────────────────────────
 
-    def connect(
+    def connect_to(
         self,
         source: DiagramNode,
         target: DiagramNode,
@@ -692,10 +711,10 @@ if __name__ == "__main__":
     review.set_custom_property("assignee", "alice")
     review.set_custom_property("priority", "high")
 
-    editor.connect(start,  review, label="begin")
-    editor.connect(review, done,   label="submit", line_style="dashed")
-    editor.connect(done,   end,    label="yes",    target_arrow="block")
-    editor.connect(done,   review, label="no",     connector_type="curved",
+    editor.connect_to(start,  review, label="begin")
+    editor.connect_to(review, done,   label="submit", line_style="dashed")
+    editor.connect_to(done,   end,    label="yes",    target_arrow="block")
+    editor.connect_to(done,   review, label="no",     connector_type="curved",
                    source_arrow="classic")
 
     json_str = editor.serialize()
