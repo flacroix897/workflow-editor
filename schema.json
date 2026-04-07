@@ -215,6 +215,14 @@
             "editProp": {
               "type": "string",
               "default": "label"
+            },
+            "category": {
+              "type": "string",
+              "description": "Library panel category (defaults to 'Uncategorized' when absent)"
+            },
+            "subcategory": {
+              "type": "string",
+              "description": "Optional nested group within the category"
             }
           }
         }

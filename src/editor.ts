@@ -128,20 +128,12 @@ export class DiagramEditor extends EventBus {
 
     // Backfill library items for node types registered while headless
     Object.entries(this._registeredNodeTypes).forEach(([label, NodeClass]) => {
-      const item = this._shapeLibrary.appendChild(
-        this._makeElement('div', 'wf-node-template'),
-      ) as HTMLElement;
-      item.textContent = (NodeClass as any).__nodeName ?? label;
-      item.draggable = true;
-      item.dataset.nodeTypeLabel = label;
-      item.addEventListener('click', () => {
-        if (!this._isMobile()) return;
-        this.addNode(new NodeClass());
-        if (!this._leftSidebar.classList.contains('wf-collapsed'))
-          this._toggleSidebar(this._leftSidebar);
-      });
-      item.addEventListener('dragstart', (event) =>
-        (event as DragEvent).dataTransfer!.setData('customNode', label),
+      this._addLibraryItem(
+        label,
+        NodeClass,
+        (NodeClass as any).__nodeName ?? label,
+        (NodeClass as any).__category   ?? 'Uncategorized',
+        (NodeClass as any).__subcategory,
       );
     });
 
@@ -195,37 +187,125 @@ export class DiagramEditor extends EventBus {
     label: string,
     NodeClass: NodeConstructor,
     name?: string,
+    category?: string,
+    subcategory?: string,
   ): void {
     const displayName = name ?? label;
+    const cat = category ?? 'Uncategorized';
+    const sub = subcategory;
     if (!this._isHeadless && !this._registeredNodeTypes[label]) {
-      const item = this._shapeLibrary.appendChild(
-        this._makeElement('div', 'wf-node-template'),
-      ) as HTMLElement;
-      item.textContent = displayName;
-      item.draggable = true;
-      item.dataset.nodeTypeLabel = label;
-      item.addEventListener('click', () => {
-        if (!this._isMobile()) return;
-        this.addNode(new NodeClass());
-        if (!this._leftSidebar.classList.contains('wf-collapsed'))
-          this._toggleSidebar(this._leftSidebar);
-      });
-      item.addEventListener('dragstart', (event) =>
-        (event as DragEvent).dataTransfer!.setData('customNode', label),
-      );
+      this._addLibraryItem(label, NodeClass, displayName, cat, sub);
     }
 
     // TODO: Replace these ad-hoc constructor stamps with a typed TypeRegistry map.
     (NodeClass as any).__nodeLabel = label;
     (NodeClass as any).__nodeName = displayName;
+    (NodeClass as any).__category = cat;
+    (NodeClass as any).__subcategory = sub;
     if (!Object.prototype.hasOwnProperty.call(NodeClass, 'nodeClass'))
       (NodeClass as any).nodeClass = label;
     this._registeredNodeTypes[label] = NodeClass;
   }
 
+  /**
+   * Creates a draggable node-template chip and inserts it into the correct
+   * category / subcategory group in the shape library, creating collapsible
+   * group headers on first use.
+   */
+  private _addLibraryItem(
+    label: string,
+    NodeClass: NodeConstructor,
+    displayName: string,
+    category: string,
+    subcategory?: string,
+  ): void {
+    // ── locate or create the category container ──────────────────────────────
+    let catSection = this._shapeLibrary.querySelector<HTMLElement>(
+      `[data-lib-cat="${CSS.escape(category)}"]`,
+    );
+    if (!catSection) {
+      catSection = this._makeElement('div', 'wf-lib-category') as HTMLElement;
+      catSection.dataset.libCat = category;
+
+      const catHeader = catSection.appendChild(
+        this._makeElement('button', 'wf-lib-category-header'),
+      ) as HTMLButtonElement;
+      catHeader.type = 'button';
+      catHeader.innerHTML =
+        `<svg class="wf-lib-chevron" width="14" height="14" viewBox="0 0 24 24" ` +
+        `fill="none" stroke="currentColor" stroke-width="2">` +
+        `<polyline points="6 9 12 15 18 9"/></svg>` +
+        `<span>${category}</span>`;
+      catHeader.addEventListener('click', () => {
+        const body = catSection!.querySelector<HTMLElement>('.wf-lib-category-body')!;
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        (catHeader.querySelector('.wf-lib-chevron') as HTMLElement).style.transform =
+          collapsed ? '' : 'rotate(-90deg)';
+      });
+
+      catSection.appendChild(this._makeElement('div', 'wf-lib-category-body'));
+      this._shapeLibrary.appendChild(catSection);
+    }
+
+    const catBody = catSection.querySelector<HTMLElement>('.wf-lib-category-body')!;
+
+    // ── locate or create the subcategory container (if needed) ───────────────
+    let targetContainer: HTMLElement;
+    if (subcategory) {
+      let subSection = catBody.querySelector<HTMLElement>(
+        `[data-lib-sub="${CSS.escape(subcategory)}"]`,
+      );
+      if (!subSection) {
+        subSection = this._makeElement('div', 'wf-lib-subcategory') as HTMLElement;
+        subSection.dataset.libSub = subcategory;
+
+        const subHeader = subSection.appendChild(
+          this._makeElement('button', 'wf-lib-subcategory-header'),
+        ) as HTMLButtonElement;
+        subHeader.type = 'button';
+        subHeader.innerHTML =
+          `<svg class="wf-lib-chevron" width="12" height="12" viewBox="0 0 24 24" ` +
+          `fill="none" stroke="currentColor" stroke-width="2">` +
+          `<polyline points="6 9 12 15 18 9"/></svg>` +
+          `<span>${subcategory}</span>`;
+        subHeader.addEventListener('click', () => {
+          const body = subSection!.querySelector<HTMLElement>('.wf-lib-subcategory-body')!;
+          const collapsed = body.style.display === 'none';
+          body.style.display = collapsed ? '' : 'none';
+          (subHeader.querySelector('.wf-lib-chevron') as HTMLElement).style.transform =
+            collapsed ? '' : 'rotate(-90deg)';
+        });
+
+        subSection.appendChild(this._makeElement('div', 'wf-lib-subcategory-body'));
+        catBody.appendChild(subSection);
+      }
+      targetContainer = subSection.querySelector<HTMLElement>('.wf-lib-subcategory-body')!;
+    } else {
+      targetContainer = catBody;
+    }
+
+    // ── build the draggable chip ─────────────────────────────────────────────
+    const item = targetContainer.appendChild(
+      this._makeElement('div', 'wf-node-template'),
+    ) as HTMLElement;
+    item.textContent = displayName;
+    item.draggable = true;
+    item.dataset.nodeTypeLabel = label;
+    item.addEventListener('click', () => {
+      if (!this._isMobile()) return;
+      this.addNode(new NodeClass());
+      if (!this._leftSidebar.classList.contains('wf-collapsed'))
+        this._toggleSidebar(this._leftSidebar);
+    });
+    item.addEventListener('dragstart', (e) =>
+      (e as DragEvent).dataTransfer!.setData('customNode', label),
+    );
+  }
+
   public registerBuiltInNodes(): void {
-    for (const { cls, name } of builtInShapes)
-      this.registerNodeType(cls.name, cls, name);
+    for (const { cls, name, category, subcategory } of builtInShapes)
+      this.registerNodeType(cls.name, cls, name, category, subcategory);
   }
 
   public addNode(
@@ -539,6 +619,12 @@ export class DiagramEditor extends EventBus {
           ...(editProp !== undefined && editProp !== 'label'
             ? { editProp }
             : {}),
+          ...((cls as any).__category
+            ? { category: (cls as any).__category }
+            : {}),
+          ...((cls as any).__subcategory
+            ? { subcategory: (cls as any).__subcategory }
+            : {}),
         };
       }
       return nodeClass as string;
@@ -730,7 +816,13 @@ export class DiagramEditor extends EventBus {
             editProp: (typeData as any).editProp ?? undefined,
           });
           (NodeClass as any).nodeClass = typeData.nodeClass;
-          this.registerNodeType(typeData.nodeClass, NodeClass, typeData.name);
+          this.registerNodeType(
+            typeData.nodeClass,
+            NodeClass,
+            typeData.name,
+            (typeData as any).category,
+            (typeData as any).subcategory,
+          );
         }
       }
     }

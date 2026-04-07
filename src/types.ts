@@ -86,6 +86,8 @@ export type SerializedNodeType =
       schema: Schema;
       visibleProps?: BuiltInNodeProp[];
       editProp?: string;
+      category?: string;
+      subcategory?: string;
     };
 
 export interface SerializedDiagram {

@@ -277,14 +277,16 @@ export const builtInShapes: {
   type: ShapeType;
   cls: NodeConstructor;
   name: string;
+  category: string;
+  subcategory?: string;
 }[] = [
-  { type: 'rect', cls: RectangleNode, name: 'Rectangle' },
-  { type: 'square', cls: SquareNode, name: 'Square' },
-  { type: 'ellipse', cls: EllipseNode, name: 'Ellipse' },
-  { type: 'circle', cls: CircleNode, name: 'Circle' },
-  { type: 'diamond', cls: DiamondNode, name: 'Diamond' },
-  { type: 'triangle', cls: TriangleNode, name: 'Triangle' },
-  { type: 'hexagon', cls: HexagonNode, name: 'Hexagon' },
-  { type: 'pentagon', cls: PentagonNode, name: 'Pentagon' },
-  { type: 'octagon', cls: OctagonNode, name: 'Octagon' },
+  { type: 'rect',     cls: RectangleNode, name: 'Rectangle', category: 'Shapes', subcategory: 'Basic'    },
+  { type: 'square',   cls: SquareNode,    name: 'Square',    category: 'Shapes', subcategory: 'Basic'    },
+  { type: 'ellipse',  cls: EllipseNode,   name: 'Ellipse',   category: 'Shapes', subcategory: 'Basic'    },
+  { type: 'circle',   cls: CircleNode,    name: 'Circle',    category: 'Shapes', subcategory: 'Basic'    },
+  { type: 'diamond',  cls: DiamondNode,   name: 'Diamond',   category: 'Shapes', subcategory: 'Basic'    },
+  { type: 'triangle', cls: TriangleNode,  name: 'Triangle',  category: 'Shapes', subcategory: 'Polygons' },
+  { type: 'hexagon',  cls: HexagonNode,   name: 'Hexagon',   category: 'Shapes', subcategory: 'Polygons' },
+  { type: 'pentagon', cls: PentagonNode,  name: 'Pentagon',  category: 'Shapes', subcategory: 'Polygons' },
+  { type: 'octagon',  cls: OctagonNode,   name: 'Octagon',   category: 'Shapes', subcategory: 'Polygons' },
 ];

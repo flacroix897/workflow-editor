@@ -309,6 +309,8 @@ type SerializedNodeType =
           schema: Schema;
           visibleProps?: BuiltInNodeProp[];
           editProp?: string;
+          category?: string;      // library panel group (default: "Uncategorized")
+          subcategory?: string;   // optional nested group within the category
       };
 
 interface SerializedDiagram {
