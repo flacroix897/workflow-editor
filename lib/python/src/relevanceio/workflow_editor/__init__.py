@@ -157,54 +157,54 @@ class DiagramNode:
     def label(self, v: str):            self._props['label'] = v
 
     @property
-    def labelColor(self) -> str:        return self._props['labelColor']
-    @labelColor.setter
-    def labelColor(self, v: str):       self._props['labelColor'] = v
+    def label_color(self) -> str:        return self._props['labelColor']
+    @label_color.setter
+    def label_color(self, v: str):       self._props['labelColor'] = v
 
     @property
-    def labelFontSize(self) -> int:     return self._props['labelFontSize']
-    @labelFontSize.setter
-    def labelFontSize(self, v: int):    self._props['labelFontSize'] = v
+    def label_font_size(self) -> int:    return self._props['labelFontSize']
+    @label_font_size.setter
+    def label_font_size(self, v: int):   self._props['labelFontSize'] = v
 
     @property
-    def description(self) -> str:       return self._props['description']
+    def description(self) -> str:        return self._props['description']
     @description.setter
-    def description(self, v: str):      self._props['description'] = v
+    def description(self, v: str):       self._props['description'] = v
 
     @property
-    def descriptionColor(self) -> str:  return self._props['descriptionColor']
-    @descriptionColor.setter
-    def descriptionColor(self, v: str): self._props['descriptionColor'] = v
+    def description_color(self) -> str:  return self._props['descriptionColor']
+    @description_color.setter
+    def description_color(self, v: str): self._props['descriptionColor'] = v
 
     @property
-    def backgroundColor(self) -> str:   return self._props['backgroundColor']
-    @backgroundColor.setter
-    def backgroundColor(self, v: str):  self._props['backgroundColor'] = v
+    def background_color(self) -> str:   return self._props['backgroundColor']
+    @background_color.setter
+    def background_color(self, v: str):  self._props['backgroundColor'] = v
 
     @property
-    def borderColor(self) -> str:       return self._props['borderColor']
-    @borderColor.setter
-    def borderColor(self, v: str):      self._props['borderColor'] = v
+    def border_color(self) -> str:       return self._props['borderColor']
+    @border_color.setter
+    def border_color(self, v: str):      self._props['borderColor'] = v
 
     @property
-    def borderWidth(self) -> int:       return self._props['borderWidth']
-    @borderWidth.setter
-    def borderWidth(self, v: int):      self._props['borderWidth'] = v
+    def border_width(self) -> int:       return self._props['borderWidth']
+    @border_width.setter
+    def border_width(self, v: int):      self._props['borderWidth'] = v
 
     @property
-    def imageUrl(self) -> str:          return self._props['imageUrl']
-    @imageUrl.setter
-    def imageUrl(self, v: str):         self._props['imageUrl'] = v
+    def image_url(self) -> str:          return self._props['imageUrl']
+    @image_url.setter
+    def image_url(self, v: str):         self._props['imageUrl'] = v
 
     @property
-    def imageWidth(self) -> int:        return self._props['imageWidth']
-    @imageWidth.setter
-    def imageWidth(self, v: int):       self._props['imageWidth'] = v
+    def image_width(self) -> int:        return self._props['imageWidth']
+    @image_width.setter
+    def image_width(self, v: int):       self._props['imageWidth'] = v
 
     @property
-    def imageHeight(self) -> int:       return self._props['imageHeight']
-    @imageHeight.setter
-    def imageHeight(self, v: int):      self._props['imageHeight'] = v
+    def image_height(self) -> int:       return self._props['imageHeight']
+    @image_height.setter
+    def image_height(self, v: int):      self._props['imageHeight'] = v
 
     # ── Custom props ─────────────────────────────────────────────────────────
 
@@ -346,17 +346,17 @@ class Edge:
         self.source        = source
         self.target        = target
         self.label         = label
-        self.labelColor    = labelColor
-        self.labelFontSize = labelFontSize
-        self.lineColor     = lineColor
-        self.lineWidth     = lineWidth
-        self.lineStyle     = lineStyle
-        self.sourceArrow   = sourceArrow
-        self.targetArrow   = targetArrow
-        self.connectorType = connectorType
-        self.description   = description
-        self.sourcePort    = sourcePort
-        self.targetPort    = targetPort
+        self.label_color    = labelColor
+        self.label_font_size = labelFontSize
+        self.line_color     = lineColor
+        self.line_width     = lineWidth
+        self.line_style     = lineStyle
+        self.source_arrow   = sourceArrow
+        self.target_arrow   = targetArrow
+        self.connector_type = connectorType
+        self.description    = description
+        self.source_port    = sourcePort
+        self.target_port    = targetPort
         self.vertices: list[Point] = vertices or []
         self._editor = _editor
 
@@ -372,17 +372,17 @@ class Edge:
         return {
             "sourceId":      self.source.id,
             "targetId":      self.target.id,
-            "sourcePort":    self.sourcePort,
-            "targetPort":    self.targetPort,
+            "sourcePort":    self.source_port,
+            "targetPort":    self.target_port,
             "label":         self.label,
-            "labelColor":    self.labelColor,
-            "labelFontSize": self.labelFontSize,
-            "lineColor":     self.lineColor,
-            "lineWidth":     self.lineWidth,
-            "lineStyle":     self.lineStyle,
-            "sourceArrow":   self.sourceArrow,
-            "targetArrow":   self.targetArrow,
-            "connectorType": self.connectorType,
+            "labelColor":    self.label_color,
+            "labelFontSize": self.label_font_size,
+            "lineColor":     self.line_color,
+            "lineWidth":     self.line_width,
+            "lineStyle":     self.line_style,
+            "sourceArrow":   self.source_arrow,
+            "targetArrow":   self.target_arrow,
+            "connectorType": self.connector_type,
             "description":   self.description,
             "vertices":      [v.to_dict() for v in self.vertices],
         }
