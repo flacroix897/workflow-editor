@@ -49,6 +49,28 @@
   #workflow-editor-status .dot.error {
     background: #d9534f;
   }
+
+  #workflow-editor-toolbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 16px;
+    font-size: 0.85em;
+  }
+
+  #workflow-editor-toolbar label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--body-quiet-color, #666);
+  }
+
+  #workflow-save-btn {
+    padding: 4px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+  }
 </style>
 {% endblock %} {% block content_title %}
 <h1>
@@ -57,15 +79,26 @@
     <span class="dot" id="status-dot"></span>
     <span id="status-label"></span>
   </span>
+  <span id="workflow-editor-toolbar">
+    <label>
+      <input type="checkbox" id="workflow-autosave" checked>
+      {% trans "Auto-save" %}
+    </label>
+    <button id="workflow-save-btn" class="button">{% trans "Save" %}</button>
+  </span>
 </h1>
 {% endblock %} {% block content %} {# editor.render() produces a fully self-contained HTML page (bundled JS + CSS). We embed it in a sandboxed iframe; the postMessage bridge below lets the outer page intercept `change` events and POST the diagram to post_url. #}
 <iframe id="workflow-editor-frame" sandbox="allow-scripts allow-same-origin" srcdoc="{{ editor_html }}"></iframe>
 
 <script>
-  const POST_URL = "{{ post_url|escapejs }}";
-  const dot = document.getElementById("status-dot");
-  const statusLabel = document.getElementById("status-label");
-  let saveTimer = null;
+  const POST_URL      = "{{ post_url|escapejs }}";
+  const dot           = document.getElementById("status-dot");
+  const statusLabel   = document.getElementById("status-label");
+  const autosaveCheck = document.getElementById("workflow-autosave");
+  const saveBtn       = document.getElementById("workflow-save-btn");
+
+  let saveTimer   = null;
+  let lastDiagram = null;
 
   function setStatus(state, text) {
     dot.className = `dot ${state}`;
@@ -73,40 +106,50 @@
   }
 
   function getCookie(name) {
-    const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
+    const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\/+^])/g, "\\$1") + "=([^;]*)"));
     return match ? decodeURIComponent(match[1]) : "";
   }
 
+  async function saveDiagram() {
+    if (!lastDiagram) return;
+    setStatus("saving", "Saving\u2026");
+    try {
+      const res = await fetch(POST_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: lastDiagram,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setStatus("saved", "Saved");
+    } catch (err) {
+      console.error("[WorkflowEditor] Save failed:", err);
+      setStatus("error", "Save failed");
+    }
+  }
+
+  // ── Manual save button ────────────────────────────────────────────────────
+  saveBtn.addEventListener("click", () => {
+    clearTimeout(saveTimer);
+    saveDiagram();
+  });
+
   // ── postMessage bridge ────────────────────────────────────────────────────
-  // editor.render() injects a window.parent.postMessage("workflow:change", "*")
-  // call into the iframe's change handler (see note below if your render()
-  // version does not yet do this — add the listener script manually).
   window.addEventListener("message", (event) => {
     if (event.data?.type !== "workflow:change") return;
 
+    lastDiagram = event.data.diagram;
+
+    if (!autosaveCheck.checked) {
+      setStatus("", "Unsaved changes");
+      return;
+    }
+
     clearTimeout(saveTimer);
-    setStatus("saving", "Saving…");
-
     // Debounce rapid successive changes (e.g. dragging a node).
-    saveTimer = setTimeout(async () => {
-      const payload = event.data.diagram; // serialized JSON string
-
-      try {
-        const res = await fetch(POST_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken"),
-          },
-          body: payload,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setStatus("saved", "Saved");
-      } catch (err) {
-        console.error("[WorkflowEditor] Save failed:", err);
-        setStatus("error", "Save failed");
-      }
-    }, 600);
+    saveTimer = setTimeout(saveDiagram, 600);
   });
 </script>
 {% endblock %}
