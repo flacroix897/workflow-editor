@@ -1,13 +1,19 @@
-from django.contrib import admin
-from django.urls import path
-from workflow_editor.views import workflow_editor_view, workflow_save_view
+"""
+URL patterns for relevanceio.workflow_editor.django.
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
+This module intentionally exports nothing. URL registration is handled by
+WorkflowViewSet (or SimpleWorkflowViewSet) in the consuming project's urlconf.
 
-    # Workflow editor — lives under /admin/ so the admin chrome renders correctly.
-    path("admin/workflow/editor/", workflow_editor_view, name="workflow-editor"),
+Example:
 
-    # Your save endpoint (must validate CSRF + require staff login independently).
-    path("admin/workflow/save/", workflow_save_view, name="workflow-save"),
-]
+    # myproject/urls.py
+    from django.urls import include, path
+    from relevanceio.workflow_editor.django.views import SimpleWorkflowViewSet
+
+    _viewset = SimpleWorkflowViewSet(app_name='myapp')
+
+    urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('admin/workflow/', include((_viewset.urls, 'myapp'))),
+    ]
+"""

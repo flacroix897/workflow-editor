@@ -1,9 +1,9 @@
 """
 management command: python manage.py seed_workflows
 
-Populates three sample Workflow rows so the editor can be opened on a
-non-empty canvas straight away. Safe to run multiple times — existing
-rows are left untouched.
+Populates three sample SimpleWorkflow rows so the editor can be opened on a
+non-empty canvas straight away. Safe to run multiple times — existing rows
+are left untouched.
 """
 import json
 
@@ -17,8 +17,7 @@ from relevanceio.workflow_editor import (
     RectangleNode,
     define_node_type,
 )
-
-from examples.django.workflow_editor_django.example.models import Workflow
+from relevanceio.workflow_editor.django.models import SimpleWorkflow
 
 
 def _build_approval_pipeline() -> dict:
@@ -86,7 +85,7 @@ def _build_etl_pipeline() -> dict:
 
 
 class Command(BaseCommand):
-    help = 'Seed the database with three sample Workflow instances.'
+    help = 'Seed the database with three sample SimpleWorkflow instances.'
 
     def handle(self, *args, **options):
         samples = [
@@ -95,14 +94,14 @@ class Command(BaseCommand):
             ('Blank Canvas', lambda: {'nodes': [], 'edges': [], 'nodeTypes': []}),
         ]
 
-        for name, builder in samples:
-            workflow, created = Workflow.objects.get_or_create(
-                name=name,
-                defaults={'diagram': builder()},
+        for title, builder in samples:
+            workflow, created = SimpleWorkflow.objects.get_or_create(
+                title=title,
+                defaults={'workflow_contents': builder()},
             )
             status = 'created' if created else 'skipped (already exists)'
-            self.stdout.write(f'  {status}: {workflow.name} (pk={workflow.pk})')
+            self.stdout.write(f'  {status}: {workflow.title} (pk={workflow.pk})')
 
         self.stdout.write(self.style.SUCCESS(
-            'Done. Open /admin/workflows/workflow/ to see them.'
+            'Done. Open /admin/workflow_editor_django/simpleworkflow/ to see them.'
         ))

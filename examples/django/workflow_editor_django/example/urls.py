@@ -1,10 +1,9 @@
-from django.urls import path
-
-from . import views
+from relevanceio.workflow_editor.django.views import SimpleWorkflowViewSet
 
 app_name = 'workflow_editor_django.example'
 
-urlpatterns = [
-    path('<int:pk>/editor/', views.workflow_editor_view, name='editor'),
-    path('<int:pk>/save/', views.workflow_save_view, name='save'),
-]
+_viewset = SimpleWorkflowViewSet(app_name=app_name)
+
+# Flat list — the namespace is registered by the outer include() in the
+# project urlconf, which reads app_name from this module directly.
+urlpatterns = _viewset.urls
