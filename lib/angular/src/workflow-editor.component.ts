@@ -119,8 +119,8 @@ export class DiagramEditorComponent implements AfterViewInit, OnDestroy {
     this._editor.clearRegisteredNodes();
   }
 
-  autoArrange(): void {
-    this._editor.autoArrange();
+  autoArrange(): Promise<DiagramEditor> {
+    return this._editor.autoArrange();
   }
 
   zoomToFit(): void {

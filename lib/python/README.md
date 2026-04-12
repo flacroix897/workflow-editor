@@ -112,19 +112,20 @@ python main.py
 | --------------------------------------- | ------------------- | ---------------------------------------------------- |
 | `DiagramEditor()`                       | `DiagramEditor`     | Create a headless editor                             |
 | `register_builtin_nodes()`              | `DiagramEditor`     | Register all nine built-in shapes                    |
-| `register_node_type(label, cls, name?)` | `None`              | Register a built-in node type class                  |
+| `register_node_type(label, cls, name?, category?, subcategory?)` | `None` | Register a node type class           |
 | `clear_registered_nodes()`              | `DiagramEditor`     | Unregister all node types                            |
 | `add_node(node, x?, y?)`                | `DiagramNode`       | Add a node with optional position                    |
 | `remove_node(node)`                     | `None`              | Remove a node and its edges                          |
 | `get_nodes()`                           | `list[DiagramNode]` | All nodes                                            |
 | `get_edges()`                           | `list[Edge]`        | All edges                                            |
-| `connect(source, target, **kwargs)`     | `Edge`              | Connect two nodes                                    |
+| `connect_to(source, target, **kwargs)`  | `Edge`              | Connect two nodes                                    |
 | `remove_edge(edge)`                     | `None`              | Remove a specific edge                               |
+| `auto_arrange()`                        | `DiagramEditor`     | Clear node positions for Dagre re-layout on load     |
 | `clear()`                               | `DiagramEditor`     | Remove all nodes and edges                           |
 | `serialize(include_types?)`             | `str`               | Serialize to JSON string                             |
 | `serialize_nodes()`                     | `dict`              | Serialize nodes and edges only                       |
 | `serialize_types()`                     | `list`              | Serialize type definitions only                      |
-| `deserialize(json_data)`                | `DiagramEditor`     | Restore from JSON string or dict                     |
+| `deserialize(json_data, auto_arrange?, center?)` | `DiagramEditor` | Restore from JSON string or dict              |
 | `export_to_file(path, include_types?)`  | `None`              | Write JSON to file                                   |
 | `import_from_file(path)`                | `DiagramEditor`     | Load JSON from file                                  |
 | `validate(schema_path?)`                | `None`              | Validate against schema.json (requires `jsonschema`) |
@@ -139,11 +140,17 @@ python main.py
 | `description`, `description_color`                 | Description properties                 |
 | `background_color`, `border_color`, `border_width` | Visual style                           |
 | `image_url`, `image_width`, `image_height`         | Image properties                       |
+| `move_to(x, y)`                                   | Move to absolute canvas coordinates    |
+| `move_by(dx, dy)`                                  | Move by a relative offset              |
+| `get_edges()`                                      | All connected edges                    |
+| `get_incoming_edges()`                             | Edges where this node is the target    |
+| `get_outgoing_edges()`                             | Edges where this node is the source    |
+| `connect_to(target, **kwargs)`                     | Connect to another node, returns Edge  |
 | `get_custom_property(key)`                         | Get a custom property value            |
 | `set_custom_property(key, value)`                  | Set a custom property value            |
 | `get_schema()`                                     | Return the custom property schema dict |
 
-### `Edge` keyword arguments for `connect()`
+### `Edge` keyword arguments for `connect_to()`
 
 | Argument                     | Type                                | Default     | Description          |
 | ---------------------------- | ----------------------------------- | ----------- | -------------------- |
@@ -166,6 +173,8 @@ TaskNode = define_node_type(
     node_class_name='TaskNode',
     defaults=NodeOptions(label='New Task'),
     schema={ 'assignee': {'label': 'Assignee', 'type': 'text', 'default': ''} },
-    name='Task',   # optional display name
+    name='Task',          # optional display name
+    visible_props=['label', 'backgroundColor'],  # optional: restrict panel fields
+    edit_prop='label',    # optional: which prop Enter/F2 focuses
 )
 ```

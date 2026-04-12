@@ -214,11 +214,40 @@ class DiagramNode:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id!r} label={self.label!r}>"
 
-    def connect_to(self, node: DiagramNode, **kwargs) -> None:
-        self._editor.connect_to(self, node, **kwargs)
+    def connect_to(self, target: DiagramNode, **kwargs) -> "Edge":
+        return self._editor.connect_to(self, target, **kwargs)
 
     def remove(self) -> None:
         self._editor.remove_node(self)
+
+    def move_to(self, x: float, y: float) -> "DiagramNode":
+        """Move node to absolute canvas coordinates (mirrors moveTo)."""
+        self.x = x
+        self.y = y
+        return self
+
+    def move_by(self, dx: float, dy: float) -> "DiagramNode":
+        """Move node by a relative offset (mirrors moveBy)."""
+        self.x = (self.x or 0) + dx
+        self.y = (self.y or 0) + dy
+        return self
+
+    def get_edges(self) -> list["Edge"]:
+        """All edges connected to this node (mirrors getEdges)."""
+        if self._editor is None:
+            return []
+        return [
+            e for e in self._editor.get_edges()
+            if e.source is self or e.target is self
+        ]
+
+    def get_incoming_edges(self) -> list["Edge"]:
+        """Edges where this node is the target (mirrors getIncomingEdges)."""
+        return [e for e in self.get_edges() if e.target is self]
+
+    def get_outgoing_edges(self) -> list["Edge"]:
+        """Edges where this node is the source (mirrors getOutgoingEdges)."""
+        return [e for e in self.get_edges() if e.source is self]
 
 
 # ── Built-in concrete node classes ────────────────────────────────────────────
@@ -249,6 +278,8 @@ def define_node_type(
     defaults: NodeOptions | None = None,
     schema: dict | None = None,
     name: str | None = None,
+    visible_props: list[str] | None = None,
+    edit_prop: str | None = None,
 ) -> type[DiagramNode]:
     """
     Create a custom node type, mirroring DiagramNode.define() in JS.
@@ -269,12 +300,16 @@ def define_node_type(
     class CustomNode(base_class):  # type: ignore[valid-type]
         pass
 
-    CustomNode.__name__  = node_class_name
-    CustomNode.node_class = node_class_name            # type: ignore[attr-defined]
-    CustomNode._base_class_name = base_class.node_class  # type: ignore[attr-defined]
-    CustomNode._default_options = _defaults            # type: ignore[attr-defined]
-    CustomNode._schema_def = _schema                   # type: ignore[attr-defined]
-    CustomNode._display_name = _name                   # type: ignore[attr-defined]
+    CustomNode.__name__       = node_class_name
+    CustomNode.node_class      = node_class_name             # type: ignore[attr-defined]
+    CustomNode._base_class_name = base_class.node_class      # type: ignore[attr-defined]
+    CustomNode._default_options = _defaults                  # type: ignore[attr-defined]
+    CustomNode._schema_def      = _schema                    # type: ignore[attr-defined]
+    CustomNode._display_name    = _name                      # type: ignore[attr-defined]
+    if visible_props is not None:
+        CustomNode._visible_props = visible_props            # type: ignore[attr-defined]
+    if edit_prop is not None:
+        CustomNode._edit_prop = edit_prop                    # type: ignore[attr-defined]
 
     def _init(self, options: NodeOptions | str | None = None):
         merged: NodeOptions = {**_defaults}
@@ -404,9 +439,15 @@ class DiagramEditor:
         label: str,
         node_class: type[DiagramNode],
         name: str | None = None,
+        category: str | None = None,
+        subcategory: str | None = None,
     ) -> None:
         """Register a node type by label (mirrors registerNodeType)."""
-        node_class.node_class = label           # type: ignore[attr-defined]
+        node_class.node_class = label                    # type: ignore[attr-defined]
+        if category is not None:
+            node_class._category = category              # type: ignore[attr-defined]
+        if subcategory is not None:
+            node_class._subcategory = subcategory        # type: ignore[attr-defined]
         self._registered_node_types[label] = node_class
 
     def register_builtin_nodes(self) -> "DiagramEditor":
@@ -494,6 +535,16 @@ class DiagramEditor:
     def get_edges(self) -> list[Edge]:
         return list(self._edges)
 
+    def auto_arrange(self) -> "DiagramEditor":
+        """
+        Clear x/y on every node so the TS editor re-runs Dagre layout on load
+        (mirrors autoArrange — headless: removes positions, layout done by TS).
+        """
+        for node in self._nodes.values():
+            node.x = None
+            node.y = None
+        return self
+
     # ── Clear ─────────────────────────────────────────────────────────────────
 
     def clear(self) -> "DiagramEditor":
@@ -532,7 +583,15 @@ class DiagramEditor:
                     },
                 }
                 if hasattr(cls, "_display_name"):
-                    entry["name"] = cls._display_name     # type: ignore[attr-defined]
+                    entry["name"] = cls._display_name          # type: ignore[attr-defined]
+                if hasattr(cls, "_visible_props"):
+                    entry["visibleProps"] = cls._visible_props  # type: ignore[attr-defined]
+                if hasattr(cls, "_edit_prop"):
+                    entry["editProp"] = cls._edit_prop          # type: ignore[attr-defined]
+                if hasattr(cls, "_category"):
+                    entry["category"] = cls._category           # type: ignore[attr-defined]
+                if hasattr(cls, "_subcategory"):
+                    entry["subcategory"] = cls._subcategory     # type: ignore[attr-defined]
                 result.append(entry)
         return result
 
@@ -546,10 +605,18 @@ class DiagramEditor:
             data["nodeTypes"] = self.serialize_types()
         return json.dumps(data, ensure_ascii=False, indent=2)
 
-    def deserialize(self, json_data: str | dict) -> "DiagramEditor":
+    def deserialize(
+        self,
+        json_data: str | dict,
+        auto_arrange: bool = False,
+        center: bool = True,
+    ) -> "DiagramEditor":
         """
-        Restore diagram from JSON (mirrors deserialize(json)).
+        Restore diagram from JSON (mirrors deserialize(json, autoArrange?, center?)).
         Re-registers custom node types present in the data.
+        When auto_arrange=True the x/y of every restored node is cleared so
+        the TS editor (or a subsequent serialize()) triggers Dagre on load.
+        center is accepted for API parity but is a no-op in headless mode.
         """
         if isinstance(json_data, str):
             raw = json.loads(json_data)
@@ -630,6 +697,9 @@ class DiagramEditor:
                 targetPort=ed.get("targetPort"),
                 vertices=verts,
             ))
+
+        if auto_arrange:
+            self.auto_arrange()
 
         return self
 

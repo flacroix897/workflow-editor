@@ -146,7 +146,7 @@ All methods are proxies to the underlying `DiagramEditor` instance.
 | `registerNodeType(label, NodeClass, name?, category?, subcategory?)` | `void`                        | Register a custom node type                     |
 | `registerBuiltInNodes()`                    | `void`                        | Register all built-in shapes                    |
 | `clearRegisteredNodes()`                    | `void`                        | Unregister all node types                       |
-| `autoArrange()`                             | `void`                        | Dagre auto-layout                               |
+| `autoArrange()`                             | `Promise<DiagramEditor>`      | Dagre auto-layout                               |
 | `zoomToFit()`                               | `void`                        | Zoom to fit all content                         |
 | `zoomIn(factor?)`                           | `void`                        | Zoom in                                         |
 | `zoomOut(factor?)`                          | `void`                        | Zoom out                                        |
