@@ -1,0 +1,161 @@
+{% extends "admin/base_site.html" %} {% load i18n %} {% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans "Home" %}</a>
+  {% if opts %} &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a> &rsaquo; <a href="{% url 'admin:'|add:opts.app_label|add:'_'|add:opts.model_name|add:'_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a> &rsaquo; <a href="{% url 'admin:'|add:opts.app_label|add:'_'|add:opts.model_name|add:'_change' workflow.pk %}">{{ workflow_name }}</a>
+  &rsaquo; {% trans "Workflow Editor" %} {% else %} &rsaquo; {% trans "Workflow Editor" %} {% endif %}
+</div>
+{% endblock %} {% block title %}Workflow Editor | {{ site_title|default:_("Django site admin") }}{% endblock %} {% block extrahead %} {{ block.super }}
+<style>
+  #content {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 125px);
+    padding-bottom: 0;
+  }
+
+  #workflow-editor-wrap {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #workflow-editor-frame {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    display: block;
+  }
+
+  #workflow-editor-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--body-quiet-color, #666);
+    margin-left: 12px;
+  }
+
+  #workflow-editor-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+    transition: background 0.3s;
+  }
+
+  #workflow-editor-status .dot.saving {
+    background: #f0ad4e;
+  }
+  #workflow-editor-status .dot.saved {
+    background: #5cb85c;
+  }
+  #workflow-editor-status .dot.error {
+    background: #d9534f;
+  }
+
+  #workflow-editor-toolbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 16px;
+    font-size: 0.85em;
+  }
+
+  #workflow-editor-toolbar label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--body-quiet-color, #666);
+  }
+
+  #workflow-save-btn {
+    padding: 4px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+  }
+</style>
+{% endblock %} {% block content_title %}
+<h1>
+  {% trans "Workflow Editor" %}
+  <span id="workflow-editor-status">
+    <span class="dot" id="status-dot"></span>
+    <span id="status-label"></span>
+  </span>
+  <span id="workflow-editor-toolbar">
+    <label>
+      <input type="checkbox" id="workflow-autosave" checked />
+      {% trans "Auto-save" %}
+    </label>
+    <button id="workflow-save-btn" class="button">{% trans "Save" %}</button>
+  </span>
+</h1>
+{% endblock %} {% block content %}
+<div id="workflow-editor-wrap">
+  <iframe id="workflow-editor-frame" sandbox="allow-scripts allow-same-origin" srcdoc="{{ editor_html|force_escape }}"></iframe>
+</div>
+
+<script>
+  const POST_URL = "{{ post_url|escapejs }}";
+  const dot = document.getElementById("status-dot");
+  const statusLabel = document.getElementById("status-label");
+  const autosaveCheck = document.getElementById("workflow-autosave");
+  const saveBtn = document.getElementById("workflow-save-btn");
+
+  let saveTimer = null;
+  let lastDiagram = null;
+
+  function setStatus(state, text) {
+    dot.className = `dot ${state}`;
+    statusLabel.textContent = text;
+  }
+
+  function getCookie(name) {
+    const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\/+^])/g, "\\$1") + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  async function saveDiagram() {
+    if (!lastDiagram) return;
+    setStatus("saving", "Saving…");
+    try {
+      const res = await fetch(POST_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: lastDiagram,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setStatus("saved", "Saved");
+    } catch (err) {
+      console.error("[WorkflowEditor] Save failed:", err);
+      setStatus("error", "Save failed");
+    }
+  }
+
+  saveBtn.addEventListener("click", () => {
+    clearTimeout(saveTimer);
+    saveDiagram();
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type !== "workflow:change") return;
+
+    lastDiagram = event.data.diagram;
+
+    if (!autosaveCheck.checked) {
+      setStatus("", "Unsaved changes");
+      return;
+    }
+
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDiagram, 600);
+  });
+</script>
+{% endblock %}
