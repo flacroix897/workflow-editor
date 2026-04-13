@@ -7,6 +7,13 @@
       "request": "launch",
       "command": "npm run dev",
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Example: Angular",
+      "request": "launch",
+      "command": "npm start",
+      "cwd": "${workspaceFolder}/examples/angular"
     }
   ]
 }

@@ -26,16 +26,16 @@ export class DiagramNode extends EventBus {
   // headless backing fields
   private _headlessX?: number;
   private _headlessY?: number;
-  private _labelColor: string = config.colors.label;
-  private _labelFontSize: number = config.font_sizes.percent_default;
+  private _labelColor: string = config.nodes.label_color;
+  private _labelFontSize: number = config.nodes.font_size_percent_default;
   private _description: string = '';
-  private _descriptionColor: string = config.colors.description;
-  private _backgroundColor: string = config.colors.node_background;
-  private _borderColor: string = config.colors.node_border;
-  private _borderWidth: number = config.node_sizes.border_width;
+  private _descriptionColor: string = config.nodes.description_color;
+  private _backgroundColor: string = config.nodes.background_color;
+  private _borderColor: string = config.nodes.border_color;
+  private _borderWidth: number = config.nodes.border_width;
   private _imageUrl: string = '';
-  private _imageWidth: number = config.image_dimensions.default_width;
-  private _imageHeight: number = config.image_dimensions.default_height;
+  private _imageWidth: number = config.nodes.image_width;
+  private _imageHeight: number = config.nodes.image_height;
 
   constructor(options: NodeOptions | string = {}) {
     super();
@@ -284,7 +284,7 @@ export class DiagramNode extends EventBus {
   public _buildCell(
     position: Point,
     jointNamespace: any,
-    portRadius: number = config.ui_measurements.port_radius,
+    portRadius: number = config.diagram.port_radius,
   ): any {
     throw new Error('_buildCell must be implemented by subclass');
   }

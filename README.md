@@ -131,8 +131,8 @@ Configuration is done through a singleton instance located in [config.ts](src/co
 ```typescript
 import { config, DiagramEditor } from "@relevance/workflow-editor/config";
 
-config.image_dimensions.default_width = 64;
-config.image_dimensions.default_height = 64;
+config.nodes.image_width = 64;
+config.nodes.image_height = 64;
 
 const editor = new DiagramEditor();
 ```

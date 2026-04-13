@@ -132,7 +132,7 @@ export class DiagramEditor extends EventBus {
         label,
         NodeClass,
         (NodeClass as any).__nodeName ?? label,
-        (NodeClass as any).__category   ?? 'Uncategorized',
+        (NodeClass as any).__category ?? 'Uncategorized',
         (NodeClass as any).__subcategory,
       );
     });
@@ -237,18 +237,23 @@ export class DiagramEditor extends EventBus {
         `<polyline points="6 9 12 15 18 9"/></svg>` +
         `<span>${category}</span>`;
       catHeader.addEventListener('click', () => {
-        const body = catSection!.querySelector<HTMLElement>('.wf-lib-category-body')!;
+        const body = catSection!.querySelector<HTMLElement>(
+          '.wf-lib-category-body',
+        )!;
         const collapsed = body.style.display === 'none';
         body.style.display = collapsed ? '' : 'none';
-        (catHeader.querySelector('.wf-lib-chevron') as HTMLElement).style.transform =
-          collapsed ? '' : 'rotate(-90deg)';
+        (
+          catHeader.querySelector('.wf-lib-chevron') as HTMLElement
+        ).style.transform = collapsed ? '' : 'rotate(-90deg)';
       });
 
       catSection.appendChild(this._makeElement('div', 'wf-lib-category-body'));
       this._shapeLibrary.appendChild(catSection);
     }
 
-    const catBody = catSection.querySelector<HTMLElement>('.wf-lib-category-body')!;
+    const catBody = catSection.querySelector<HTMLElement>(
+      '.wf-lib-category-body',
+    )!;
 
     // ── locate or create the subcategory container (if needed) ───────────────
     let targetContainer: HTMLElement;
@@ -257,7 +262,10 @@ export class DiagramEditor extends EventBus {
         `[data-lib-sub="${CSS.escape(subcategory)}"]`,
       );
       if (!subSection) {
-        subSection = this._makeElement('div', 'wf-lib-subcategory') as HTMLElement;
+        subSection = this._makeElement(
+          'div',
+          'wf-lib-subcategory',
+        ) as HTMLElement;
         subSection.dataset.libSub = subcategory;
 
         const subHeader = subSection.appendChild(
@@ -270,17 +278,24 @@ export class DiagramEditor extends EventBus {
           `<polyline points="6 9 12 15 18 9"/></svg>` +
           `<span>${subcategory}</span>`;
         subHeader.addEventListener('click', () => {
-          const body = subSection!.querySelector<HTMLElement>('.wf-lib-subcategory-body')!;
+          const body = subSection!.querySelector<HTMLElement>(
+            '.wf-lib-subcategory-body',
+          )!;
           const collapsed = body.style.display === 'none';
           body.style.display = collapsed ? '' : 'none';
-          (subHeader.querySelector('.wf-lib-chevron') as HTMLElement).style.transform =
-            collapsed ? '' : 'rotate(-90deg)';
+          (
+            subHeader.querySelector('.wf-lib-chevron') as HTMLElement
+          ).style.transform = collapsed ? '' : 'rotate(-90deg)';
         });
 
-        subSection.appendChild(this._makeElement('div', 'wf-lib-subcategory-body'));
+        subSection.appendChild(
+          this._makeElement('div', 'wf-lib-subcategory-body'),
+        );
         catBody.appendChild(subSection);
       }
-      targetContainer = subSection.querySelector<HTMLElement>('.wf-lib-subcategory-body')!;
+      targetContainer = subSection.querySelector<HTMLElement>(
+        '.wf-lib-subcategory-body',
+      )!;
     } else {
       targetContainer = catBody;
     }
@@ -345,11 +360,11 @@ export class DiagramEditor extends EventBus {
       node instanceof CircleNode ||
       node instanceof DiamondNode;
     const width = isSquarish
-      ? config.node_sizes.squarish_size
-      : config.node_sizes.default_width;
+      ? config.nodes.squarish_size
+      : config.nodes.default_width;
     const height = isSquarish
-      ? config.node_sizes.squarish_size
-      : config.node_sizes.default_height;
+      ? config.nodes.squarish_size
+      : config.nodes.default_height;
     const openPosition = this._findOpenPosition(
       localPosition.x - width / 2,
       localPosition.y - height / 2,
@@ -357,7 +372,7 @@ export class DiagramEditor extends EventBus {
       height,
     );
 
-    const portRadius = config.ui_measurements.port_radius;
+    const portRadius = config.diagram.port_radius;
     const cell = node._buildCell(openPosition, namespace, portRadius);
     cell.attr('label/text', node._label);
     const customLabel = (node.constructor as any).__nodeLabel;
@@ -680,11 +695,11 @@ export class DiagramEditor extends EventBus {
           sourcePort: headlessEdge.props.sourcePort ?? null,
           targetPort: headlessEdge.props.targetPort ?? null,
           label: headlessEdge.props.label ?? '',
-          labelColor: headlessEdge.props.labelColor ?? config.colors.edge_label,
+          labelColor: headlessEdge.props.labelColor ?? config.edges.label_color,
           labelFontSize:
             headlessEdge.props.labelFontSize ??
-            config.font_sizes.percent_default,
-          lineColor: headlessEdge.props.lineColor ?? config.colors.edge_line,
+            config.nodes.font_size_percent_default,
+          lineColor: headlessEdge.props.lineColor ?? config.edges.line_color,
           lineWidth: headlessEdge.props.lineWidth ?? 2,
           lineStyle: headlessEdge.props.lineStyle ?? 'solid',
           sourceArrow: headlessEdge.props.sourceArrow ?? 'none',
@@ -926,10 +941,10 @@ export class DiagramEditor extends EventBus {
     if (view) {
       view.el.classList.add('wf-selected');
       joint.highlighters.stroke.add(view, 'root', 'selection', {
-        padding: config.ui_measurements.selection_padding,
+        padding: config.diagram.selection_padding,
         attrs: {
-          stroke: config.colors.accent,
-          'stroke-width': config.ui_measurements.selection_stroke_width,
+          stroke: config.diagram.accent_color,
+          'stroke-width': config.diagram.selection_stroke_width,
         },
       });
     }
@@ -1018,7 +1033,7 @@ export class DiagramEditor extends EventBus {
     const link = new joint.shapes.standard.Link({
       attrs: {
         line: {
-          stroke: config.colors.edge_line,
+          stroke: config.edges.line_color,
           strokeWidth: 2,
           targetMarker: ARROW_MARKERS.classic as any,
         },
@@ -1081,21 +1096,23 @@ export class DiagramEditor extends EventBus {
     if (!labelElement || !descriptionElement) return;
 
     const fontScale =
-      (cell.get('fontSizePercent') || config.font_sizes.percent_default) /
-      config.font_sizes.percent_default;
+      (cell.get('fontSizePercent') || config.nodes.font_size_percent_default) /
+      config.nodes.font_size_percent_default;
     cell.attr({
-      label: { fontSize: config.font_sizes.label * fontScale },
-      descriptionLabel: { fontSize: config.font_sizes.description * fontScale },
+      label: { fontSize: config.nodes.label_font_size * fontScale },
+      descriptionLabel: {
+        fontSize: config.nodes.description_font_size * fontScale,
+      },
     });
 
     const imageUrl: string = cell.get('imageUrl');
     const shapeType: ShapeType = cell.get('type');
     const descriptionText: string = cell.get('description') || '';
     const imageWidth: number =
-      cell.get('imageWidth') || config.image_dimensions.default_width;
+      cell.get('imageWidth') || config.nodes.image_width;
     const imageHeight: number =
-      cell.get('imageHeight') || config.image_dimensions.default_height;
-    const imageSpacing = imageUrl ? config.ui_measurements.image_spacing : 0;
+      cell.get('imageHeight') || config.nodes.image_height;
+    const imageSpacing = imageUrl ? config.diagram.image_spacing : 0;
 
     const labelBBox = labelElement.getBBox();
     const descriptionBBox = descriptionElement.getBBox();
@@ -1104,36 +1121,32 @@ export class DiagramEditor extends EventBus {
       (imageUrl ? imageWidth : 0) + imageSpacing + textWidth;
 
     let width = Math.max(
-      config.node_sizes.min_width,
-      config.ui_measurements.node_padding +
+      config.nodes.min_width,
+      config.diagram.node_padding +
         totalContentWidth +
-        config.ui_measurements.node_padding,
+        config.diagram.node_padding,
     );
     const totalTextHeight = descriptionText
       ? labelBBox.height + descriptionBBox.height
       : labelBBox.height;
     let height = Math.max(
-      config.node_sizes.min_height,
-      config.ui_measurements.node_padding +
+      config.nodes.min_height,
+      config.diagram.node_padding +
         Math.max(imageUrl ? imageHeight : 0, totalTextHeight) +
-        config.ui_measurements.node_padding,
+        config.diagram.node_padding,
     );
 
     if (shapeType === 'diamond' || shapeType === 'circle') {
-      width = height = Math.max(
-        width,
-        height,
-        config.node_sizes.min_squarish_size,
-      );
+      width = height = Math.max(width, height, config.nodes.min_squarish_size);
     } else if (
       ['triangle', 'hexagon', 'pentagon', 'octagon'].includes(shapeType)
     ) {
-      if (width / height > config.polygon_shape_ratios.aspect_ratio)
-        height = width / config.polygon_shape_ratios.aspect_ratio;
-      else width = height * config.polygon_shape_ratios.aspect_ratio;
+      if (width / height > config.nodes.aspect_ratio)
+        height = width / config.nodes.aspect_ratio;
+      else width = height * config.nodes.aspect_ratio;
       if (shapeType === 'triangle') {
-        width *= config.polygon_shape_ratios.triangle_scale;
-        height *= config.polygon_shape_ratios.triangle_scale;
+        width *= config.nodes.triangle_scale;
+        height *= config.nodes.triangle_scale;
       }
     }
 
@@ -1514,16 +1527,16 @@ export class DiagramEditor extends EventBus {
       width: '100%',
       height: '100%',
       gridSize: this.gridSize,
-      drawGrid: { name: 'dot', color: config.colors.grid_dot },
-      background: { color: config.colors.node_background },
+      drawGrid: { name: 'dot', color: config.diagram.grid_dot_color },
+      background: { color: config.nodes.background_color },
       cellNamespace: joint.shapes,
       defaultConnector: { name: 'rounded' },
       defaultRouter: {
         name: 'manhattan',
         args: {
           step: this.gridSize,
-          padding: config.ui_measurements.router_padding,
-          maxIter: config.ui_measurements.router_max_iter,
+          padding: config.diagram.router_padding,
+          maxIter: config.diagram.router_max_iter,
         },
       },
       interactive: {
@@ -1534,13 +1547,13 @@ export class DiagramEditor extends EventBus {
       },
       preventDefaultBlankAction: false,
       linkPinning: false,
-      snapLinks: { radius: config.ui_measurements.snap_radius },
+      snapLinks: { radius: config.diagram.snap_radius },
       markAvailable: true,
       defaultLink: () =>
         new joint.shapes.standard.Link({
           attrs: {
             line: {
-              stroke: config.colors.edge_line,
+              stroke: config.edges.line_color,
               strokeWidth: 2,
               targetMarker: ARROW_MARKERS.classic as any,
             },
@@ -1734,12 +1747,12 @@ export class DiagramEditor extends EventBus {
         // expects canvas-area pixel coordinates, so a conversion will be needed.
         const node = new NodeClass();
         const openPosition = this._findOpenPosition(
-          dropPosition.x - config.node_sizes.default_width / 2,
-          dropPosition.y - config.node_sizes.default_height / 2,
-          config.node_sizes.default_width,
-          config.node_sizes.default_height,
+          dropPosition.x - config.nodes.default_width / 2,
+          dropPosition.y - config.nodes.default_height / 2,
+          config.nodes.default_width,
+          config.nodes.default_height,
         );
-        const portRadius = config.ui_measurements.port_radius;
+        const portRadius = config.diagram.port_radius;
         const cell = node._buildCell(openPosition, joint.shapes, portRadius);
         cell.attr('label/text', node._label);
         node.cell = cell;
@@ -1791,18 +1804,18 @@ export class DiagramEditor extends EventBus {
       const node = new match.cls({ label: label.toUpperCase() });
       const isSquarish = ['square', 'circle', 'diamond'].includes(droppedType);
       const width = isSquarish
-        ? config.node_sizes.squarish_size
-        : config.node_sizes.default_width;
+        ? config.nodes.squarish_size
+        : config.nodes.default_width;
       const height = isSquarish
-        ? config.node_sizes.squarish_size
-        : config.node_sizes.default_height;
+        ? config.nodes.squarish_size
+        : config.nodes.default_height;
       const openPosition = this._findOpenPosition(
         dropPosition.x - width / 2,
         dropPosition.y - height / 2,
         width,
         height,
       );
-      const portRadius = config.ui_measurements.port_radius;
+      const portRadius = config.diagram.port_radius;
       const cell = node._buildCell(openPosition, joint.shapes, portRadius);
       cell.attr('label/text', node._label);
       node.cell = cell;
@@ -1927,10 +1940,10 @@ export class DiagramEditor extends EventBus {
     const CustomSourceArrowhead = joint.linkTools.SourceArrowhead.extend({
       tagName: 'circle',
       attributes: {
-        r: config.ui_measurements.port_radius,
-        fill: config.colors.accent,
-        stroke: config.colors.node_background,
-        'stroke-width': config.ui_measurements.port_stroke_width,
+        r: config.diagram.port_radius,
+        fill: config.diagram.accent_color,
+        stroke: config.nodes.background_color,
+        'stroke-width': config.diagram.port_stroke_width,
         cursor: 'move',
       },
     });
@@ -1998,7 +2011,7 @@ export class DiagramEditor extends EventBus {
             new CustomSourceArrowhead(),
             new joint.linkTools.TargetArrowhead({ offset: -1 }),
             new joint.linkTools.Remove({
-              distance: config.ui_measurements.edge_remove_distance,
+              distance: config.diagram.edge_remove_distance,
             }),
           ],
         }),
@@ -2260,10 +2273,8 @@ export class DiagramEditor extends EventBus {
                 ...src.customProps,
               }),
               // TODO: Same diagram-vs-canvas coordinate issue as _duplicateSelected.
-              bbox.x + bbox.width / 2 + config.ui_measurements.duplicate_offset,
-              bbox.y +
-                bbox.height / 2 +
-                config.ui_measurements.duplicate_offset,
+              bbox.x + bbox.width / 2 + config.diagram.duplicate_offset,
+              bbox.y + bbox.height / 2 + config.diagram.duplicate_offset,
             );
             copy.select();
             this._focusCameraOnSelection();
@@ -2493,7 +2504,7 @@ export class DiagramEditor extends EventBus {
     const hasVisibleBuiltIns = visibleProps === null || visibleProps.length > 0;
     if (hasVisibleBuiltIns) {
       const divider = customSection.appendChild(this._makeElement('div'));
-      divider.style.cssText = `border-top:1px solid ${config.colors.divider}; margin:4px 0;`;
+      divider.style.cssText = `border-top:1px solid ${config.diagram.divider_color}; margin:4px 0;`;
     }
 
     Object.entries(schema).forEach(([key, fieldDef]) => {
@@ -2706,8 +2717,8 @@ export class DiagramEditor extends EventBus {
       // but addNode() treats them as canvas-area pixel coordinates and runs them through
       // clientToLocalPoint, which produces wrong positions. Either add a diagram-coordinate
       // overload to addNode(), or convert to pixel coordinates before calling it.
-      bbox.x + bbox.width / 2 + config.ui_measurements.duplicate_offset,
-      bbox.y + bbox.height / 2 + config.ui_measurements.duplicate_offset,
+      bbox.x + bbox.width / 2 + config.diagram.duplicate_offset,
+      bbox.y + bbox.height / 2 + config.diagram.duplicate_offset,
     );
     copy.select();
     this._focusCameraOnSelection();
@@ -2930,7 +2941,7 @@ export class DiagramEditor extends EventBus {
     height: number,
     excludeCell: any = null,
   ): Point {
-    const clearance = config.ui_measurements.snap_radius;
+    const clearance = config.diagram.snap_radius;
     let x = Math.round(startX / this.gridSize) * this.gridSize;
     let y = Math.round(startY / this.gridSize) * this.gridSize;
 
@@ -2948,7 +2959,7 @@ export class DiagramEditor extends EventBus {
 
     for (
       let radius = 1;
-      radius < config.ui_measurements.spiral_search_limit;
+      radius < config.diagram.spiral_search_limit;
       radius++
     ) {
       for (let deltaX = -radius; deltaX <= radius; deltaX++) {

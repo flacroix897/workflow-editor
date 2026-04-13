@@ -1,42 +1,41 @@
 {
-  "colors": {
-    "node_background": "#ffffff",
-    "node_border": "#adb5bd",
-    "label": "#212529",
-    "description": "#6c757d",
-    "edge_line": "#495057",
-    "edge_label": "#333333",
-    "accent": "#3498db",
-    "grid_dot": "#e9ecef",
-    "divider": "#dee2e6",
-    "edge_label_bg": "white",
-    "opacity_edge_label_bg": 0.9
-  },
-  "node_sizes": {
+  "nodes": {
+    "background_color": "#ffffff",
+    "border_color": "#adb5bd",
+    "label_color": "#212529",
+    "description_color": "#6c757d",
+    "label_font_size": 13,
+    "description_font_size": 11,
+    "font_size_percent_default": 100,
     "default_width": 140,
     "default_height": 50,
-    "border_width": 2,
-    "edge_line_width": 2,
     "squarish_size": 80,
     "min_width": 140,
     "min_height": 50,
-    "min_squarish_size": 80
+    "min_squarish_size": 80,
+    "border_width": 2,
+    "image_width": 32,
+    "image_height": 32,
+    "aspect_ratio": 1.2,
+    "triangle_scale": 1.25
   },
-  "image_dimensions": {
-    "default_width": 32,
-    "default_height": 32
+  "edges": {
+    "line_color": "#495057",
+    "label_color": "#333333",
+    "label_background_color": "white",
+    "label_background_opacity": 0.9,
+    "label_font_size": 12,
+    "line_width": 2
   },
-  "font_sizes": {
-    "label": 13,
-    "description": 11,
-    "edge_label": 12,
-    "percent_default": 100
-  },
-  "ui_measurements": {
+  "diagram": {
+    "grid_dot_color": "#e9ecef",
+    "divider_color": "#dee2e6",
+    "accent_color": "#3498db",
     "port_radius": 6,
     "port_stroke_width": 2,
     "node_padding": 15,
     "image_spacing": 10,
+    "duplicate_offset": 40,
     "selection_padding": 5,
     "selection_stroke_width": 3,
     "edge_remove_distance": 20,
@@ -44,12 +43,7 @@
     "snap_radius": 25,
     "router_padding": 30,
     "router_max_iter": 200,
-    "duplicate_offset": 40,
     "spiral_search_limit": 30
-  },
-  "polygon_shape_ratios": {
-    "aspect_ratio": 1.2,
-    "triangle_scale": 1.25
   },
   "zoom": {
     "min": 0.1,
@@ -61,7 +55,7 @@
     "fit_padding": 50,
     "wheel_sensitivity": 0.0015
   },
-  "timing_ms": {
+  "timing": {
     "sidebar_resize_interval": 16,
     "sidebar_anim_duration": 350,
     "blob_url_revoke_delay": 1000

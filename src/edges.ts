@@ -66,10 +66,10 @@ export class Edge extends EventBus {
 
   // headless backing fields
   private _label: string = '';
-  private _labelColor: string = config.colors.edge_label;
-  private _labelFontSize: number = config.font_sizes.percent_default;
-  private _lineColor: string = config.colors.edge_line;
-  private _lineWidth: number = config.node_sizes.edge_line_width;
+  private _labelColor: string = config.edges.label_color;
+  private _labelFontSize: number = config.nodes.font_size_percent_default;
+  private _lineColor: string = config.edges.line_color;
+  private _lineWidth: number = config.edges.line_width;
   private _lineStyle: LineStyle = 'solid';
   private _sourceArrow: ArrowMarkerName = 'none';
   private _targetArrow: ArrowMarkerName = 'classic';
@@ -117,7 +117,7 @@ export class Edge extends EventBus {
 
   public get labelColor(): string {
     if (!this.link) return this._labelColor;
-    return this.link.label(0)?.attrs?.text?.fill || config.colors.edge_label;
+    return this.link.label(0)?.attrs?.text?.fill || config.edges.label_color;
   }
   public set labelColor(value: string) {
     this._labelColor = value;
@@ -131,7 +131,7 @@ export class Edge extends EventBus {
   public get labelFontSize(): number {
     if (!this.link) return this._labelFontSize;
     return (
-      this.link.get('fontSizePercent') || config.font_sizes.percent_default
+      this.link.get('fontSizePercent') || config.nodes.font_size_percent_default
     );
   }
   public set labelFontSize(value: number) {
@@ -145,7 +145,7 @@ export class Edge extends EventBus {
 
   public get lineColor(): string {
     if (!this.link) return this._lineColor;
-    return this.link.attr('line/stroke') || config.colors.edge_line;
+    return this.link.attr('line/stroke') || config.edges.line_color;
   }
   public set lineColor(value: string) {
     this._lineColor = value;
@@ -218,7 +218,7 @@ export class Edge extends EventBus {
       if (value === 'elbow') {
         this.link.router('manhattan', {
           step: gridSize,
-          padding: config.ui_measurements.edge_elbow_padding,
+          padding: config.diagram.edge_elbow_padding,
         });
         this.link.connector('rounded');
       } else if (value === 'straight') {
@@ -287,18 +287,18 @@ export class Edge extends EventBus {
 
   private _applyLabel(text: string): void {
     const fontSize =
-      config.font_sizes.edge_label *
-      ((this.link.get('fontSizePercent') || config.font_sizes.percent_default) /
-        config.font_sizes.percent_default);
-    const color = this.link.get('labelColor') || config.colors.edge_label;
+      config.edges.label_font_size *
+      ((this.link.get('fontSizePercent') || config.nodes.font_size_percent_default) /
+        config.nodes.font_size_percent_default);
+    const color = this.link.get('labelColor') || config.edges.label_color;
     if (text) {
       this.link.labels([
         {
           attrs: {
             text: { text, fill: color, fontSize, textVerticalAnchor: 'middle' },
             rect: {
-              fill: config.colors.edge_label_bg,
-              opacity: config.colors.opacity_edge_label_bg,
+              fill: config.edges.label_background_color,
+              opacity: config.edges.label_background_opacity,
             },
           },
           position: { distance: 0.5 },

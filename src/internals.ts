@@ -12,10 +12,10 @@ export function _attachPortsToCell(
       attrs: {
         circle: {
           r: portRadius,
-          fill: config.colors.accent,
+          fill: config.diagram.accent_color,
           magnet: true,
-          stroke: config.colors.node_background,
-          strokeWidth: config.ui_measurements.port_stroke_width,
+          stroke: config.nodes.background_color,
+          strokeWidth: config.diagram.port_stroke_width,
           pointerEvents: 'all',
         },
         text: { display: 'none' },
@@ -61,8 +61,8 @@ export function _buildRectangleCell(
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
     body: {
-      fill: config.colors.node_background,
-      stroke: config.colors.node_border,
+      fill: config.nodes.background_color,
+      stroke: config.nodes.border_color,
       strokeWidth: 2,
       rx: 5,
       ry: 5,
@@ -89,8 +89,8 @@ export function _buildEllipseCell(
   cell.position(position.x, position.y).resize(width, height);
   cell.attr({
     body: {
-      fill: config.colors.node_background,
-      stroke: config.colors.node_border,
+      fill: config.nodes.background_color,
+      stroke: config.nodes.border_color,
       strokeWidth: 2,
     },
     ...SHARED_CELL_ATTRS,
@@ -117,8 +117,8 @@ export function _buildPolygonCell(
   cell.attr({
     body: {
       refPoints: points.map((point) => point.join(',')).join(' '),
-      fill: config.colors.node_background,
-      stroke: config.colors.node_border,
+      fill: config.nodes.background_color,
+      stroke: config.nodes.border_color,
       strokeWidth: 2,
     },
     ...SHARED_CELL_ATTRS,
@@ -130,22 +130,22 @@ export function _buildPolygonCell(
 export const SHARED_CELL_DEFAULTS = {
   description: '',
   imageUrl: '',
-  imageWidth: config.image_dimensions.default_width,
-  imageHeight: config.image_dimensions.default_height,
-  fontSizePercent: config.font_sizes.percent_default,
+  imageWidth: config.nodes.image_width,
+  imageHeight: config.nodes.image_height,
+  fontSizePercent: config.nodes.font_size_percent_default,
 };
 export const SHARED_CELL_ATTRS = {
   image: { display: 'none' },
   label: {
-    fill: config.colors.label,
-    fontSize: config.font_sizes.label,
+    fill: config.nodes.label_color,
+    fontSize: config.nodes.label_font_size,
     fontWeight: 'bold',
     pointerEvents: 'none',
   },
   descriptionLabel: {
     text: '',
-    fill: config.colors.description,
-    fontSize: config.font_sizes.description,
+    fill: config.nodes.description_color,
+    fontSize: config.nodes.description_font_size,
     pointerEvents: 'none',
   },
 }; // =============================================================
