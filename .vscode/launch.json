@@ -14,6 +14,13 @@
       "request": "launch",
       "command": "npm start",
       "cwd": "${workspaceFolder}/examples/angular"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Example: Python",
+      "request": "launch",
+      "command": "python manage.py runserver 0.0.0.0:8001",
+      "cwd": "${workspaceFolder}/examples/django"
     }
   ]
 }
