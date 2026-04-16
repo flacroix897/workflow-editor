@@ -9,6 +9,7 @@ import {
   EventEmitter,
 } from '@angular/core';
 import {
+  Configuration,
   DiagramEditor,
   DiagramNode,
   Edge,
@@ -28,6 +29,7 @@ export class DiagramEditorComponent implements AfterViewInit, OnDestroy {
 
   @Input() width = '100%';
   @Input() height = '100%';
+  @Input() config: Partial<Configuration> = {};
 
   @Output() change = new EventEmitter<void>();
   @Output() nodeAdd = new EventEmitter<DiagramNode>();
@@ -46,7 +48,7 @@ export class DiagramEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this._editor = new DiagramEditor(this.containerRef.nativeElement);
+    this._editor = new DiagramEditor(this.containerRef.nativeElement, this.config);
 
     this._editor.on('change', () => this.change.emit());
     this._editor.on('node:add', (node: DiagramNode) => this.nodeAdd.emit(node));
